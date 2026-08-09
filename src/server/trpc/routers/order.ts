@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import type { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { router, protectedProcedure, publicProcedure, roleProcedure } from '../trpc';
 import { publishOrderEvent } from '../../ably';
 import { revertStockForOrder } from '../../stock/deduct';
@@ -8,7 +9,7 @@ import { revertStockForOrder } from '../../stock/deduct';
 const orderItemInput = z.object({
   menuItemId: z.string(),
   qty: z.number().int().positive(),
-  modifiers: z.record(z.any()).optional(),
+  modifiers: z.record(z.string(), z.any()).optional(),
 });
 
 const createOrderInput = z.object({
@@ -17,13 +18,21 @@ const createOrderInput = z.object({
   items: z.array(orderItemInput).min(1),
 });
 
-async function buildOrderItems(db: PrismaClient, items: z.infer<typeof orderItemInput>[]) {
+async function buildOrderItems(
+  db: PrismaClient,
+  items: z.infer<typeof orderItemInput>[]
+): Promise<Prisma.OrderItemUncheckedCreateWithoutOrderInput[]> {
   const menuItems = await db.menuItem.findMany({ where: { id: { in: items.map((i) => i.menuItemId) } } });
   const byId = new Map(menuItems.map((m) => [m.id, m]));
   return items.map((i) => {
     const menuItem = byId.get(i.menuItemId);
     if (!menuItem) throw new TRPCError({ code: 'NOT_FOUND', message: `menu item ${i.menuItemId} not found` });
-    return { menuItemId: i.menuItemId, qty: i.qty, modifiers: i.modifiers ?? {}, unitPrice: menuItem.price };
+    return {
+      menuItemId: i.menuItemId,
+      qty: i.qty,
+      modifiers: (i.modifiers ?? {}) as Prisma.InputJsonValue,
+      unitPrice: menuItem.price,
+    };
   });
 }
 
