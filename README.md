@@ -20,6 +20,22 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Testing
+
+Unit tests run against whatever `DATABASE_URL` currently resolves to (Vitest does not auto-load `.env`, so `DATABASE_URL` is otherwise undefined). Integration tests under `tests/integration/` hit a real Postgres database via Prisma, so they must be run against the **test** database (`pos_test`), not the dev database, to avoid clobbering dev data.
+
+Point `DATABASE_URL` at the test database (matching `DATABASE_URL_TEST` in `.env`) when running the test suite:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_test npm test
+```
+
+The test database's schema must be migrated first (once, or after adding new migrations):
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_test npx prisma migrate deploy
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
