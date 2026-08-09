@@ -1,0 +1,170 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  CASHIER
+  WAITER
+  KITCHEN
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum OrderSource {
+  STAFF
+  QR
+}
+
+enum OrderStatus {
+  OPEN
+  SENT_TO_KITCHEN
+  READY
+  SERVED
+  PAID
+  CANCELLED
+}
+
+enum ItemStatus {
+  QUEUED
+  PREPARING
+  READY
+  SERVED
+}
+
+enum StockReason {
+  SALE
+  MANUAL_ADJUST
+  RESTOCK
+  VOID_REVERT
+}
+
+model Store {
+  id   String @id @default(cuid())
+  name String
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  pinHash   String
+  role      Role
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  ordersCreated Order[]         @relation("OrderCreatedBy")
+  payments      Payment[]
+  stockMoves    StockMovement[]
+}
+
+model Table {
+  id        String   @id @default(cuid())
+  label     String   @unique
+  qrToken   String   @unique
+  createdAt DateTime @default(now())
+
+  orders Order[]
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  sortOrder Int        @default(0)
+  menuItems MenuItem[]
+}
+
+model MenuItem {
+  id         String   @id @default(cuid())
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  available  Boolean  @default(true)
+  image      String?
+  modifiers  Json?
+
+  recipes    Recipe[]
+  orderItems OrderItem[]
+}
+
+model Ingredient {
+  id                String   @id @default(cuid())
+  name              String
+  unit              String
+  stockQty          Decimal  @db.Decimal(10, 3)
+  lowStockThreshold Decimal  @db.Decimal(10, 3)
+
+  recipes   Recipe[]
+  movements StockMovement[]
+}
+
+model Recipe {
+  id           String     @id @default(cuid())
+  menuItemId   String
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id])
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  qtyPerUnit   Decimal    @db.Decimal(10, 3)
+
+  @@unique([menuItemId, ingredientId])
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  type        OrderType
+  tableId     String?
+  table       Table?      @relation(fields: [tableId], references: [id])
+  status      OrderStatus @default(OPEN)
+  source      OrderSource
+  createdById String?
+  createdBy   User?       @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  total       Decimal     @db.Decimal(10, 2) @default(0)
+  createdAt   DateTime    @default(now())
+
+  items    OrderItem[]
+  payments Payment[]
+}
+
+model OrderItem {
+  id            String     @id @default(cuid())
+  orderId       String
+  order         Order      @relation(fields: [orderId], references: [id])
+  menuItemId    String
+  menuItem      MenuItem   @relation(fields: [menuItemId], references: [id])
+  qty           Int
+  modifiers     Json?
+  unitPrice     Decimal    @db.Decimal(10, 2)
+  kitchenStatus ItemStatus @default(QUEUED)
+}
+
+model Payment {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id])
+  amount       Decimal  @db.Decimal(10, 2)
+  method       String   @default("CASH")
+  receivedById String
+  receivedBy   User     @relation(fields: [receivedById], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model StockMovement {
+  id           String      @id @default(cuid())
+  ingredientId String
+  ingredient   Ingredient  @relation(fields: [ingredientId], references: [id])
+  delta        Decimal     @db.Decimal(10, 3)
+  reason       StockReason
+  refOrderId   String?
+  createdAt    DateTime    @default(now())
+  createdById  String
+  createdBy    User        @relation(fields: [createdById], references: [id])
+}
