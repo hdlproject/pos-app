@@ -4,6 +4,7 @@ import { menuRouter } from './menu';
 import { ingredientRouter } from './ingredient';
 import { tableRouter } from './table';
 import { orderRouter } from './order';
+import { kitchenRouter } from './kitchen';
 
 export const appRouter = router({
   auth: authRouter,
@@ -11,6 +12,7 @@ export const appRouter = router({
   ingredient: ingredientRouter,
   table: tableRouter,
   order: orderRouter,
+  kitchen: kitchenRouter,
 });
 
 export type AppRouter = typeof appRouter;
