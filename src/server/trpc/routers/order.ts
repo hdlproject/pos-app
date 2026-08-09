@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import type { PrismaClient } from '@prisma/client';
 import { router, protectedProcedure, publicProcedure, roleProcedure } from '../trpc';
 import { publishOrderEvent } from '../../ably';
+import { revertStockForOrder } from '../../stock/deduct';
 
 const orderItemInput = z.object({
   menuItemId: z.string(),
@@ -123,4 +124,21 @@ export const orderRouter = router({
       orderBy: { createdAt: 'asc' },
     })
   ),
+
+  cancel: roleProcedure('ADMIN')
+    .input(z.object({ orderId: z.string(), reason: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const order = await ctx.db.order.findUniqueOrThrow({ where: { id: input.orderId } });
+      const wasPaid = order.status === 'PAID';
+      await ctx.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+      if (wasPaid) {
+        await revertStockForOrder(ctx.db, order.id, ctx.user.userId);
+      }
+      try {
+        await publishOrderEvent('order.cancelled', { orderId: order.id, reason: input.reason });
+      } catch (err) {
+        console.error('publishOrderEvent failed for order.cancelled', err);
+      }
+      return { ok: true };
+    }),
 });
