@@ -102,7 +102,7 @@ All reports are computed server-side via tRPC queries against Postgres — no se
 - **Ably disconnect** (KDS/waiter screen offline): on reconnect, client refetches current open orders via tRPC. Ably is push-only convenience; Postgres is the source of truth, never a required data path.
 - **Concurrent stock deduction** (two orders consuming the same ingredient near-simultaneously): deduction happens inside a DB transaction; stock is allowed to go negative (and flagged) rather than blocking the sale — a running-out-of-stock miscount is recoverable, a blocked sale is not. Admin reconciles later.
 - **QR order on stale/invalid table token**: rejected with a "scan again" prompt. Token rotates per new dine-in session, preventing shared/leaked QR replay across sessions.
-- **Order cancel / void**: Admin-only, requires a reason (logged via order status=cancelled and StockMovement reason field); stock is reverted if the cancellation happens pre-payment.
+- **Order cancel / void**: Admin-only, requires a reason (logged via order status=cancelled and StockMovement reason field); stock is reverted if the cancellation happens post-payment (the only case where stock was already deducted — deduction happens at payment time, not order creation).
 - **Menu item goes unavailable mid-order**: existing OrderItems on open orders are unaffected; the item is simply hidden from further ordering.
 
 ## Testing
