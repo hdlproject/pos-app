@@ -47,7 +47,11 @@ export const orderRouter = router({
         },
         include: { items: true },
       });
-      await publishOrderEvent('order.created', order);
+      try {
+        await publishOrderEvent('order.created', order);
+      } catch (err) {
+        console.error('publishOrderEvent failed for order.created', err);
+      }
       return order;
     }),
 
@@ -69,7 +73,11 @@ export const orderRouter = router({
         },
         include: { items: true },
       });
-      await publishOrderEvent('order.created', order);
+      try {
+        await publishOrderEvent('order.created', order);
+      } catch (err) {
+        console.error('publishOrderEvent failed for order.created', err);
+      }
       return order;
     }),
 
@@ -91,7 +99,11 @@ export const orderRouter = router({
         data: { total: { increment: calcTotal(newItems) }, items: { create: newItems } },
         include: { items: true },
       });
-      await publishOrderEvent('order.updated', updated);
+      try {
+        await publishOrderEvent('order.updated', updated);
+      } catch (err) {
+        console.error('publishOrderEvent failed for order.updated', err);
+      }
       return updated;
     }),
 
