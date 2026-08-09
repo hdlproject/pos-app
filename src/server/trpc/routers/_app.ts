@@ -5,6 +5,7 @@ import { ingredientRouter } from './ingredient';
 import { tableRouter } from './table';
 import { orderRouter } from './order';
 import { kitchenRouter } from './kitchen';
+import { paymentRouter } from './payment';
 
 export const appRouter = router({
   auth: authRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   table: tableRouter,
   order: orderRouter,
   kitchen: kitchenRouter,
+  payment: paymentRouter,
 });
 
 export type AppRouter = typeof appRouter;
