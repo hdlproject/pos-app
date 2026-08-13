@@ -1,10 +1,8 @@
-import { cookies } from 'next/headers';
 import { createAblyTokenRequest } from '@/server/ably';
-import { verifySession } from '@/server/auth/session';
+import { createContext } from '@/server/trpc/context';
 
 export async function GET() {
-  const token = (await cookies()).get('session')?.value;
-  const user = token ? await verifySession(token) : null;
+  const { user } = await createContext();
   if (!user) {
     return new Response('Unauthorized', { status: 401 });
   }
