@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
+import { Chip } from '@/components/ui/Chip';
 
 // Explicit flat view of the field this page actually reads off the
 // createByTable mutation's result. The real return type flows through
@@ -75,15 +76,9 @@ export default function CustomerOrderPage() {
           <div className="sticky top-0 z-10 bg-surface py-3">
             <div className="flex gap-2 overflow-x-auto px-4">
               {categories.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCategory(c)}
-                  className={`shrink-0 px-3.5 py-2 rounded-xl border font-bold text-sm ${
-                    category === c ? 'bg-accent border-accent text-white' : 'bg-surface border-border-strong text-text-muted-2'
-                  }`}
-                >
+                <Chip key={c} active={category === c} onClick={() => setCategory(c)} className="shrink-0">
                   {c}
-                </button>
+                </Chip>
               ))}
             </div>
           </div>
@@ -95,12 +90,9 @@ export default function CustomerOrderPage() {
                   <span className="font-extrabold text-sm text-text">{item.name}</span>
                   <div className="flex items-center justify-between mt-auto pt-2">
                     <span className="font-extrabold text-sm text-accent-tint">Rp {String(item.price)}</span>
-                    <button
-                      onClick={() => addToCart(item.id)}
-                      className="px-4 py-2 rounded-lg bg-dark-ui text-white font-extrabold text-xs"
-                    >
+                    <Button variant="dark" size="sm" onClick={() => addToCart(item.id)}>
                       Add
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
