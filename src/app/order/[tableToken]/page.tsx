@@ -61,7 +61,7 @@ export default function CustomerOrderPage() {
 
   return (
     <div className="min-h-screen flex items-start justify-center p-0 sm:p-4 bg-[radial-gradient(120%_60%_at_50%_0%,#e7dccb,#d3c6b3)]">
-      <div className="relative w-full max-w-[412px] bg-surface flex flex-col min-h-dvh sm:h-[844px] sm:max-h-[calc(100dvh-32px)] sm:rounded-[34px] sm:overflow-hidden sm:shadow-2xl">
+      <div className="relative w-full max-w-[412px] bg-surface flex flex-col h-dvh overflow-hidden sm:h-[844px] sm:max-h-[calc(100dvh-32px)] sm:rounded-[34px] sm:shadow-2xl">
         <div className="flex-1 overflow-y-auto">
           <div className="px-5 pt-5 pb-6 bg-gradient-to-br from-accent to-accent-hover text-white">
             <div className="flex items-center gap-2.5">

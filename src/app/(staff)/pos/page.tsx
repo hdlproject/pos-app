@@ -71,7 +71,7 @@ export default function PosPage() {
               <button
                 key={t}
                 onClick={() => setType(t)}
-                className={`flex-1 py-2.5 rounded-lg font-extrabold text-xs ${
+                className={`flex-1 py-2.5 rounded-lg font-extrabold text-xs focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 ${
                   type === t ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
                 }`}
               >
