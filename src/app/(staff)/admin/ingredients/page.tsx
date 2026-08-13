@@ -65,7 +65,7 @@ export default function AdminIngredientsPage() {
                 </div>
                 <Button
                   variant="outline"
-                  className="text-xs px-3 py-1.5"
+                  size="sm"
                   onClick={() => adjust.mutate({ ingredientId: ing.id, delta: 100, reason: 'RESTOCK' })}
                 >
                   +100 Restock

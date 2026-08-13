@@ -55,7 +55,7 @@ export default function PosPage() {
               <div className="font-bold text-text text-sm">{item.name}</div>
               <div className="flex items-center justify-between gap-2">
                 <div className="font-extrabold text-accent-tint text-sm">Rp {String(item.price)}</div>
-                <Button variant="dark" className="px-3 py-2 text-xs" onClick={() => addToCart(item.id)}>
+                <Button variant="dark" size="sm" onClick={() => addToCart(item.id)}>
                   + Add
                 </Button>
               </div>

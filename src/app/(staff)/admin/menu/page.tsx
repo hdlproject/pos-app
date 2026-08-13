@@ -93,7 +93,7 @@ export default function AdminMenuPage() {
               </div>
               <Button
                 variant="outline"
-                className="text-xs px-3 py-1.5"
+                size="sm"
                 onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
               >
                 {item.available ? 'Mark sold out' : 'Mark available'}

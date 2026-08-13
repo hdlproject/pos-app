@@ -37,7 +37,7 @@ export default function AdminTablesPage() {
                 <span className="font-bold text-sm text-text">{t.label}</span>
                 <span className="text-text-muted text-xs ml-2">/order/{t.qrToken}</span>
               </div>
-              <Button variant="outline" className="text-xs px-3 py-1.5" onClick={() => rotate.mutate({ id: t.id })}>
+              <Button variant="outline" size="sm" onClick={() => rotate.mutate({ id: t.id })}>
                 Rotate QR Token
               </Button>
             </div>
