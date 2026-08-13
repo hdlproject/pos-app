@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
+import { Button } from '@/components/ui/Button';
 
 // Explicit flat view of the field this page actually reads off the
 // createByTable mutation's result. The real return type flows through
@@ -18,6 +19,7 @@ export default function CustomerOrderPage() {
   const menu = trpc.menu.listAvailable.useQuery();
   const [cart, setCart] = useState<{ menuItemId: string; qty: number }[]>([]);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [category, setCategory] = useState<string>('All');
   const openOrder = trpc.order.getOpenOrderByTableToken.useQuery({ tableToken });
   const createOrder = trpc.order.createByTable.useMutation({
     onSuccess: (order: unknown) => { setOrderId((order as CreatedOrder).id); setCart([]); },
@@ -51,20 +53,88 @@ export default function CustomerOrderPage() {
     }
   }
 
+  const items = menu.data ?? [];
+  const categories = ['All', ...Array.from(new Set(items.map((i) => i.category.name)))];
+  const visibleItems = category === 'All' ? items : items.filter((i) => i.category.name === category);
+  const cartCount = cart.reduce((sum, l) => sum + l.qty, 0);
+
   return (
-    <main>
-      <h1>Menu</h1>
-      {menu.data?.map((item) => (
-        <div key={item.id}>
-          {item.name} — {String(item.price)}
-          <button onClick={() => addToCart(item.id)}>Add</button>
+    <div className="min-h-screen flex items-start justify-center p-4 bg-[radial-gradient(120%_60%_at_50%_0%,#e7dccb,#d3c6b3)]">
+      <div className="relative w-full max-w-[412px] bg-surface rounded-[34px] overflow-hidden shadow-2xl flex flex-col h-[844px] max-h-[calc(100vh-32px)]">
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-5 pt-5 pb-6 bg-gradient-to-br from-accent to-accent-hover text-white">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center font-display text-2xl">K</div>
+              <div>
+                <div className="font-display text-lg leading-tight">Kopi &amp; Co</div>
+                <div className="text-[11px] font-bold opacity-85">Self-order</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="sticky top-0 z-10 bg-surface py-3">
+            <div className="flex gap-2 overflow-x-auto px-4">
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCategory(c)}
+                  className={`shrink-0 px-3.5 py-2 rounded-xl border font-bold text-sm ${
+                    category === c ? 'bg-accent border-accent text-white' : 'bg-surface border-border-strong text-text-muted-2'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="px-4 pb-24 pt-1.5 flex flex-col gap-3">
+            {visibleItems.map((item) => (
+              <div key={item.id} className="flex gap-3 bg-surface border border-border rounded-2xl p-3">
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <span className="font-extrabold text-sm text-text">{item.name}</span>
+                  <div className="flex items-center justify-between mt-auto pt-2">
+                    <span className="font-extrabold text-sm text-accent-tint">Rp {String(item.price)}</span>
+                    <button
+                      onClick={() => addToCart(item.id)}
+                      className="px-4 py-2 rounded-lg bg-dark-ui text-white font-extrabold text-xs"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-      <button disabled={!cart.length} onClick={submit}>
-        {orderId ? 'Add to Order' : 'Submit Order'}
-      </button>
-      {(createOrder.isSuccess || appendItems.isSuccess) && <p>Sent to kitchen!</p>}
-      {orderId && <p>Your tab stays open — order more anytime, pay at the end.</p>}
-    </main>
+
+        {cartCount > 0 && (
+          <div className="absolute left-0 right-0 bottom-0 p-4 bg-gradient-to-t from-surface via-surface/95 to-transparent">
+            <div className="bg-dark-ui rounded-2xl p-1.5 flex items-center gap-2.5 shadow-lg">
+              <div className="flex items-center gap-3 py-2 pl-3 flex-1">
+                <span className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center text-sm font-extrabold">
+                  {cartCount}
+                </span>
+                <div className="text-white text-sm font-bold">{orderId ? 'Add to open tab' : 'Start order'}</div>
+              </div>
+              <Button variant="primary" onClick={submit} disabled={!cart.length}>
+                {orderId ? 'Add' : 'Submit'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {(createOrder.isSuccess || appendItems.isSuccess) && (
+        <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-sm font-bold text-success bg-white px-4 py-2 rounded-full shadow z-50">
+          Sent to kitchen!
+        </p>
+      )}
+      {orderId && (
+        <p className="fixed top-4 left-1/2 -translate-x-1/2 text-xs font-semibold text-text-muted bg-white/90 px-3 py-1.5 rounded-full shadow z-50">
+          Your tab stays open — order more anytime, pay at the end.
+        </p>
+      )}
+    </div>
   );
 }
