@@ -27,6 +27,9 @@ async function buildOrderItems(
   return items.map((i) => {
     const menuItem = byId.get(i.menuItemId);
     if (!menuItem) throw new TRPCError({ code: 'NOT_FOUND', message: `menu item ${i.menuItemId} not found` });
+    if (!menuItem.available) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: `menu item ${menuItem.name} is not available` });
+    }
     return {
       menuItemId: i.menuItemId,
       qty: i.qty,
@@ -126,9 +129,28 @@ export const orderRouter = router({
       })
     ),
 
+  getOpenOrderByTableToken: publicProcedure
+    .input(z.object({ tableToken: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const table = await ctx.db.table.findUnique({ where: { qrToken: input.tableToken } });
+      if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
+
+      const order = await ctx.db.order.findFirst({
+        where: {
+          tableId: table.id,
+          source: 'QR',
+          status: { in: ['SENT_TO_KITCHEN', 'READY', 'SERVED'] },
+        },
+        include: { items: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      });
+      return order ?? null;
+    }),
+
   listOpen: roleProcedure('ADMIN', 'CASHIER', 'WAITER', 'KITCHEN').query(({ ctx }) =>
     ctx.db.order.findMany({
-      where: { status: { in: ['SENT_TO_KITCHEN', 'READY', 'SERVED'] } },
+      where: { status: { in: ['OPEN', 'SENT_TO_KITCHEN', 'READY', 'SERVED'] } },
       include: { items: { include: { menuItem: true } }, table: true },
       orderBy: { createdAt: 'asc' },
     })

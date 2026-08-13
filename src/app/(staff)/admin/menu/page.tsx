@@ -5,8 +5,14 @@ import { trpc } from '@/lib/trpc-client';
 export default function AdminMenuPage() {
   const utils = trpc.useUtils();
   const items = trpc.menu.listAll.useQuery();
+  const categoriesQuery = trpc.menu.listCategories.useQuery();
   const [categoryName, setCategoryName] = useState('');
-  const createCategory = trpc.menu.createCategory.useMutation({ onSuccess: () => utils.menu.listAll.invalidate() });
+  const createCategory = trpc.menu.createCategory.useMutation({
+    onSuccess: () => {
+      utils.menu.listAll.invalidate();
+      utils.menu.listCategories.invalidate();
+    },
+  });
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -16,7 +22,7 @@ export default function AdminMenuPage() {
   });
   const toggleAvailable = trpc.menu.updateItem.useMutation({ onSuccess: () => utils.menu.listAll.invalidate() });
 
-  const categories = Array.from(new Map(items.data?.map((i) => [i.category.id, i.category]) ?? []).values());
+  const categories = categoriesQuery.data ?? [];
 
   return (
     <main>

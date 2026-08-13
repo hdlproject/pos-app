@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 
@@ -18,10 +18,21 @@ export default function CustomerOrderPage() {
   const menu = trpc.menu.listAvailable.useQuery();
   const [cart, setCart] = useState<{ menuItemId: string; qty: number }[]>([]);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const openOrder = trpc.order.getOpenOrderByTableToken.useQuery({ tableToken });
   const createOrder = trpc.order.createByTable.useMutation({
     onSuccess: (order: unknown) => { setOrderId((order as CreatedOrder).id); setCart([]); },
   });
   const appendItems = trpc.order.appendItems.useMutation({ onSuccess: () => setCart([]) });
+
+  // Recover an already-open tab on mount (e.g. after a page reload or
+  // re-scanning the QR code) so a submission appends instead of creating
+  // a duplicate order for the same table.
+  useEffect(() => {
+    if (!orderId && openOrder.data) {
+      setOrderId(openOrder.data.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOrder.data]);
 
   function addToCart(menuItemId: string) {
     setCart((c) => {

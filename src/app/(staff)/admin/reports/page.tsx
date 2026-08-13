@@ -17,7 +17,10 @@ type BestSeller = {
 export default function ReportsPage() {
   const [from, setFrom] = useState(new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
-  const range = { from: new Date(from).toISOString(), to: new Date(to).toISOString() };
+  const range = {
+    from: new Date(from).toISOString(),
+    to: new Date(new Date(to).getTime() + 24 * 60 * 60 * 1000 - 1).toISOString(),
+  };
 
   const sales = trpc.report.dailySales.useQuery(range);
   const best = trpc.report.bestSellers.useQuery(range);

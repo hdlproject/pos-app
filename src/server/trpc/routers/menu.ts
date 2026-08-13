@@ -43,6 +43,10 @@ export const menuRouter = router({
     ({ ctx }): Promise<MenuItemWithCategory[]> => ctx.db.menuItem.findMany({ include: { category: true } })
   ),
 
+  listCategories: roleProcedure('ADMIN').query(({ ctx }) =>
+    ctx.db.category.findMany({ orderBy: { sortOrder: 'asc' } })
+  ),
+
   createCategory: roleProcedure('ADMIN')
     .input(z.object({ name: z.string().min(1), sortOrder: z.number().default(0) }))
     .mutation(({ ctx, input }) => ctx.db.category.create({ data: input })),
