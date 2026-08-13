@@ -125,6 +125,7 @@ model Order {
   table       Table?      @relation(fields: [tableId], references: [id])
   status      OrderStatus @default(OPEN)
   source      OrderSource
+  cancelReason String?
   createdById String?
   createdBy   User?       @relation("OrderCreatedBy", fields: [createdById], references: [id])
   total       Decimal     @db.Decimal(10, 2) @default(0)
