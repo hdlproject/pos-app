@@ -40,7 +40,7 @@ export default function ReportsPage() {
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="px-2 py-1.5 border border-border-strong rounded-lg bg-surface-input outline-none"
+              className="px-2 py-1.5 border border-border-strong rounded-lg bg-surface-input outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
           </label>
           <label className="flex items-center gap-1.5 text-text-muted-2 font-semibold">
@@ -49,7 +49,7 @@ export default function ReportsPage() {
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="px-2 py-1.5 border border-border-strong rounded-lg bg-surface-input outline-none"
+              className="px-2 py-1.5 border border-border-strong rounded-lg bg-surface-input outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
           </label>
         </div>

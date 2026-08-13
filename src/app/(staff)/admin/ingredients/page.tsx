@@ -26,20 +26,20 @@ export default function AdminIngredientsPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Name"
-            className="flex-1 min-w-[140px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+            className="flex-1 min-w-[140px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <input
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
             placeholder="Unit (g, ml, pcs)"
-            className="w-40 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+            className="w-40 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <input
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
             placeholder="Low-stock threshold"
             type="number"
-            className="w-44 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+            className="w-44 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Button
             variant="dark"

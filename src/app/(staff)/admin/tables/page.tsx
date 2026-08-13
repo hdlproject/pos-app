@@ -21,7 +21,7 @@ export default function AdminTablesPage() {
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="Table label (e.g. T5)"
-            className="flex-1 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+            className="flex-1 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Button variant="dark" disabled={!label} onClick={() => create.mutate({ label })}>
             Add Table

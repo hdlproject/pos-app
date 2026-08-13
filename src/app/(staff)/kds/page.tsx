@@ -83,13 +83,13 @@ export default function KdsPage() {
                         <div className="flex gap-1.5 ml-1">
                           <button
                             onClick={() => updateStatus.mutate({ orderItemId: item.id, status: 'PREPARING' })}
-                            className="px-2 py-1 rounded-lg bg-kds-card-header text-kds-text-muted-2 text-[11px] font-bold"
+                            className="px-2 py-1 rounded-lg bg-kds-card-header text-kds-text-muted-2 text-[11px] font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 focus-visible:ring-offset-kds-bg"
                           >
                             Preparing
                           </button>
                           <button
                             onClick={() => updateStatus.mutate({ orderItemId: item.id, status: 'READY' })}
-                            className="px-2 py-1 rounded-lg bg-status-ready text-kds-bg text-[11px] font-bold"
+                            className="px-2 py-1 rounded-lg bg-status-ready text-kds-bg text-[11px] font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 focus-visible:ring-offset-kds-bg"
                           >
                             Ready
                           </button>

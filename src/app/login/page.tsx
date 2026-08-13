@@ -28,7 +28,7 @@ export default function LoginPage() {
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="PIN"
-          className="w-full text-center text-2xl font-extrabold tracking-[0.3em] px-4 py-3 border border-border-strong rounded-xl bg-surface-input text-text outline-none mb-4"
+          className="w-full text-center text-2xl font-extrabold tracking-[0.3em] px-4 py-3 border border-border-strong rounded-xl bg-surface-input text-text outline-none focus-visible:ring-2 focus-visible:ring-accent mb-4"
         />
         <Button variant="primary" className="w-full" onClick={() => login.mutate({ pin })} disabled={login.isPending}>
           Login

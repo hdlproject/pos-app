@@ -37,7 +37,7 @@ export default function AdminMenuPage() {
             value={categoryName}
             onChange={(e) => setCategoryName(e.target.value)}
             placeholder="Category name"
-            className="flex-1 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+            className="flex-1 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Button variant="primary" onClick={() => { createCategory.mutate({ name: categoryName }); setCategoryName(''); }}>
             Add Category
@@ -52,19 +52,19 @@ export default function AdminMenuPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Item name"
-            className="flex-1 min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+            className="flex-1 min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <input
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="Price"
             type="number"
-            className="w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+            className="w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+            className="px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <option value="">Select category</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
