@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import Ably from 'ably';
 import { trpc } from '@/lib/trpc-client';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { LogoutButton } from '@/components/ui/LogoutButton';
 
 // Explicit view of the JSON-serialized shape returned by order.listOpen.
 // (A type derived directly from the Prisma/tRPC procedure output hits
@@ -57,7 +58,7 @@ export default function KdsPage() {
 
   return (
     <div className="min-h-screen bg-kds-bg text-kds-text">
-      <PageHeader title="Kitchen Display" subtitle="Kopi & Co · Live" dark />
+      <PageHeader title="Kitchen Display" subtitle="Kopi & Co · Live" dark right={<LogoutButton dark />} />
       <main className="p-5 overflow-x-auto">
         <div className="grid grid-flow-col auto-cols-[308px] gap-4 items-start">
           {data?.map((order) => (
