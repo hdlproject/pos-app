@@ -14,6 +14,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@tailwindcss/postcss": "^4.3.3",
     "@tanstack/react-query": "^5.101.4",
     "@trpc/client": "^11.18.0",
     "@trpc/react-query": "^11.18.0",
@@ -24,8 +25,10 @@
     "jsonwebtoken": "^9.0.3",
     "next": "16.3.0",
     "pg": "^8.23.0",
+    "postcss": "^8.5.26",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "tailwindcss": "^4.3.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -1,49 +1,41 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "tailwindcss";
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+  --font-display: var(--font-dm-serif-display), serif;
+
+  --color-bg: #f3ede3;
+  --color-surface: #fffdf9;
+  --color-surface-input: #faf6ef;
+  --color-border: #e9e0d2;
+  --color-border-strong: #e6dccb;
+  --color-text: #2a241d;
+  --color-text-muted: #a9997f;
+  --color-text-muted-2: #8a7c66;
+  --color-accent: #c65d3b;
+  --color-accent-hover: #a94a2c;
+  --color-accent-tint: #8a5a3c;
+  --color-success: #0e8a6a;
+  --color-warning: #c0492c;
+  --color-dark-ui: #2a241d;
+
+  --color-kds-bg: #1a1712;
+  --color-kds-header: #211d16;
+  --color-kds-card: #241f18;
+  --color-kds-card-header: #26211a;
+  --color-kds-border: #322b21;
+  --color-kds-text: #f2e9dc;
+  --color-kds-text-muted: #8a7c66;
+  --color-kds-text-muted-2: #b8ab95;
+  --color-status-queued: #7d7364;
+  --color-status-preparing: #e0a86a;
+  --color-status-ready: #5fbf7f;
 }
 
 html {
   height: 100%;
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
 body {
   min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
 }
