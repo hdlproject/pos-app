@@ -37,7 +37,7 @@ export default function PosPage() {
   }, 0);
 
   return (
-    <div className="min-h-screen flex bg-bg">
+    <div className="h-screen overflow-hidden flex bg-bg">
       <main className="flex-1 min-w-0 flex flex-col p-6 overflow-y-auto">
         <h1 className="font-display text-2xl text-text mb-4">New Order</h1>
 
