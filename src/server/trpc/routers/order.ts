@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { router, protectedProcedure, publicProcedure, roleProcedure } from '../trpc';
 import { publishOrderEvent } from '../../ably';
 import { revertStockForOrder } from '../../stock/deduct';
+import { redis } from '../../redis';
 
 const orderItemInput = z.object({
   menuItemId: z.string(),
@@ -160,15 +161,26 @@ export const orderRouter = router({
     .input(z.object({ orderId: z.string(), reason: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.findUniqueOrThrow({ where: { id: input.orderId } });
-      const wasPaid = order.status === 'PAID';
-      await ctx.db.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
-      if (wasPaid) {
-        await revertStockForOrder(ctx.db, order.id, ctx.user.userId);
+      if (order.status === 'CANCELLED') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'order already cancelled' });
       }
+      const wasPaid = order.status === 'PAID';
+      await ctx.db.$transaction(async (tx) => {
+        await tx.order.update({ where: { id: order.id }, data: { status: 'CANCELLED', cancelReason: input.reason } });
+        if (wasPaid) {
+          await revertStockForOrder(tx, order.id, ctx.user.userId);
+        }
+      });
       try {
         await publishOrderEvent('order.cancelled', { orderId: order.id, reason: input.reason });
       } catch (err) {
         console.error('publishOrderEvent failed for order.cancelled', err);
+      }
+      try {
+        const keys = await redis.keys('report:dailySales:*');
+        if (keys.length) await redis.del(...keys);
+      } catch (err) {
+        console.error('dailySales cache invalidation failed after order.cancel', err);
       }
       return { ok: true };
     }),
