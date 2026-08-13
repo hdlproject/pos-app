@@ -1,7 +1,22 @@
 // src/server/stock/deduct.ts
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
-export async function deductStockForOrder(db: PrismaClient, orderId: string, userId: string): Promise<void> {
+// Accepts either a plain PrismaClient or an interactive-transaction client
+// (Prisma.TransactionClient) so callers can run this as part of a larger
+// atomic transaction (e.g. payment.payCash, order.cancel). Prisma does not
+// support nested $transaction calls on a transaction client, so this
+// function deliberately does NOT wrap its writes in its own $transaction —
+// it just awaits each Prisma call in sequence. When `db` is a transaction
+// client, those calls run inside the caller's ambient transaction and are
+// atomic with it. When `db` is a plain PrismaClient (e.g. called directly,
+// as some tests do), the calls execute sequentially but are not atomic
+// among themselves; callers that need that guarantee should wrap their own
+// call in db.$transaction(async (tx) => { ... }).
+export async function deductStockForOrder(
+  db: Prisma.TransactionClient | PrismaClient,
+  orderId: string,
+  userId: string
+): Promise<void> {
   const order = await db.order.findUniqueOrThrow({
     where: { id: orderId },
     include: { items: { include: { menuItem: { include: { recipes: true } } } } },
@@ -15,31 +30,31 @@ export async function deductStockForOrder(db: PrismaClient, orderId: string, use
     }
   }
 
-  await db.$transaction(
-    Array.from(deductions.entries()).flatMap(([ingredientId, qty]) => [
-      db.ingredient.update({ where: { id: ingredientId }, data: { stockQty: { decrement: qty } } }),
-      db.stockMovement.create({
-        data: { ingredientId, delta: -qty, reason: 'SALE', refOrderId: orderId, createdById: userId },
-      }),
-    ])
-  );
+  for (const [ingredientId, qty] of deductions.entries()) {
+    await db.ingredient.update({ where: { id: ingredientId }, data: { stockQty: { decrement: qty } } });
+    await db.stockMovement.create({
+      data: { ingredientId, delta: -qty, reason: 'SALE', refOrderId: orderId, createdById: userId },
+    });
+  }
 }
 
-export async function revertStockForOrder(db: PrismaClient, orderId: string, userId: string): Promise<void> {
+export async function revertStockForOrder(
+  db: Prisma.TransactionClient | PrismaClient,
+  orderId: string,
+  userId: string
+): Promise<void> {
   const movements = await db.stockMovement.findMany({ where: { refOrderId: orderId, reason: 'SALE' } });
 
-  await db.$transaction(
-    movements.flatMap((m) => [
-      db.ingredient.update({ where: { id: m.ingredientId }, data: { stockQty: { increment: Number(m.delta) * -1 } } }),
-      db.stockMovement.create({
-        data: {
-          ingredientId: m.ingredientId,
-          delta: Number(m.delta) * -1,
-          reason: 'VOID_REVERT',
-          refOrderId: orderId,
-          createdById: userId,
-        },
-      }),
-    ])
-  );
+  for (const m of movements) {
+    await db.ingredient.update({ where: { id: m.ingredientId }, data: { stockQty: { increment: Number(m.delta) * -1 } } });
+    await db.stockMovement.create({
+      data: {
+        ingredientId: m.ingredientId,
+        delta: Number(m.delta) * -1,
+        reason: 'VOID_REVERT',
+        refOrderId: orderId,
+        createdById: userId,
+      },
+    });
+  }
 }
