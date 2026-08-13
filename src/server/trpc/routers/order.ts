@@ -92,14 +92,14 @@ export const orderRouter = router({
     }),
 
   appendItems: publicProcedure
-    .input(z.object({ orderId: z.string(), items: z.array(orderItemInput).min(1), tableToken: z.string().optional() }))
+    .input(z.object({ orderId: z.string(), items: z.array(orderItemInput).min(1), tableToken: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.findUnique({ where: { id: input.orderId }, include: { table: true } });
       if (!order) throw new TRPCError({ code: 'NOT_FOUND' });
       if (order.status === 'PAID' || order.status === 'CANCELLED') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is closed' });
       }
-      if (input.tableToken && order.table?.qrToken !== input.tableToken) {
+      if (order.table?.qrToken !== input.tableToken) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'table token mismatch' });
       }
 

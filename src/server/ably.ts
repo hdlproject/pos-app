@@ -10,7 +10,10 @@ function getAblyRest(): Ably.Rest {
 }
 
 export async function createAblyTokenRequest(clientId: string) {
-  return getAblyRest().auth.createTokenRequest({ clientId });
+  return getAblyRest().auth.createTokenRequest({
+    clientId,
+    capability: { orders: ['subscribe'] },
+  });
 }
 
 export async function publishOrderEvent(name: string, data: unknown): Promise<void> {
