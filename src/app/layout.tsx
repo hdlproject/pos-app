@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, DM_Serif_Display } from "next/font/google";
 import { TrpcProvider } from "@/components/trpc-provider";
+import { PageTransition } from "@/components/PageTransition";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${manrope.variable} ${dmSerifDisplay.variable}`}>
       <body className="font-sans bg-bg text-text antialiased">
-        <TrpcProvider>{children}</TrpcProvider>
+        <TrpcProvider>
+          <PageTransition>{children}</PageTransition>
+        </TrpcProvider>
       </body>
     </html>
   );
