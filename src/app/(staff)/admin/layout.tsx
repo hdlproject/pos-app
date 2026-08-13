@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { LogoutButton } from '@/components/ui/LogoutButton';
 
 const NAV = [
   { href: '/admin/menu', label: 'Menu' },
@@ -40,6 +41,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
         </nav>
+        <div className="mt-auto pt-3 px-2 border-t border-border">
+          <LogoutButton />
+        </div>
       </aside>
       <div className="flex-1 min-w-0">{children}</div>
     </div>
