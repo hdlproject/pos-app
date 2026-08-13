@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 
 export default function AdminMenuPage() {
   const utils = trpc.useUtils();
@@ -25,42 +27,81 @@ export default function AdminMenuPage() {
   const categories = categoriesQuery.data ?? [];
 
   return (
-    <main>
-      <h1>Menu Management</h1>
+    <div className="p-6">
+      <h1 className="font-display text-2xl text-text mb-6">Menu Management</h1>
 
-      <section>
-        <h2>New Category</h2>
-        <input value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="Category name" />
-        <button onClick={() => { createCategory.mutate({ name: categoryName }); setCategoryName(''); }}>Add Category</button>
-      </section>
+      <Card className="mb-5">
+        <h2 className="font-bold text-text mb-3">New Category</h2>
+        <div className="flex gap-2">
+          <input
+            value={categoryName}
+            onChange={(e) => setCategoryName(e.target.value)}
+            placeholder="Category name"
+            className="flex-1 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+          />
+          <Button variant="primary" onClick={() => { createCategory.mutate({ name: categoryName }); setCategoryName(''); }}>
+            Add Category
+          </Button>
+        </div>
+      </Card>
 
-      <section>
-        <h2>New Item</h2>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
-        <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price" type="number" />
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-          <option value="">Select category</option>
-          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <button
-          disabled={!name || !price || !categoryId}
-          onClick={() => createItem.mutate({ name, price: Number(price), categoryId, available: true })}
-        >
-          Add Item
-        </button>
-      </section>
+      <Card className="mb-5">
+        <h2 className="font-bold text-text mb-3">New Item</h2>
+        <div className="flex gap-2 flex-wrap">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Item name"
+            className="flex-1 min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+          />
+          <input
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Price"
+            type="number"
+            className="w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+          />
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none"
+          >
+            <option value="">Select category</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <Button
+            variant="dark"
+            disabled={!name || !price || !categoryId}
+            onClick={() => createItem.mutate({ name, price: Number(price), categoryId, available: true })}
+          >
+            Add Item
+          </Button>
+        </div>
+      </Card>
 
-      <section>
-        <h2>Items</h2>
-        {items.data?.map((item) => (
-          <div key={item.id}>
-            {item.name} — {String(item.price)} — {item.available ? 'available' : 'sold out'}
-            <button onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}>
-              {item.available ? 'Mark sold out' : 'Mark available'}
-            </button>
-          </div>
-        ))}
-      </section>
-    </main>
+      <Card>
+        <h2 className="font-bold text-text mb-3">Items</h2>
+        <div className="flex flex-col gap-2">
+          {items.data?.map((item) => (
+            <div key={item.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              <div>
+                <span className="font-bold text-sm text-text">{item.name}</span>
+                <span className="text-text-muted text-sm ml-2">Rp {String(item.price)}</span>
+                <span className={`text-xs font-bold ml-2 ${item.available ? 'text-success' : 'text-warning'}`}>
+                  {item.available ? 'available' : 'sold out'}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                className="text-xs px-3 py-1.5"
+                onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
+              >
+                {item.available ? 'Mark sold out' : 'Mark available'}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
   );
 }
