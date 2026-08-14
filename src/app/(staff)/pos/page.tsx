@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { LogoutButton } from '@/components/ui/LogoutButton';
+import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 
 type CartLine = { menuItemId: string; qty: number };
 
@@ -69,6 +70,12 @@ export default function PosPage() {
           <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
             {visibleItems.map((item) => (
               <Card key={item.id} className="flex flex-col gap-2.5">
+                <MenuItemThumbnail
+                  image={item.image}
+                  categoryName={item.category.name}
+                  alt={item.name}
+                  className="w-full h-20 rounded-xl"
+                />
                 <div className="font-bold text-text text-sm">{item.name}</div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-extrabold text-accent-tint text-sm">Rp {String(item.price)}</div>
