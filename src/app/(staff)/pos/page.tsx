@@ -40,7 +40,20 @@ export default function PosPage() {
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-bg">
-      <PageHeader title="Point of Sale" right={<LogoutButton />} />
+      <PageHeader
+        title="Point of Sale"
+        right={
+          <div
+            onClickCapture={(e) => {
+              if (cart.length > 0 && !window.confirm('You have an in-progress order. Log out anyway?')) {
+                e.stopPropagation();
+              }
+            }}
+          >
+            <LogoutButton />
+          </div>
+        }
+      />
       <div className="flex-1 flex min-h-0">
         <main className="flex-1 min-w-0 flex flex-col p-6 overflow-y-auto">
           <h1 className="font-display text-2xl text-text mb-4">New Order</h1>
