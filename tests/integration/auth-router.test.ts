@@ -40,4 +40,15 @@ describe('auth router', () => {
 
     await expect(caller.auth.login({ pin: '0000' })).rejects.toThrow();
   });
+
+  it('logs out an authenticated user and rejects an unauthenticated logout', async () => {
+    const user = await db.user.create({ data: { name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
+
+    const authedCaller = appRouter.createCaller({ db, user: { userId: user.id, role: user.role, name: user.name } });
+    const result = await authedCaller.auth.logout();
+    expect(result).toEqual({ ok: true });
+
+    const anonCaller = appRouter.createCaller({ db, user: null });
+    await expect(anonCaller.auth.logout()).rejects.toThrow();
+  });
 });
