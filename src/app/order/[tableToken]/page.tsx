@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
+import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 
 // Explicit flat view of the field this page actually reads off the
 // createByTable mutation's result. The real return type flows through
@@ -86,6 +87,12 @@ export default function CustomerOrderPage() {
           <div className="px-4 pb-24 pt-1.5 flex flex-col gap-3">
             {visibleItems.map((item) => (
               <div key={item.id} className="flex gap-3 bg-surface border border-border rounded-2xl p-3">
+                <MenuItemThumbnail
+                  image={item.image}
+                  categoryName={item.category.name}
+                  alt={item.name}
+                  className="w-16 h-16 rounded-xl shrink-0"
+                />
                 <div className="flex-1 min-w-0 flex flex-col">
                   <span className="font-extrabold text-sm text-text">{item.name}</span>
                   <div className="flex items-center justify-between mt-auto pt-2">
