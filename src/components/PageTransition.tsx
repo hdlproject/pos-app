@@ -12,6 +12,10 @@ const variants = {
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
+    // Note: this wraps every nested layout too (e.g. AdminLayout), so any
+    // future layout-level state (scroll position, collapsed sections, etc.)
+    // will reset on every navigation, not just full page loads. Accepted
+    // trade-off of animating uniformly across all routes without special-casing.
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={pathname}
