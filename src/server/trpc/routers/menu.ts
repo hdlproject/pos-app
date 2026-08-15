@@ -40,7 +40,11 @@ export const menuRouter = router({
   ),
 
   listAll: roleProcedure('ADMIN', 'CASHIER', 'WAITER').query(
-    ({ ctx }): Promise<MenuItemWithCategory[]> => ctx.db.menuItem.findMany({ include: { category: true } })
+    ({ ctx }): Promise<MenuItemWithCategory[]> =>
+      ctx.db.menuItem.findMany({
+        include: { category: true },
+        orderBy: { category: { sortOrder: 'asc' } },
+      })
   ),
 
   listCategories: roleProcedure('ADMIN').query(({ ctx }) =>
