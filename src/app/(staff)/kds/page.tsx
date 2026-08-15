@@ -48,8 +48,15 @@ export default function KdsPage() {
     const refetch = () => orders.refetch();
     channel.subscribe(refetch);
     return () => {
-      channel.unsubscribe(refetch);
-      client.close();
+      try {
+        channel.unsubscribe(refetch);
+        client.close();
+      } catch {
+        // Ably can throw tearing down a connection that hasn't finished
+        // connecting yet (e.g. React StrictMode's dev-only double-invoke
+        // of effects). Teardown is best-effort — nothing downstream reads
+        // whether it succeeded.
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
