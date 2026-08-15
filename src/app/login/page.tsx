@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const router = useRouter();
   const login = trpc.auth.login.useMutation({
-    onSuccess: () => router.push('/pos'),
+    onSuccess: (data) => router.push(landingPathForRole(data.role)),
     onError: () => setError('Invalid PIN'),
   });
 
@@ -66,3 +66,9 @@ const DEMO_LOGINS = [
   { role: 'Waiter', pin: '3456' },
   { role: 'Kitchen', pin: '4567' },
 ];
+
+function landingPathForRole(role: string): string {
+  if (role === 'KITCHEN') return '/kds';
+  if (role === 'ADMIN') return '/admin/menu';
+  return '/pos';
+}
