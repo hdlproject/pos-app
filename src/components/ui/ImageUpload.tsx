@@ -20,6 +20,12 @@ export function ImageUpload({ value, onChange, categoryName }: ImageUploadProps)
     if (!file) return;
 
     setError('');
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File too large (max 5MB)');
+      return;
+    }
+
     setUploading(true);
     try {
       const formData = new FormData();
@@ -51,7 +57,7 @@ export function ImageUpload({ value, onChange, categoryName }: ImageUploadProps)
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif"
             onChange={handleFileSelected}
             className="hidden"
           />
