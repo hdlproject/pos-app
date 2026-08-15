@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CategoryIcon } from './CategoryIcon';
 
 type MenuItemThumbnailProps = {
@@ -11,6 +11,10 @@ type MenuItemThumbnailProps = {
 
 export function MenuItemThumbnail({ image, categoryName, alt, className = '' }: MenuItemThumbnailProps) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [image]);
 
   if (image && !failed) {
     return (
