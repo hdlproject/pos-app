@@ -18,7 +18,7 @@ describe('payment router', () => {
     // Payment.receivedById and StockMovement.createdById are real FKs to User
     // (same reasoning as order-router.test.ts and ingredient-router.test.ts), so the
     // ctx.user id used by these tests must correspond to an actual row.
-    await db.user.create({ data: { id: 'u1', name: 'C', role: 'CASHIER', pinHash: await hashPin('1234') } });
+    await db.user.create({ data: { id: 'u1', name: 'C', role: 'STAFF', pinHash: await hashPin('1234') } });
     return db.order.create({
       data: {
         type: 'TAKEAWAY', status: 'READY', source: 'STAFF', total: 9,
@@ -29,7 +29,7 @@ describe('payment router', () => {
 
   it('pays cash, records change, marks order paid, and deducts stock', async () => {
     const order = await seedOrder();
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'CASHIER', name: 'C' } });
+    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
 
     const result = await cashier.payment.payCash({ orderId: order.id, tendered: 10 });
     expect(result.change).toBeCloseTo(1);
@@ -43,13 +43,13 @@ describe('payment router', () => {
 
   it('rejects insufficient tendered amount', async () => {
     const order = await seedOrder();
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'CASHIER', name: 'C' } });
+    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
     await expect(cashier.payment.payCash({ orderId: order.id, tendered: 5 })).rejects.toThrow();
   });
 
   it('rejects paying an already-paid order', async () => {
     const order = await seedOrder();
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'CASHIER', name: 'C' } });
+    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
     await cashier.payment.payCash({ orderId: order.id, tendered: 10 });
     await expect(cashier.payment.payCash({ orderId: order.id, tendered: 10 })).rejects.toThrow();
   });

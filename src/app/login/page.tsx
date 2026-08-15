@@ -41,7 +41,7 @@ export default function LoginPage() {
 
         <div className="mt-6 pt-5 border-t border-border">
           <p className="text-text-muted text-xs font-bold mb-2.5">Demo login</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {DEMO_LOGINS.map((demo) => (
               <Button
                 key={demo.role}
@@ -62,8 +62,7 @@ export default function LoginPage() {
 
 const DEMO_LOGINS = [
   { role: 'Admin', pin: '1234' },
-  { role: 'Cashier', pin: '2345' },
-  { role: 'Waiter', pin: '3456' },
+  { role: 'Staff', pin: '2345' },
   { role: 'Kitchen', pin: '4567' },
 ];
 

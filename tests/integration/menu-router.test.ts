@@ -23,7 +23,7 @@ describe('menu router', () => {
   });
 
   it('rejects createItem from a non-admin role', async () => {
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u2', role: 'CASHIER', name: 'C' } });
+    const cashier = appRouter.createCaller({ db, user: { userId: 'u2', role: 'STAFF', name: 'C' } });
     const category = await db.category.create({ data: { name: 'Tea', sortOrder: 2 } });
     await expect(
       cashier.menu.createItem({ name: 'Green Tea', price: 3, categoryId: category.id, available: true })

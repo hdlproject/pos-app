@@ -7,7 +7,7 @@ function genToken() {
 }
 
 export const tableRouter = router({
-  list: roleProcedure('ADMIN', 'CASHIER', 'WAITER').query(({ ctx }) => ctx.db.table.findMany()),
+  list: roleProcedure('ADMIN', 'STAFF').query(({ ctx }) => ctx.db.table.findMany()),
 
   create: roleProcedure('ADMIN')
     .input(z.object({ label: z.string().min(1) }))

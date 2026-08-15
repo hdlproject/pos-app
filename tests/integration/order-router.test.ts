@@ -21,8 +21,8 @@ describe('order router', () => {
     // Order.createdById is a real FK to User, unlike Category/MenuItem/Table in the
     // other router tests, so the ctx.user id must correspond to an actual row
     // (same reasoning as ingredient-router.test.ts's StockMovement.createdById).
-    await db.user.create({ data: { id: 'u1', name: 'C', role: 'CASHIER', pinHash: await hashPin('1234') } });
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'CASHIER', name: 'C' } });
+    await db.user.create({ data: { id: 'u1', name: 'C', role: 'STAFF', pinHash: await hashPin('1234') } });
+    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
 
     const order = await cashier.order.createStaff({
       type: 'DINE_IN',

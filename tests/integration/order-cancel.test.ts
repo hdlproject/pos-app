@@ -50,7 +50,7 @@ describe('order cancel', () => {
     const order = await db.order.create({
       data: { type: 'TAKEAWAY', status: 'SENT_TO_KITCHEN', source: 'STAFF', total: 4.5, items: { create: [{ menuItemId: item.id, qty: 1, unitPrice: 4.5 }] } },
     });
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'CASHIER', name: 'C' } });
+    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
     await expect(cashier.order.cancel({ orderId: order.id, reason: 'x' })).rejects.toThrow();
   });
 });

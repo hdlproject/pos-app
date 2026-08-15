@@ -45,7 +45,7 @@ function calcTotal(items: { qty: number; unitPrice: unknown }[]): number {
 }
 
 export const orderRouter = router({
-  createStaff: roleProcedure('ADMIN', 'CASHIER', 'WAITER')
+  createStaff: roleProcedure('ADMIN', 'STAFF')
     .input(createOrderInput)
     .mutation(async ({ ctx, input }) => {
       const items = await buildOrderItems(ctx.db, input.items);
@@ -149,7 +149,7 @@ export const orderRouter = router({
       return order ?? null;
     }),
 
-  listOpen: roleProcedure('ADMIN', 'CASHIER', 'WAITER', 'KITCHEN').query(({ ctx }) =>
+  listOpen: roleProcedure('ADMIN', 'STAFF', 'KITCHEN').query(({ ctx }) =>
     ctx.db.order.findMany({
       where: { status: { in: ['OPEN', 'SENT_TO_KITCHEN', 'READY', 'SERVED'] } },
       include: { items: { include: { menuItem: true } }, table: true },

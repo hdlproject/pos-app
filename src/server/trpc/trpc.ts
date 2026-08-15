@@ -11,7 +11,7 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
-export function roleProcedure(...roles: Array<'ADMIN' | 'CASHIER' | 'WAITER' | 'KITCHEN'>) {
+export function roleProcedure(...roles: Array<'ADMIN' | 'STAFF' | 'KITCHEN'>) {
   return protectedProcedure.use(({ ctx, next }) => {
     if (!roles.includes(ctx.user.role)) {
       throw new TRPCError({ code: 'FORBIDDEN' });

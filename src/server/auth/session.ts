@@ -4,7 +4,7 @@ const SECRET = process.env.JWT_SECRET!;
 
 export interface SessionPayload {
   userId: string;
-  role: 'ADMIN' | 'CASHIER' | 'WAITER' | 'KITCHEN';
+  role: 'ADMIN' | 'STAFF' | 'KITCHEN';
   name: string;
 }
 

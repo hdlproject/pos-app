@@ -5,7 +5,7 @@ import { redis } from '../../redis';
 const dateRangeInput = z.object({ from: z.string(), to: z.string() });
 
 export const reportRouter = router({
-  dailySales: roleProcedure('ADMIN', 'CASHIER').input(dateRangeInput).query(async ({ ctx, input }) => {
+  dailySales: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
     const cacheKey = `report:dailySales:${input.from}:${input.to}`;
     const cached = await redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -23,7 +23,7 @@ export const reportRouter = router({
     return result;
   }),
 
-  bestSellers: roleProcedure('ADMIN', 'CASHIER').input(dateRangeInput).query(async ({ ctx, input }) => {
+  bestSellers: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
     const rows = await ctx.db.orderItem.groupBy({
       by: ['menuItemId'],
       where: { order: { createdAt: { gte: new Date(input.from), lte: new Date(input.to) }, status: 'PAID' } },

@@ -5,7 +5,7 @@ import { publishOrderEvent } from '../../ably';
 const ITEM_STATUSES = ['QUEUED', 'PREPARING', 'READY', 'SERVED'] as const;
 
 export const kitchenRouter = router({
-  updateItemStatus: roleProcedure('ADMIN', 'KITCHEN', 'WAITER')
+  updateItemStatus: roleProcedure('ADMIN', 'KITCHEN', 'STAFF')
     .input(z.object({ orderItemId: z.string(), status: z.enum(ITEM_STATUSES) }))
     .mutation(async ({ ctx, input }) => {
       const item = await ctx.db.orderItem.update({
@@ -27,7 +27,7 @@ export const kitchenRouter = router({
       return item;
     }),
 
-  markServed: roleProcedure('ADMIN', 'WAITER', 'CASHIER')
+  markServed: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.update({ where: { id: input.orderId }, data: { status: 'SERVED' } });

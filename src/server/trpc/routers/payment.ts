@@ -6,7 +6,7 @@ import { publishOrderEvent } from '../../ably';
 import { redis } from '../../redis';
 
 export const paymentRouter = router({
-  payCash: roleProcedure('ADMIN', 'CASHIER')
+  payCash: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string(), tendered: z.number().positive() }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.findUniqueOrThrow({ where: { id: input.orderId } });

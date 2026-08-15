@@ -3,7 +3,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure, roleProcedure } from '@/server/trpc/trpc';
 
 function callerFor(
-  user: { userId: string; role: 'ADMIN' | 'CASHIER' | 'WAITER' | 'KITCHEN'; name: string } | null
+  user: { userId: string; role: 'ADMIN' | 'STAFF' | 'KITCHEN'; name: string } | null
 ) {
   const testRouter = router({
     open: publicProcedure.query(() => 'ok'),
@@ -24,7 +24,7 @@ describe('trpc procedures', () => {
 
   it('roleProcedure rejects the wrong role', async () => {
     await expect(
-      callerFor({ userId: 'u1', role: 'CASHIER', name: 'C' }).adminOnly()
+      callerFor({ userId: 'u1', role: 'STAFF', name: 'C' }).adminOnly()
     ).rejects.toThrow(TRPCError);
   });
 

@@ -11,7 +11,7 @@ describe('report router', () => {
   });
 
   it('computes daily sales, best sellers, inventory usage, and shift summary', async () => {
-    const cashier = await db.user.create({ data: { name: 'Cashier', role: 'CASHIER', pinHash: 'x' } });
+    const cashier = await db.user.create({ data: { name: 'Cashier', role: 'STAFF', pinHash: 'x' } });
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
     const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 500, lowStockThreshold: 1000 } });
     const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
