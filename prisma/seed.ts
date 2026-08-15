@@ -9,8 +9,13 @@ const db = new PrismaClient({ adapter });
 async function main() {
   await db.store.create({ data: { name: 'Main Store' } });
 
-  await db.user.create({
-    data: { name: 'Admin', role: 'ADMIN', pinHash: await bcrypt.hash('1234', 10) },
+  await db.user.createMany({
+    data: [
+      { name: 'Admin', role: 'ADMIN', pinHash: await bcrypt.hash('1234', 10) },
+      { name: 'Cashier', role: 'CASHIER', pinHash: await bcrypt.hash('2345', 10) },
+      { name: 'Waiter', role: 'WAITER', pinHash: await bcrypt.hash('3456', 10) },
+      { name: 'Kitchen', role: 'KITCHEN', pinHash: await bcrypt.hash('4567', 10) },
+    ],
   });
 
   const categories = await db.category.createManyAndReturn({

@@ -38,7 +38,31 @@ export default function LoginPage() {
             {error}
           </p>
         )}
+
+        <div className="mt-6 pt-5 border-t border-border">
+          <p className="text-text-muted text-xs font-bold mb-2.5">Demo login</p>
+          <div className="grid grid-cols-2 gap-2">
+            {DEMO_LOGINS.map((demo) => (
+              <Button
+                key={demo.role}
+                variant="outline"
+                size="sm"
+                onClick={() => login.mutate({ pin: demo.pin })}
+                disabled={login.isPending}
+              >
+                {demo.role}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
     </main>
   );
 }
+
+const DEMO_LOGINS = [
+  { role: 'Admin', pin: '1234' },
+  { role: 'Cashier', pin: '2345' },
+  { role: 'Waiter', pin: '3456' },
+  { role: 'Kitchen', pin: '4567' },
+];
