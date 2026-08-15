@@ -7,6 +7,7 @@ import { Chip } from '@/components/ui/Chip';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
+import { Select } from '@/components/ui/Select';
 
 type CartLine = { menuItemId: string; qty: number };
 
@@ -104,16 +105,16 @@ export default function PosPage() {
               ))}
             </div>
             {type === 'DINE_IN' && (
-              <select
+              <Select
                 value={tableId}
                 onChange={(e) => setTableId(e.target.value)}
-                className="w-full mt-3 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm font-semibold text-text outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="w-full mt-3 pl-3 pr-9 py-2 border border-border-strong rounded-lg bg-surface-input text-sm font-semibold text-text outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <option value="">Walk-in</option>
                 {tables.data?.map((t) => (
                   <option key={t.id} value={t.id}>{t.label}</option>
                 ))}
-              </select>
+              </Select>
             )}
           </div>
 

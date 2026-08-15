@@ -4,6 +4,8 @@ import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 
 export default function AdminMenuPage() {
   const utils = trpc.useUtils();
@@ -45,13 +47,13 @@ export default function AdminMenuPage() {
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">New Item</h2>
         <div className="flex gap-2 flex-wrap">
-          <input
+          <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Item name"
             className="flex-1 min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
-          <input
+          <Input
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="Price"
@@ -60,7 +62,7 @@ export default function AdminMenuPage() {
             step="1"
             className="w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
-          <select
+          <Select
             value={addingCategory ? '__new__' : categoryId}
             onChange={(e) => {
               if (e.target.value === '__new__') {
@@ -70,13 +72,13 @@ export default function AdminMenuPage() {
                 setCategoryId(e.target.value);
               }
             }}
-            className="px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="min-w-[180px] pl-3 pr-9 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <option value="">Select category</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             <option value="__new__">+ Add new category…</option>
-          </select>
-          <input
+          </Select>
+          <Input
             value={image}
             onChange={(e) => setImage(e.target.value)}
             placeholder="Image URL (optional)"
@@ -92,7 +94,7 @@ export default function AdminMenuPage() {
         </div>
         {addingCategory && (
           <div className="flex gap-2 mt-2.5">
-            <input
+            <Input
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
               placeholder="New category name"
@@ -165,7 +167,7 @@ export default function AdminMenuPage() {
               </div>
               {editingImageId === item.id && (
                 <div className="flex gap-2 pl-[52px]">
-                  <input
+                  <Input
                     value={editImageValue}
                     onChange={(e) => setEditImageValue(e.target.value)}
                     placeholder="Image URL"

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 export default function LoginPage() {
   const [pin, setPin] = useState('');
@@ -21,7 +22,7 @@ export default function LoginPage() {
         </div>
         <h1 className="font-display text-2xl text-text mb-1">Kopi &amp; Co</h1>
         <p className="text-text-muted text-sm font-semibold mb-6">Staff login</p>
-        <input
+        <Input
           type="password"
           inputMode="numeric"
           maxLength={6}

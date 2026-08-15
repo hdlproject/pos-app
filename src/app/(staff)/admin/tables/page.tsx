@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 
 export default function AdminTablesPage() {
   const utils = trpc.useUtils();
@@ -17,7 +18,7 @@ export default function AdminTablesPage() {
 
       <Card className="mb-5">
         <div className="flex gap-2">
-          <input
+          <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="Table label (e.g. T5)"
