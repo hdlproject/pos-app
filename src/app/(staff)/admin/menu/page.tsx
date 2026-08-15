@@ -67,6 +67,8 @@ export default function AdminMenuPage() {
             onChange={(e) => setPrice(e.target.value)}
             placeholder="Price"
             type="number"
+            min="1"
+            step="1"
             className="w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <select
@@ -85,7 +87,7 @@ export default function AdminMenuPage() {
           />
           <Button
             variant="dark"
-            disabled={!name || !price || !categoryId}
+            disabled={!name || !(Number(price) > 0) || !categoryId}
             onClick={() => createItem.mutate({ name, price: Number(price), categoryId, available: true, image: image || undefined })}
           >
             Add Item
