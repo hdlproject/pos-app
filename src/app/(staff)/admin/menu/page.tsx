@@ -26,6 +26,12 @@ export default function AdminMenuPage() {
   });
   const toggleAvailable = trpc.menu.updateItem.useMutation({ onSuccess: () => utils.menu.listAll.invalidate() });
 
+  const [editingImageId, setEditingImageId] = useState<string | null>(null);
+  const [editImageValue, setEditImageValue] = useState('');
+  const updateImage = trpc.menu.updateItem.useMutation({
+    onSuccess: () => { utils.menu.listAll.invalidate(); setEditingImageId(null); },
+  });
+
   const categories = categoriesQuery.data ?? [];
 
   return (
@@ -91,29 +97,64 @@ export default function AdminMenuPage() {
         <h2 className="font-bold text-text mb-3">Items</h2>
         <div className="flex flex-col gap-2">
           {items.data?.map((item) => (
-            <div key={item.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-              <div className="flex items-center gap-3">
-                <MenuItemThumbnail
-                  image={item.image}
-                  categoryName={item.category.name}
-                  alt={item.name}
-                  className="w-10 h-10 rounded-lg shrink-0"
-                />
-                <div>
-                  <span className="font-bold text-sm text-text">{item.name}</span>
-                  <span className="text-text-muted text-sm ml-2">Rp {String(item.price)}</span>
-                  <span className={`text-xs font-bold ml-2 ${item.available ? 'text-success' : 'text-warning'}`}>
-                    {item.available ? 'available' : 'sold out'}
-                  </span>
+            <div key={item.id} className="flex flex-col gap-2 py-2 border-b border-border last:border-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <MenuItemThumbnail
+                    image={item.image}
+                    categoryName={item.category.name}
+                    alt={item.name}
+                    className="w-10 h-10 rounded-lg shrink-0"
+                  />
+                  <div>
+                    <span className="font-bold text-sm text-text">{item.name}</span>
+                    <span className="text-text-muted text-sm ml-2">Rp {String(item.price)}</span>
+                    <span className={`text-xs font-bold ml-2 ${item.available ? 'text-success' : 'text-warning'}`}>
+                      {item.available ? 'available' : 'sold out'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (editingImageId === item.id) {
+                        setEditingImageId(null);
+                      } else {
+                        setEditingImageId(item.id);
+                        setEditImageValue(item.image ?? '');
+                      }
+                    }}
+                  >
+                    {editingImageId === item.id ? 'Cancel' : 'Edit image'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
+                  >
+                    {item.available ? 'Mark sold out' : 'Mark available'}
+                  </Button>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
-              >
-                {item.available ? 'Mark sold out' : 'Mark available'}
-              </Button>
+              {editingImageId === item.id && (
+                <div className="flex gap-2 pl-[52px]">
+                  <input
+                    value={editImageValue}
+                    onChange={(e) => setEditImageValue(e.target.value)}
+                    placeholder="Image URL"
+                    className="flex-1 min-w-[200px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateImage.mutate({ id: item.id, image: editImageValue || undefined })}
+                  >
+                    Save
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>
