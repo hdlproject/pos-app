@@ -29,4 +29,15 @@ describe('menu router', () => {
       cashier.menu.createItem({ name: 'Green Tea', price: 3, categoryId: category.id, available: true })
     ).rejects.toThrow();
   });
+
+  it('clears an item image by sending null', async () => {
+    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
+    const item = await db.menuItem.create({
+      data: { name: 'Latte', price: 4.5, categoryId: category.id, image: 'http://example.com/old.jpg' },
+    });
+
+    const updated = await admin.menu.updateItem({ id: item.id, image: null });
+    expect(updated.image).toBeNull();
+  });
 });

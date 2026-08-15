@@ -7,7 +7,7 @@ const menuItemInput = z.object({
   price: z.number().positive(),
   categoryId: z.string(),
   available: z.boolean().default(true),
-  image: z.string().optional(),
+  image: z.string().nullable().optional(),
   modifiers: z.record(z.string(), z.any()).optional(),
 });
 
