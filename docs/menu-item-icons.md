@@ -53,4 +53,4 @@ No changes are needed anywhere else — `MenuItemThumbnail` and every page consu
 
 ## Adding a real photo to an item
 
-Set `MenuItem.image` to an image URL — via the admin "Image URL" field on `/admin/menu`, or directly via `menu.updateItem`. Once set, `MenuItemThumbnail` shows it in place of the generated icon everywhere the item is listed. No code change required.
+Upload a photo via the `ImageUpload` component on `/admin/menu`: the "Upload Photo" button on the New Item form when creating an item, or the "Edit image" toggle on each existing item's row (which reveals the same upload control, then "Change Photo"/"Remove"). The file is uploaded through the ADMIN-gated `/api/upload` route to the S3/MinIO bucket, and the returned URL is saved to `MenuItem.image` via `menu.updateItem`. Once set, `MenuItemThumbnail` shows it in place of the generated icon everywhere the item is listed. No code change required.
