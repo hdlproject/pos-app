@@ -25,7 +25,17 @@ function ensureBucket(): Promise<void> {
       try {
         await client.send(new HeadBucketCommand({ Bucket: BUCKET }));
       } catch {
-        await client.send(new CreateBucketCommand({ Bucket: BUCKET }));
+        try {
+          await client.send(new CreateBucketCommand({ Bucket: BUCKET }));
+        } catch (err) {
+          // The bucket already existing is not a failure for our purposes —
+          // only bail out (and let the outer .catch() clear bucketReady for
+          // retry) on a genuinely unexpected error.
+          const name = (err as { name?: string })?.name;
+          if (name !== 'BucketAlreadyOwnedByYou' && name !== 'BucketAlreadyExists') {
+            throw err;
+          }
+        }
         await client.send(
           new PutBucketPolicyCommand({
             Bucket: BUCKET,
@@ -43,7 +53,13 @@ function ensureBucket(): Promise<void> {
           })
         );
       }
-    })();
+    })().catch((err) => {
+      // Don't permanently cache a rejected promise — a transient failure
+      // here would otherwise poison every future upload until the process
+      // restarts. Clear bucketReady so the next call retries from scratch.
+      bucketReady = undefined;
+      throw err;
+    });
   }
   return bucketReady;
 }
