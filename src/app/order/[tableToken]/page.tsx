@@ -96,7 +96,7 @@ export default function CustomerOrderPage() {
                 <div className="flex-1 min-w-0 flex flex-col">
                   <span className="font-extrabold text-sm text-text">{item.name}</span>
                   <div className="flex items-center justify-between mt-auto pt-2">
-                    <span className="font-extrabold text-sm text-accent-tint">Rp {String(item.price)}</span>
+                    <span className="font-extrabold text-sm text-accent-tint">Rp {Number(item.price).toLocaleString('id-ID')}</span>
                     <Button variant="dark" size="sm" onClick={() => addToCart(item.id)}>
                       Add
                     </Button>

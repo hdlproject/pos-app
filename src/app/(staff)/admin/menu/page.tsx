@@ -108,7 +108,7 @@ export default function AdminMenuPage() {
                   />
                   <div>
                     <span className="font-bold text-sm text-text">{item.name}</span>
-                    <span className="text-text-muted text-sm ml-2">Rp {String(item.price)}</span>
+                    <span className="text-text-muted text-sm ml-2">Rp {Number(item.price).toLocaleString('id-ID')}</span>
                     <span className={`text-xs font-bold ml-2 ${item.available ? 'text-success' : 'text-warning'}`}>
                       {item.available ? 'available' : 'sold out'}
                     </span>
