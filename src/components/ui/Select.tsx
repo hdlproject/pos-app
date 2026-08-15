@@ -6,7 +6,7 @@ export function Select({ className = '', children, ...props }: SelectProps) {
   return (
     <div className="relative">
       <select
-        className={`appearance-none transition-colors focus-visible:border-accent disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+        className={`appearance-none [color-scheme:light] transition-colors focus-visible:border-accent disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
         {...props}
       >
         {children}
