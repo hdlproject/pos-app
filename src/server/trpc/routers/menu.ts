@@ -11,6 +11,23 @@ const menuItemInput = z.object({
   modifiers: z.record(z.string(), z.any()).optional(),
 });
 
+// Deliberately NOT `menuItemInput.partial()`: `.partial()` only makes fields
+// optional to provide, it does not remove `available`'s `.default(true)` —
+// Zod still fills in `available: true` when the caller omits it, which would
+// silently flip a sold-out item back to available on any update that isn't
+// explicitly touching `available` (e.g. changing just the photo). This
+// schema has no default on `available`, so it only changes when the caller
+// explicitly includes it.
+const updateItemInput = z.object({
+  id: z.string(),
+  name: z.string().min(1).optional(),
+  price: z.number().positive().optional(),
+  categoryId: z.string().optional(),
+  available: z.boolean().optional(),
+  image: z.string().nullable().optional(),
+  modifiers: z.record(z.string(), z.any()).optional(),
+});
+
 // Hand-written (non-generic) shape for MenuItem + Category, used instead of
 // Prisma.MenuItemGetPayload<...> to keep the type tRPC infers on the client
 // cheap to instantiate (see TS2589 investigation in the build-fix task).
@@ -70,7 +87,7 @@ export const menuRouter = router({
     }),
 
   updateItem: roleProcedure('ADMIN')
-    .input(menuItemInput.partial().extend({ id: z.string() }))
+    .input(updateItemInput)
     .mutation(({ ctx, input }) => {
       const { id, ...rest } = input;
       const data: Prisma.MenuItemUncheckedUpdateInput = {
