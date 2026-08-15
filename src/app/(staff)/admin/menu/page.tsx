@@ -9,18 +9,22 @@ export default function AdminMenuPage() {
   const utils = trpc.useUtils();
   const items = trpc.menu.listAll.useQuery();
   const categoriesQuery = trpc.menu.listCategories.useQuery();
-  const [categoryName, setCategoryName] = useState('');
-  const createCategory = trpc.menu.createCategory.useMutation({
-    onSuccess: () => {
-      utils.menu.listAll.invalidate();
-      utils.menu.listCategories.invalidate();
-    },
-  });
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [image, setImage] = useState('');
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const createCategory = trpc.menu.createCategory.useMutation({
+    onSuccess: (data) => {
+      utils.menu.listAll.invalidate();
+      utils.menu.listCategories.invalidate();
+      setCategoryId(data.id);
+      setAddingCategory(false);
+      setNewCategoryName('');
+    },
+  });
   const createItem = trpc.menu.createItem.useMutation({
     onSuccess: () => { utils.menu.listAll.invalidate(); setName(''); setPrice(''); setImage(''); },
   });
@@ -37,21 +41,6 @@ export default function AdminMenuPage() {
   return (
     <div className="p-6">
       <h1 className="font-display text-2xl text-text mb-6">Menu Management</h1>
-
-      <Card className="mb-5">
-        <h2 className="font-bold text-text mb-3">New Category</h2>
-        <div className="flex gap-2">
-          <input
-            value={categoryName}
-            onChange={(e) => setCategoryName(e.target.value)}
-            placeholder="Category name"
-            className="flex-1 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <Button variant="primary" onClick={() => { createCategory.mutate({ name: categoryName }); setCategoryName(''); }}>
-            Add Category
-          </Button>
-        </div>
-      </Card>
 
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">New Item</h2>
@@ -72,12 +61,20 @@ export default function AdminMenuPage() {
             className="w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+            value={addingCategory ? '__new__' : categoryId}
+            onChange={(e) => {
+              if (e.target.value === '__new__') {
+                setAddingCategory(true);
+              } else {
+                setAddingCategory(false);
+                setCategoryId(e.target.value);
+              }
+            }}
             className="px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <option value="">Select category</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="__new__">+ Add new category…</option>
           </select>
           <input
             value={image}
@@ -93,6 +90,32 @@ export default function AdminMenuPage() {
             Add Item
           </Button>
         </div>
+        {addingCategory && (
+          <div className="flex gap-2 mt-2.5">
+            <input
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="New category name"
+              autoFocus
+              className="flex-1 min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!newCategoryName}
+              onClick={() => createCategory.mutate({ name: newCategoryName })}
+            >
+              Add
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setAddingCategory(false); setNewCategoryName(''); }}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
       </Card>
 
       <Card>
