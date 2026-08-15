@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 
 export default function AdminMenuPage() {
   const utils = trpc.useUtils();
@@ -15,7 +16,7 @@ export default function AdminMenuPage() {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [image, setImage] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const createCategory = trpc.menu.createCategory.useMutation({
     onSuccess: (data) => {
       utils.menu.listAll.invalidate();
@@ -31,14 +32,13 @@ export default function AdminMenuPage() {
     },
   });
   const createItem = trpc.menu.createItem.useMutation({
-    onSuccess: () => { utils.menu.listAll.invalidate(); setName(''); setPrice(''); setImage(''); },
+    onSuccess: () => { utils.menu.listAll.invalidate(); setName(''); setPrice(''); setImage(null); },
   });
   const toggleAvailable = trpc.menu.updateItem.useMutation({ onSuccess: () => utils.menu.listAll.invalidate() });
 
   const [editingImageId, setEditingImageId] = useState<string | null>(null);
-  const [editImageValue, setEditImageValue] = useState('');
   const updateImage = trpc.menu.updateItem.useMutation({
-    onSuccess: () => { utils.menu.listAll.invalidate(); setEditingImageId(null); },
+    onSuccess: () => utils.menu.listAll.invalidate(),
   });
 
   const categories = categoriesQuery.data ?? [];
@@ -77,19 +77,20 @@ export default function AdminMenuPage() {
             onRemove={(id) => deleteCategory.mutate({ id })}
             className="min-w-[180px] px-3 py-2"
           />
-          <Input
-            value={image}
-            onChange={(e) => setImage(e.target.value)}
-            placeholder="Image URL (optional)"
-            className="flex-1 min-w-[200px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
           <Button
             variant="dark"
             disabled={!name || !(Number(price) > 0) || !categoryId}
-            onClick={() => createItem.mutate({ name, price: Number(price), categoryId, available: true, image: image || undefined })}
+            onClick={() => createItem.mutate({ name, price: Number(price), categoryId, available: true, image: image ?? undefined })}
           >
             Add Item
           </Button>
+        </div>
+        <div className="mt-3">
+          <ImageUpload
+            value={image}
+            onChange={setImage}
+            categoryName={categories.find((c) => c.id === categoryId)?.name ?? ''}
+          />
         </div>
       </Card>
 
@@ -118,14 +119,7 @@ export default function AdminMenuPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      if (editingImageId === item.id) {
-                        setEditingImageId(null);
-                      } else {
-                        setEditingImageId(item.id);
-                        setEditImageValue(item.image ?? '');
-                      }
-                    }}
+                    onClick={() => setEditingImageId(editingImageId === item.id ? null : item.id)}
                   >
                     {editingImageId === item.id ? 'Cancel' : 'Edit image'}
                   </Button>
@@ -139,20 +133,12 @@ export default function AdminMenuPage() {
                 </div>
               </div>
               {editingImageId === item.id && (
-                <div className="flex gap-2 pl-[52px]">
-                  <Input
-                    value={editImageValue}
-                    onChange={(e) => setEditImageValue(e.target.value)}
-                    placeholder="Image URL"
-                    className="flex-1 min-w-[200px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                <div className="pl-[52px]">
+                  <ImageUpload
+                    value={item.image}
+                    onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
+                    categoryName={item.category.name}
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => updateImage.mutate({ id: item.id, image: editImageValue || undefined })}
-                  >
-                    Save
-                  </Button>
                 </div>
               )}
             </div>
