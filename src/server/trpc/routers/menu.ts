@@ -55,6 +55,10 @@ export const menuRouter = router({
     .input(z.object({ name: z.string().min(1), sortOrder: z.number().default(0) }))
     .mutation(({ ctx, input }) => ctx.db.category.create({ data: input })),
 
+  deleteCategory: roleProcedure('ADMIN')
+    .input(z.object({ id: z.string() }))
+    .mutation(({ ctx, input }) => ctx.db.category.delete({ where: { id: input.id } })),
+
   createItem: roleProcedure('ADMIN')
     .input(menuItemInput)
     .mutation(({ ctx, input }) => {

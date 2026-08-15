@@ -23,6 +23,13 @@ export default function AdminMenuPage() {
       setCategoryId(data.id);
     },
   });
+  const deleteCategory = trpc.menu.deleteCategory.useMutation({
+    onSuccess: (_data, variables) => {
+      utils.menu.listAll.invalidate();
+      utils.menu.listCategories.invalidate();
+      setCategoryId((current) => (current === variables.id ? '' : current));
+    },
+  });
   const createItem = trpc.menu.createItem.useMutation({
     onSuccess: () => { utils.menu.listAll.invalidate(); setName(''); setPrice(''); setImage(''); },
   });
@@ -35,6 +42,7 @@ export default function AdminMenuPage() {
   });
 
   const categories = categoriesQuery.data ?? [];
+  const usedCategoryIds = new Set((items.data ?? []).map((item) => item.categoryId));
 
   return (
     <div className="p-6">
@@ -61,11 +69,12 @@ export default function AdminMenuPage() {
           <Select
             value={categoryId}
             onChange={setCategoryId}
-            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            options={categories.map((c) => ({ value: c.id, label: c.name, removable: !usedCategoryIds.has(c.id) }))}
             placeholder="Select category"
             onAddNew={(newName) => createCategory.mutate({ name: newName })}
             addNewLabel="+ Add new category…"
             addNewPlaceholder="New category name"
+            onRemove={(id) => deleteCategory.mutate({ id })}
             className="min-w-[180px] px-3 py-2"
           />
           <Input

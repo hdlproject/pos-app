@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 
-type SelectOption = { value: string; label: string };
+type SelectOption = { value: string; label: string; removable?: boolean };
 
 type SelectProps = {
   value: string;
@@ -12,6 +12,7 @@ type SelectProps = {
   onAddNew?: (name: string) => void;
   addNewLabel?: string;
   addNewPlaceholder?: string;
+  onRemove?: (value: string) => void;
 };
 
 export function Select({
@@ -23,6 +24,7 @@ export function Select({
   onAddNew,
   addNewLabel = '+ Add new…',
   addNewPlaceholder = 'New name',
+  onRemove,
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -84,16 +86,37 @@ export function Select({
       {open && (
         <div className="absolute z-20 top-full mt-1 left-0 min-w-full w-max max-w-[280px] bg-surface border border-border rounded-xl shadow-lg py-1 max-h-64 overflow-y-auto">
           {options.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => handleSelect(opt.value)}
-              className={`block w-full text-left px-3 py-2 text-sm transition-colors hover:bg-surface-input ${
-                opt.value === value ? 'text-accent font-bold' : 'text-text'
-              }`}
-            >
-              {opt.label}
-            </button>
+            <div key={opt.value} className="flex items-center">
+              <button
+                type="button"
+                onClick={() => handleSelect(opt.value)}
+                className={`flex-1 min-w-0 truncate text-left px-3 py-2 text-sm transition-colors hover:bg-surface-input ${
+                  opt.value === value ? 'text-accent font-bold' : 'text-text'
+                }`}
+              >
+                {opt.label}
+              </button>
+              {onRemove && opt.removable && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(opt.value)}
+                  aria-label={`Remove ${opt.label}`}
+                  className="shrink-0 px-2 py-2 text-text-muted-2 hover:text-warning transition-colors"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              )}
+            </div>
           ))}
 
           {onAddNew && (
