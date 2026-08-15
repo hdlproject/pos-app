@@ -107,14 +107,10 @@ export default function PosPage() {
             {type === 'DINE_IN' && (
               <Select
                 value={tableId}
-                onChange={(e) => setTableId(e.target.value)}
-                className="w-full mt-3 pl-3 pr-9 py-2 border border-border-strong rounded-lg bg-surface-input text-sm font-semibold text-text outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <option value="">Walk-in</option>
-                {tables.data?.map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
-                ))}
-              </Select>
+                onChange={setTableId}
+                options={[{ value: '', label: 'Walk-in' }, ...(tables.data?.map((t) => ({ value: t.id, label: t.label })) ?? [])]}
+                className="w-full mt-3 px-3 py-2 font-semibold"
+              />
             )}
           </div>
 

@@ -16,15 +16,11 @@ export default function AdminMenuPage() {
   const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [image, setImage] = useState('');
-  const [addingCategory, setAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
   const createCategory = trpc.menu.createCategory.useMutation({
     onSuccess: (data) => {
       utils.menu.listAll.invalidate();
       utils.menu.listCategories.invalidate();
       setCategoryId(data.id);
-      setAddingCategory(false);
-      setNewCategoryName('');
     },
   });
   const createItem = trpc.menu.createItem.useMutation({
@@ -63,21 +59,15 @@ export default function AdminMenuPage() {
             className="w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Select
-            value={addingCategory ? '__new__' : categoryId}
-            onChange={(e) => {
-              if (e.target.value === '__new__') {
-                setAddingCategory(true);
-              } else {
-                setAddingCategory(false);
-                setCategoryId(e.target.value);
-              }
-            }}
-            className="min-w-[180px] pl-3 pr-9 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <option value="">Select category</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            <option value="__new__">+ Add new category…</option>
-          </Select>
+            value={categoryId}
+            onChange={setCategoryId}
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Select category"
+            onAddNew={(newName) => createCategory.mutate({ name: newName })}
+            addNewLabel="+ Add new category…"
+            addNewPlaceholder="New category name"
+            className="min-w-[180px] px-3 py-2"
+          />
           <Input
             value={image}
             onChange={(e) => setImage(e.target.value)}
@@ -92,32 +82,6 @@ export default function AdminMenuPage() {
             Add Item
           </Button>
         </div>
-        {addingCategory && (
-          <div className="flex gap-2 mt-2.5">
-            <Input
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="New category name"
-              autoFocus
-              className="flex-1 min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!newCategoryName}
-              onClick={() => createCategory.mutate({ name: newCategoryName })}
-            >
-              Add
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setAddingCategory(false); setNewCategoryName(''); }}
-            >
-              Cancel
-            </Button>
-          </div>
-        )}
       </Card>
 
       <Card>
