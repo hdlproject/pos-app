@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { router, roleProcedure } from '../trpc';
+import { recomputeAvailabilityForIngredient } from '../../stock/availability';
 
 export const stockBatchRouter = router({
   getPending: roleProcedure('ADMIN').query(({ ctx }) =>
@@ -55,4 +56,35 @@ export const stockBatchRouter = router({
     .mutation(({ ctx, input }) =>
       ctx.db.stockAdjustmentBatch.update({ where: { id: input.batchId }, data: { note: input.note } })
     ),
+
+  confirm: roleProcedure('ADMIN')
+    .input(z.object({ batchId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.$transaction(async (tx) => {
+        const batch = await tx.stockAdjustmentBatch.findUniqueOrThrow({
+          where: { id: input.batchId },
+          include: { lines: true },
+        });
+        for (const line of batch.lines) {
+          await tx.ingredient.update({
+            where: { id: line.ingredientId },
+            data: { stockQty: { increment: line.delta } },
+          });
+          await tx.stockMovement.create({
+            data: {
+              ingredientId: line.ingredientId,
+              delta: line.delta,
+              reason: line.reason,
+              createdById: ctx.user.userId,
+            },
+          });
+          await recomputeAvailabilityForIngredient(tx, line.ingredientId);
+        }
+        await tx.stockAdjustmentBatch.update({
+          where: { id: input.batchId },
+          data: { status: 'CONFIRMED', confirmedAt: new Date(), confirmedById: ctx.user.userId },
+        });
+      });
+      return { ok: true };
+    }),
 });

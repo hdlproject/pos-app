@@ -101,4 +101,59 @@ describe('stock batch router', () => {
     const updated = await admin.stockBatch.getPending();
     expect(updated?.note).toBe('Weekly supplier delivery');
   });
+
+  it('confirm applies every line, writes StockMovement rows, and marks the batch CONFIRMED', async () => {
+    const admin = await adminCaller();
+    const adminUser = await db.user.findFirstOrThrow({ where: { name: 'Admin' } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500, lowStockThreshold: 100 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    await admin.stockBatch.stageChange({ ingredientId: beans.id, delta: -50, reason: 'MANUAL_ADJUST' });
+    const batch = await admin.stockBatch.getPending();
+
+    await admin.stockBatch.confirm({ batchId: batch!.id });
+
+    const milkAfter = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
+    expect(Number(milkAfter.stockQty)).toBe(1500);
+    const beansAfter = await db.ingredient.findUniqueOrThrow({ where: { id: beans.id } });
+    expect(Number(beansAfter.stockQty)).toBe(450);
+
+    const movements = await db.stockMovement.findMany();
+    expect(movements).toHaveLength(2);
+    const beansMovement = movements.find((m) => m.ingredientId === beans.id)!;
+    expect(beansMovement.reason).toBe('MANUAL_ADJUST');
+    expect(Number(beansMovement.delta)).toBe(-50);
+
+    const confirmedBatch = await db.stockAdjustmentBatch.findUniqueOrThrow({ where: { id: batch!.id } });
+    expect(confirmedBatch.status).toBe('CONFIRMED');
+    expect(confirmedBatch.confirmedById).toBe(adminUser.id);
+    expect(confirmedBatch.confirmedAt).not.toBeNull();
+  });
+
+  it('confirm removes the batch from getPending (it is no longer PENDING)', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+
+    await admin.stockBatch.confirm({ batchId: batch!.id });
+
+    const pending = await admin.stockBatch.getPending();
+    expect(pending).toBeNull();
+  });
+
+  it('confirm calls the availability recompute for a depleted ingredient', async () => {
+    const admin = await adminCaller();
+    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 100, lowStockThreshold: 200 } });
+    const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
+    await db.recipe.create({ data: { menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: -100, reason: 'MANUAL_ADJUST' });
+    const batch = await admin.stockBatch.getPending();
+
+    await admin.stockBatch.confirm({ batchId: batch!.id });
+
+    const updatedItem = await db.menuItem.findUniqueOrThrow({ where: { id: item.id } });
+    expect(updatedItem.outOfStockReason).toBe('Out of stock: Milk');
+  });
 });
