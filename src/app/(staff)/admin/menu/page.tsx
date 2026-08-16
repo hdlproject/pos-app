@@ -48,8 +48,15 @@ export default function AdminMenuPage() {
       setCategoryId((current) => (current === variables.id ? '' : current));
     },
   });
+  const [showNewItemForm, setShowNewItemForm] = useState(false);
   const createItem = trpc.menu.createItem.useMutation({
-    onSuccess: () => { utils.menu.listAll.invalidate(); setName(''); setPrice(''); setImage(null); },
+    onSuccess: () => {
+      utils.menu.listAll.invalidate();
+      setName('');
+      setPrice('');
+      setImage(null);
+      setShowNewItemForm(false);
+    },
   });
   const toggleAvailable = trpc.menu.updateItem.useMutation({ onSuccess: () => utils.menu.listAll.invalidate() });
 
@@ -112,52 +119,65 @@ export default function AdminMenuPage() {
     <div className="p-6">
       <h1 className="font-display text-2xl text-text mb-6">Menu Management</h1>
 
-      <Card className="mb-5">
-        <h2 className="font-bold text-text mb-3">New Item</h2>
-        <div className="flex flex-col sm:flex-row gap-2 sm:flex-wrap">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Item name"
-            className="w-full sm:flex-1 sm:min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <Input
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="Price"
-            type="number"
-            min="1"
-            step="1"
-            className="w-full sm:w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <Select
-            value={categoryId}
-            onChange={setCategoryId}
-            options={categories.map((c) => ({ value: c.id, label: c.name, removable: !usedCategoryIds.has(c.id) }))}
-            placeholder="Select category"
-            onAddNew={(newName) => createCategory.mutate({ name: newName })}
-            addNewLabel="+ Add new category…"
-            addNewPlaceholder="New category name"
-            onRemove={(id) => deleteCategory.mutate({ id })}
-            className="w-full sm:w-auto sm:min-w-[180px] px-3 py-2"
-          />
-          <Button
-            variant="dark"
-            className="w-full sm:w-auto"
-            disabled={!name || !(Number(price) > 0) || !categoryId}
-            onClick={() => createItem.mutate({ name, price: Number(price), categoryId, available: true, image: image ?? undefined })}
-          >
-            Add Item
-          </Button>
-        </div>
-        <div className="mt-3">
-          <ImageUpload
-            value={image}
-            onChange={setImage}
-            categoryName={categories.find((c) => c.id === categoryId)?.name ?? ''}
-          />
-        </div>
-      </Card>
+      {!showNewItemForm && (
+        <Button variant="dark" className="mb-5" onClick={() => setShowNewItemForm(true)}>
+          + New Item
+        </Button>
+      )}
+
+      {showNewItemForm && (
+        <Card className="mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-text">New Item</h2>
+            <Button variant="outline" size="sm" onClick={() => setShowNewItemForm(false)}>
+              Cancel
+            </Button>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:flex-wrap">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Item name"
+              className="w-full sm:flex-1 sm:min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+            <Input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="Price"
+              type="number"
+              min="1"
+              step="1"
+              className="w-full sm:w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+            <Select
+              value={categoryId}
+              onChange={setCategoryId}
+              options={categories.map((c) => ({ value: c.id, label: c.name, removable: !usedCategoryIds.has(c.id) }))}
+              placeholder="Select category"
+              onAddNew={(newName) => createCategory.mutate({ name: newName })}
+              addNewLabel="+ Add new category…"
+              addNewPlaceholder="New category name"
+              onRemove={(id) => deleteCategory.mutate({ id })}
+              className="w-full sm:w-auto sm:min-w-[180px] px-3 py-2"
+            />
+            <Button
+              variant="dark"
+              className="w-full sm:w-auto"
+              disabled={!name || !(Number(price) > 0) || !categoryId}
+              onClick={() => createItem.mutate({ name, price: Number(price), categoryId, available: true, image: image ?? undefined })}
+            >
+              Add Item
+            </Button>
+          </div>
+          <div className="mt-3">
+            <ImageUpload
+              value={image}
+              onChange={setImage}
+              categoryName={categories.find((c) => c.id === categoryId)?.name ?? ''}
+            />
+          </div>
+        </Card>
+      )}
 
       <Card>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
