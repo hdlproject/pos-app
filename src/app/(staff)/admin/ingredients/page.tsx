@@ -7,11 +7,13 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 
 function StockStepper({
+  unit,
   pendingDelta,
   pendingLineId,
   onStage,
   onRemove,
 }: {
+  unit: string;
   pendingDelta: number;
   pendingLineId: string | undefined;
   onStage: (delta: number) => void;
@@ -48,6 +50,7 @@ function StockStepper({
       <Button variant="outline" size="sm" onClick={() => commit((Number(text) || 0) + 1)}>
         +
       </Button>
+      <span className="text-xs text-text-muted-2">{unit}</span>
     </div>
   );
 }
@@ -171,6 +174,7 @@ export default function AdminIngredientsPage() {
                 </span>
                 <span className="py-2">
                   <StockStepper
+                    unit={ing.unit}
                     pendingDelta={line ? Number(line.delta) : 0}
                     pendingLineId={line?.id}
                     onStage={(delta) => stageChange.mutate({ ingredientId: ing.id, delta, reason: 'MANUAL_ADJUST' })}
