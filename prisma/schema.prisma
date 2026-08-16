@@ -82,14 +82,15 @@ model Category {
 }
 
 model MenuItem {
-  id         String   @id @default(cuid())
-  name       String
-  price      Decimal  @db.Decimal(10, 2)
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
-  available  Boolean  @default(true)
-  image      String?
-  modifiers  Json?
+  id               String   @id @default(cuid())
+  name             String
+  price            Decimal  @db.Decimal(10, 2)
+  categoryId       String
+  category         Category @relation(fields: [categoryId], references: [id])
+  available        Boolean  @default(true)
+  outOfStockReason String?
+  image            String?
+  modifiers        Json?
 
   recipes    Recipe[]
   orderItems OrderItem[]
