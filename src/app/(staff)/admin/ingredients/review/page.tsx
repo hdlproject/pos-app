@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +15,12 @@ export default function IngredientReviewPage() {
   useEffect(() => {
     if (pending.data?.note) setNote(pending.data.note);
   }, [pending.data?.note]);
+
+  useEffect(() => {
+    if (!pending.isLoading && !pending.data) {
+      router.replace('/admin/ingredients');
+    }
+  }, [pending.isLoading, pending.data, router]);
 
   const removeLine = trpc.stockBatch.removeLine.useMutation({
     onSuccess: () => utils.stockBatch.getPending.invalidate(),
@@ -44,14 +49,8 @@ export default function IngredientReviewPage() {
   }
 
   if (!pending.data) {
-    return (
-      <div className="p-6">
-        <p className="text-text-muted text-sm mb-3">No pending changes to review.</p>
-        <Link href="/admin/ingredients">
-          <Button variant="outline" size="sm">Back to Ingredients</Button>
-        </Link>
-      </div>
-    );
+    // No pending batch — redirect handled by the effect above.
+    return null;
   }
 
   const batch = pending.data;
