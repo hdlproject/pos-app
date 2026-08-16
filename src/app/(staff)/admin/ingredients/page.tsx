@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Popover } from '@/components/ui/Popover';
 
-function PendingBatchBanner({
+function PendingBatchControls({
   lineCount,
   onCancel,
   cancelling,
@@ -17,21 +17,17 @@ function PendingBatchBanner({
   cancelling: boolean;
 }) {
   return (
-    <Card className="mb-5">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <span className="text-sm font-bold text-text">
-          {lineCount} pending change{lineCount === 1 ? '' : 's'} awaiting confirmation
-        </span>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={cancelling} onClick={onCancel}>
-            Cancel Changes
-          </Button>
-          <Link href="/admin/ingredients/review">
-            <Button variant="primary" size="sm">Review Changes</Button>
-          </Link>
-        </div>
-      </div>
-    </Card>
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-bold text-text-muted-2">
+        {lineCount} pending change{lineCount === 1 ? '' : 's'}
+      </span>
+      <Button variant="outline" size="sm" disabled={cancelling} onClick={onCancel}>
+        Cancel Changes
+      </Button>
+      <Link href="/admin/ingredients/review">
+        <Button variant="primary" size="sm">Review Changes</Button>
+      </Link>
+    </div>
   );
 }
 
@@ -158,14 +154,6 @@ export default function AdminIngredientsPage() {
         </div>
       </div>
 
-      {pending.data && (
-        <PendingBatchBanner
-          lineCount={pending.data.lines.length}
-          onCancel={() => cancelBatch.mutate({ batchId: pending.data!.id })}
-          cancelling={cancelBatch.isPending}
-        />
-      )}
-
       {showNewIngredientForm && (
         <Card className="mb-5">
           <div className="flex items-center justify-between mb-3">
@@ -214,7 +202,16 @@ export default function AdminIngredientsPage() {
       )}
 
       <Card>
-        <h2 className="font-bold text-text mb-3">Stock</h2>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 className="font-bold text-text">Stock</h2>
+          {pending.data && (
+            <PendingBatchControls
+              lineCount={pending.data.lines.length}
+              onCancel={() => cancelBatch.mutate({ batchId: pending.data!.id })}
+              cancelling={cancelBatch.isPending}
+            />
+          )}
+        </div>
         <div className="grid grid-cols-[1fr_120px_auto] items-center gap-x-6 gap-y-1">
           <span className="text-xs font-bold text-text-muted-2 uppercase pb-2">Name</span>
           <span className="text-xs font-bold text-text-muted-2 uppercase pb-2 text-right">Stock</span>
