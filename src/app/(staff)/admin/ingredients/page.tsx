@@ -1,69 +1,54 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Popover } from '@/components/ui/Popover';
 
-type StageReason = 'MANUAL_ADJUST' | 'RESTOCK';
-
-function StageChangePopover({
-  ingredientId,
+function StockStepper({
+  pendingDelta,
+  pendingLineId,
   onStage,
+  onRemove,
 }: {
-  ingredientId: string;
-  onStage: (input: { ingredientId: string; delta: number; reason: StageReason }) => void;
+  pendingDelta: number;
+  pendingLineId: string | undefined;
+  onStage: (delta: number) => void;
+  onRemove: (lineId: string) => void;
 }) {
-  const [delta, setDelta] = useState('');
-  const [reason, setReason] = useState<StageReason>('RESTOCK');
+  const [text, setText] = useState(String(pendingDelta));
+
+  useEffect(() => setText(String(pendingDelta)), [pendingDelta]);
+
+  const commit = (next: number) => {
+    setText(String(next));
+    if (next === 0) {
+      if (pendingLineId) onRemove(pendingLineId);
+    } else {
+      onStage(next);
+    }
+  };
 
   return (
-    <Popover
-      trigger={({ toggle }) => (
-        <Button variant="outline" size="sm" onClick={toggle}>
-          Stage Change
-        </Button>
-      )}
-    >
-      <div className="flex flex-col gap-3">
-        <div>
-          <label className="text-xs font-bold text-text-muted-2 block mb-1">Amount</label>
-          <Input
-            value={delta}
-            onChange={(e) => setDelta(e.target.value)}
-            placeholder="e.g. 100 or -20"
-            type="number"
-            className="w-full px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-text-muted-2 block mb-1">Reason</label>
-          <Select
-            value={reason}
-            onChange={(v) => setReason(v as StageReason)}
-            options={[
-              { value: 'RESTOCK', label: 'Restock' },
-              { value: 'MANUAL_ADJUST', label: 'Manual Adjust' },
-            ]}
-            className="w-full px-3 py-2"
-          />
-        </div>
-        <Button
-          variant="dark"
-          size="sm"
-          disabled={!delta || Number(delta) === 0}
-          onClick={() => {
-            onStage({ ingredientId, delta: Number(delta), reason });
-            setDelta('');
-          }}
-        >
-          Stage
-        </Button>
-      </div>
-    </Popover>
+    <div className="flex items-center gap-1">
+      <Button variant="outline" size="sm" onClick={() => commit((Number(text) || 0) - 1)}>
+        −
+      </Button>
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => commit(Number(text) || 0)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit(Number(text) || 0);
+        }}
+        type="number"
+        className="w-20 px-2 py-1 border border-border-strong rounded-lg bg-surface-input text-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      />
+      <Button variant="outline" size="sm" onClick={() => commit((Number(text) || 0) + 1)}>
+        +
+      </Button>
+    </div>
   );
 }
 
@@ -87,6 +72,9 @@ export default function AdminIngredientsPage() {
   });
 
   const stageChange = trpc.stockBatch.stageChange.useMutation({
+    onSuccess: () => utils.stockBatch.getPending.invalidate(),
+  });
+  const removeLine = trpc.stockBatch.removeLine.useMutation({
     onSuccess: () => utils.stockBatch.getPending.invalidate(),
   });
 
@@ -174,6 +162,7 @@ export default function AdminIngredientsPage() {
           <span className="pb-2" />
           {ingredients.data?.map((ing) => {
             const out = Number(ing.stockQty) <= 0;
+            const line = pending.data?.lines.find((l) => l.ingredientId === ing.id);
             return (
               <div key={ing.id} className="contents">
                 <span className="font-bold text-sm text-text py-2">{ing.name}</span>
@@ -181,9 +170,11 @@ export default function AdminIngredientsPage() {
                   {String(ing.stockQty)} {ing.unit}
                 </span>
                 <span className="py-2">
-                  <StageChangePopover
-                    ingredientId={ing.id}
-                    onStage={(input) => stageChange.mutate(input)}
+                  <StockStepper
+                    pendingDelta={line ? Number(line.delta) : 0}
+                    pendingLineId={line?.id}
+                    onStage={(delta) => stageChange.mutate({ ingredientId: ing.id, delta, reason: 'MANUAL_ADJUST' })}
+                    onRemove={(lineId) => removeLine.mutate({ lineId })}
                   />
                 </span>
               </div>
