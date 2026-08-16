@@ -1,5 +1,6 @@
 // src/server/stock/deduct.ts
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { recomputeAvailabilityForIngredient } from './availability';
 
 // Accepts either a plain PrismaClient or an interactive-transaction client
 // (Prisma.TransactionClient) so callers can run this as part of a larger
@@ -35,6 +36,7 @@ export async function deductStockForOrder(
     await db.stockMovement.create({
       data: { ingredientId, delta: -qty, reason: 'SALE', refOrderId: orderId, createdById: userId },
     });
+    await recomputeAvailabilityForIngredient(db, ingredientId);
   }
 }
 
@@ -56,5 +58,6 @@ export async function revertStockForOrder(
         createdById: userId,
       },
     });
+    await recomputeAvailabilityForIngredient(db, m.ingredientId);
   }
 }

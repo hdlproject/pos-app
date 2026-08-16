@@ -51,4 +51,33 @@ describe('stock deduction', () => {
     const reverted = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
     expect(Number(reverted.stockQty)).toBe(1000);
   });
+
+  it('auto-marks the item out of stock when a deduction depletes its ingredient', async () => {
+    const { admin, milk, order, item } = await (async () => {
+      const seeded = await seedOrder();
+      const item = await db.menuItem.findFirstOrThrow({ where: { name: 'Latte' } });
+      return { ...seeded, item };
+    })();
+    await db.ingredient.update({ where: { id: milk.id }, data: { stockQty: 400 } }); // exactly enough for this order
+
+    await deductStockForOrder(db, order.id, admin.id);
+
+    const updated = await db.menuItem.findUniqueOrThrow({ where: { id: item.id } });
+    expect(updated.outOfStockReason).toBe('Out of stock: Milk');
+  });
+
+  it('auto-clears the item when reverting a deduction restores enough stock', async () => {
+    const { admin, milk, order, item } = await (async () => {
+      const seeded = await seedOrder();
+      const item = await db.menuItem.findFirstOrThrow({ where: { name: 'Latte' } });
+      return { ...seeded, item };
+    })();
+    await db.ingredient.update({ where: { id: milk.id }, data: { stockQty: 400 } });
+    await deductStockForOrder(db, order.id, admin.id);
+
+    await revertStockForOrder(db, order.id, admin.id);
+
+    const updated = await db.menuItem.findUniqueOrThrow({ where: { id: item.id } });
+    expect(updated.outOfStockReason).toBeNull();
+  });
 });
