@@ -156,4 +156,54 @@ describe('stock batch router', () => {
     const updatedItem = await db.menuItem.findUniqueOrThrow({ where: { id: item.id } });
     expect(updatedItem.outOfStockReason).toBe('Out of stock: Milk');
   });
+
+  it('cancel marks the batch CANCELLED without applying any stock change', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+
+    await admin.stockBatch.cancel({ batchId: batch!.id });
+
+    const milkAfter = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
+    expect(Number(milkAfter.stockQty)).toBe(1000);
+    const movements = await db.stockMovement.findMany();
+    expect(movements).toHaveLength(0);
+    const cancelledBatch = await db.stockAdjustmentBatch.findUniqueOrThrow({ where: { id: batch!.id } });
+    expect(cancelledBatch.status).toBe('CANCELLED');
+  });
+
+  it('listHistory returns confirmed and cancelled batches but never the pending one', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500, lowStockThreshold: 100 } });
+
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const confirmedBatch = await admin.stockBatch.getPending();
+    await admin.stockBatch.confirm({ batchId: confirmedBatch!.id });
+
+    await admin.stockBatch.stageChange({ ingredientId: beans.id, delta: 200, reason: 'RESTOCK' });
+    const cancelledBatch = await admin.stockBatch.getPending();
+    await admin.stockBatch.cancel({ batchId: cancelledBatch!.id });
+
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 10, reason: 'MANUAL_ADJUST' });
+
+    const history = await admin.stockBatch.listHistory();
+    expect(history).toHaveLength(2);
+    expect(history.map((b) => b.status).sort()).toEqual(['CANCELLED', 'CONFIRMED']);
+    expect(history.every((b) => b.status !== 'PENDING')).toBe(true);
+  });
+
+  it('listHistory never exposes pinHash on createdBy or confirmedBy', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+    await admin.stockBatch.confirm({ batchId: batch!.id });
+
+    const history = await admin.stockBatch.listHistory();
+    expect(history[0].createdBy).not.toHaveProperty('pinHash');
+    expect(history[0].confirmedBy).not.toHaveProperty('pinHash');
+    expect(history[0].createdBy.name).toBe('Admin');
+  });
 });

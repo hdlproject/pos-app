@@ -87,4 +87,22 @@ export const stockBatchRouter = router({
       });
       return { ok: true };
     }),
+
+  cancel: roleProcedure('ADMIN')
+    .input(z.object({ batchId: z.string() }))
+    .mutation(({ ctx, input }) =>
+      ctx.db.stockAdjustmentBatch.update({ where: { id: input.batchId }, data: { status: 'CANCELLED' } })
+    ),
+
+  listHistory: roleProcedure('ADMIN').query(({ ctx }) =>
+    ctx.db.stockAdjustmentBatch.findMany({
+      where: { status: { in: ['CONFIRMED', 'CANCELLED'] } },
+      include: {
+        lines: { include: { ingredient: true } },
+        createdBy: { select: { id: true, name: true } },
+        confirmedBy: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+  ),
 });
