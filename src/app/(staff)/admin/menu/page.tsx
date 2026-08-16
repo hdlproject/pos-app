@@ -16,6 +16,15 @@ type SortOrder = 'asc' | 'desc';
 type AvailabilityFilter = 'all' | 'available' | 'soldout';
 type ViewMode = 'row' | 'thumbnail';
 
+// Strips diacritics (é, è, ñ, etc.) so search matches regardless of accents --
+// "caffe" should find "Caffè Latte" even without the grave accent typed.
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 export default function AdminMenuPage() {
   const utils = trpc.useUtils();
   const items = trpc.menu.listAll.useQuery();
@@ -80,8 +89,9 @@ export default function AdminMenuPage() {
     }
   }
 
+  const normalizedSearch = normalizeForSearch(search);
   const filteredItems = (items.data ?? [])
-    .filter((item) => item.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((item) => normalizeForSearch(item.name).includes(normalizedSearch))
     .filter((item) => !categoryFilter || item.categoryId === categoryFilter)
     .filter((item) => {
       if (availabilityFilter === 'all') return true;
