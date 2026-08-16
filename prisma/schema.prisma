@@ -105,11 +105,10 @@ model MenuItem {
 }
 
 model Ingredient {
-  id                String   @id @default(cuid())
-  name              String
-  unit              String
-  stockQty          Decimal  @db.Decimal(10, 3)
-  lowStockThreshold Decimal  @db.Decimal(10, 3)
+  id       String  @id @default(cuid())
+  name     String
+  unit     String
+  stockQty Decimal @db.Decimal(10, 3)
 
   recipes   Recipe[]
   movements StockMovement[]

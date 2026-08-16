@@ -76,14 +76,12 @@ export default function AdminIngredientsPage() {
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [initialStock, setInitialStock] = useState('');
-  const [threshold, setThreshold] = useState('');
   const create = trpc.ingredient.create.useMutation({
     onSuccess: () => {
       utils.ingredient.list.invalidate();
       setName('');
       setUnit('');
       setInitialStock('');
-      setThreshold('');
       setShowNewIngredientForm(false);
     },
   });
@@ -150,23 +148,15 @@ export default function AdminIngredientsPage() {
               min="0"
               className="w-full sm:w-36 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
-            <Input
-              value={threshold}
-              onChange={(e) => setThreshold(e.target.value)}
-              placeholder="Low-stock threshold"
-              type="number"
-              className="w-full sm:w-44 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            />
             <Button
               variant="dark"
               className="w-full sm:w-auto"
-              disabled={!name || !unit || !threshold}
+              disabled={!name || !unit}
               onClick={() =>
                 create.mutate({
                   name,
                   unit,
                   stockQty: Number(initialStock) || 0,
-                  lowStockThreshold: Number(threshold),
                 })
               }
             >
@@ -178,21 +168,17 @@ export default function AdminIngredientsPage() {
 
       <Card>
         <h2 className="font-bold text-text mb-3">Stock</h2>
-        <div className="grid grid-cols-[1fr_120px_100px_auto] items-center gap-x-6 gap-y-1">
+        <div className="grid grid-cols-[1fr_120px_auto] items-center gap-x-6 gap-y-1">
           <span className="text-xs font-bold text-text-muted-2 uppercase pb-2">Name</span>
           <span className="text-xs font-bold text-text-muted-2 uppercase pb-2 text-right">Stock</span>
-          <span className="text-xs font-bold text-text-muted-2 uppercase pb-2">Status</span>
           <span className="pb-2" />
           {ingredients.data?.map((ing) => {
-            const low = Number(ing.stockQty) < Number(ing.lowStockThreshold);
+            const out = Number(ing.stockQty) <= 0;
             return (
               <div key={ing.id} className="contents">
                 <span className="font-bold text-sm text-text py-2">{ing.name}</span>
-                <span className={`text-sm text-right py-2 ${low ? 'text-warning' : 'text-text'}`}>
+                <span className={`text-sm text-right py-2 ${out ? 'text-warning' : 'text-text'}`}>
                   {String(ing.stockQty)} {ing.unit}
-                </span>
-                <span className="py-2">
-                  {low && <span className="text-xs font-extrabold text-warning">LOW STOCK</span>}
                 </span>
                 <span className="py-2">
                   <StageChangePopover

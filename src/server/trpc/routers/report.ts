@@ -37,14 +37,11 @@ export const reportRouter = router({
   }),
 
   inventoryUsage: roleProcedure('ADMIN').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const [usage, ingredients] = await Promise.all([
-      ctx.db.stockMovement.findMany({
-        where: { createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },
-        include: { ingredient: true },
-      }),
-      ctx.db.ingredient.findMany(),
-    ]);
-    return { usage, lowStock: ingredients.filter((i) => Number(i.stockQty) < Number(i.lowStockThreshold)) };
+    const usage = await ctx.db.stockMovement.findMany({
+      where: { createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },
+      include: { ingredient: true },
+    });
+    return { usage };
   }),
 
   shiftSummary: roleProcedure('ADMIN').input(dateRangeInput).query(async ({ ctx, input }) => {

@@ -66,9 +66,6 @@ export default function ReportsPage() {
 
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">Inventory Usage</h2>
-        {usage.data?.lowStock.map((ing) => (
-          <div key={ing.id} className="text-warning text-sm font-bold py-1">{ing.name}: LOW STOCK</div>
-        ))}
         {usage.data?.usage.map((m) => (
           <div key={m.id} className="text-sm text-text-muted py-1">
             {m.ingredient.name}: {String(m.delta)} ({m.reason})

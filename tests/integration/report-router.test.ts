@@ -13,7 +13,7 @@ describe('report router', () => {
   it('computes daily sales, best sellers, inventory usage, and shift summary', async () => {
     const cashier = await db.user.create({ data: { name: 'Cashier', role: 'STAFF', pinHash: 'x' } });
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 500, lowStockThreshold: 1000 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 500 } });
     const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
     const order = await db.order.create({
       data: { type: 'TAKEAWAY', status: 'PAID', source: 'STAFF', total: 9, items: { create: [{ menuItemId: item.id, qty: 2, unitPrice: 4.5 }] } },
@@ -33,7 +33,6 @@ describe('report router', () => {
 
     const usage = await admin.report.inventoryUsage(range);
     expect(usage.usage).toHaveLength(1);
-    expect(usage.lowStock.map((i) => i.id)).toContain(milk.id);
 
     const shift = await admin.report.shiftSummary(range);
     expect(shift[0]).toMatchObject({ name: 'Cashier', orderCount: 1, total: 9 });

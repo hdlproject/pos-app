@@ -8,7 +8,7 @@ describe('recomputeAvailabilityForIngredient', () => {
 
   it('sets a reason naming the ingredient when it hits zero', async () => {
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0 } });
     const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
     await db.recipe.create({ data: { menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 } });
 
@@ -20,7 +20,7 @@ describe('recomputeAvailabilityForIngredient', () => {
 
   it('clears the reason once the ingredient is restocked', async () => {
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0 } });
     const item = await db.menuItem.create({
       data: { name: 'Latte', price: 4.5, categoryId: category.id, outOfStockReason: 'Out of stock: Milk' },
     });
@@ -35,8 +35,8 @@ describe('recomputeAvailabilityForIngredient', () => {
 
   it('names only the depleted ingredient when an item has more than one', async () => {
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
-    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 0, lowStockThreshold: 100 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 0 } });
     const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
     await db.recipe.create({ data: { menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 } });
     await db.recipe.create({ data: { menuItemId: item.id, ingredientId: beans.id, qtyPerUnit: 18 } });
@@ -49,7 +49,7 @@ describe('recomputeAvailabilityForIngredient', () => {
 
   it('does not touch the manual available flag', async () => {
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0 } });
     const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id, available: false } });
     await db.recipe.create({ data: { menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 } });
 

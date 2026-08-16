@@ -20,7 +20,7 @@ describe('stock batch router', () => {
 
   it('stageChange creates a pending batch with one line', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
 
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
 
@@ -34,8 +34,8 @@ describe('stock batch router', () => {
 
   it('a second stageChange for a different ingredient adds a second line to the same batch', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
-    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500, lowStockThreshold: 100 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500 } });
 
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const firstBatch = await admin.stockBatch.getPending();
@@ -48,7 +48,7 @@ describe('stock batch router', () => {
 
   it('re-staging the same ingredient updates the existing line instead of duplicating it', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
 
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: -50, reason: 'MANUAL_ADJUST' });
@@ -61,8 +61,8 @@ describe('stock batch router', () => {
 
   it('removeLine removes one line but keeps the batch when other lines remain', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
-    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500, lowStockThreshold: 100 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     await admin.stockBatch.stageChange({ ingredientId: beans.id, delta: 200, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
@@ -78,7 +78,7 @@ describe('stock batch router', () => {
 
   it('removeLine on the last remaining line deletes the batch entirely', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
 
@@ -92,7 +92,7 @@ describe('stock batch router', () => {
 
   it('setNote updates the batch note', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
 
@@ -105,8 +105,8 @@ describe('stock batch router', () => {
   it('confirm applies every line, writes StockMovement rows, and marks the batch CONFIRMED', async () => {
     const admin = await adminCaller();
     const adminUser = await db.user.findFirstOrThrow({ where: { name: 'Admin' } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
-    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500, lowStockThreshold: 100 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     await admin.stockBatch.stageChange({ ingredientId: beans.id, delta: -50, reason: 'MANUAL_ADJUST' });
     const batch = await admin.stockBatch.getPending();
@@ -132,7 +132,7 @@ describe('stock batch router', () => {
 
   it('confirm removes the batch from getPending (it is no longer PENDING)', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
 
@@ -145,7 +145,7 @@ describe('stock batch router', () => {
   it('confirm calls the availability recompute for a depleted ingredient', async () => {
     const admin = await adminCaller();
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 100, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 100 } });
     const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
     await db.recipe.create({ data: { menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: -100, reason: 'MANUAL_ADJUST' });
@@ -159,7 +159,7 @@ describe('stock batch router', () => {
 
   it('cancel marks the batch CANCELLED without applying any stock change', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
 
@@ -175,7 +175,7 @@ describe('stock batch router', () => {
 
   it('confirming an already-CONFIRMED batch a second time throws CONFLICT and does not double-apply the delta', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
 
@@ -193,7 +193,7 @@ describe('stock batch router', () => {
 
   it('removeLine on a line belonging to an already-CONFIRMED batch throws CONFLICT and leaves the batch intact', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
     const lineId = batch!.lines[0].id;
@@ -211,7 +211,7 @@ describe('stock batch router', () => {
 
   it('cancel on an already-CONFIRMED batch throws CONFLICT and leaves the status as CONFIRMED', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
 
@@ -227,8 +227,8 @@ describe('stock batch router', () => {
 
   it('listHistory returns confirmed and cancelled batches but never the pending one', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
-    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500, lowStockThreshold: 100 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500 } });
 
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const confirmedBatch = await admin.stockBatch.getPending();
@@ -248,7 +248,7 @@ describe('stock batch router', () => {
 
   it('listHistory never exposes pinHash on createdBy or confirmedBy', async () => {
     const admin = await adminCaller();
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
     const batch = await admin.stockBatch.getPending();
     await admin.stockBatch.confirm({ batchId: batch!.id });

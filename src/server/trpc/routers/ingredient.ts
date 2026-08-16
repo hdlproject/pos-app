@@ -10,7 +10,6 @@ export const ingredientRouter = router({
       name: z.string().min(1),
       unit: z.string().min(1),
       stockQty: z.number().default(0),
-      lowStockThreshold: z.number(),
     }))
     .mutation(({ ctx, input }) => ctx.db.ingredient.create({ data: input })),
 

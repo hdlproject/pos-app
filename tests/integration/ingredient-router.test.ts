@@ -15,7 +15,7 @@ describe('ingredient router', () => {
       data: { name: 'Latte', price: 4.5, categoryId: category.id },
     });
 
-    const milk = await admin.ingredient.create({ name: 'Milk', unit: 'ml', stockQty: 5000, lowStockThreshold: 1000 });
+    const milk = await admin.ingredient.create({ name: 'Milk', unit: 'ml', stockQty: 5000 });
     await admin.ingredient.adjustStock({ ingredientId: milk.id, delta: -200, reason: 'MANUAL_ADJUST' });
 
     const afterAdjust = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
@@ -31,7 +31,7 @@ describe('ingredient router', () => {
     const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
     const menuItem = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 100, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 100 } });
     await db.recipe.create({ data: { menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 100 } });
 
     await admin.ingredient.adjustStock({ ingredientId: milk.id, delta: -100, reason: 'MANUAL_ADJUST' });
@@ -45,7 +45,7 @@ describe('ingredient router', () => {
     const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
     const menuItem = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0 } });
 
     await admin.ingredient.setRecipe({ menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 200 });
 

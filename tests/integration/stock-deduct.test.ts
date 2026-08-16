@@ -10,7 +10,7 @@ describe('stock deduction', () => {
   async function seedOrder() {
     const admin = await db.user.create({ data: { name: 'Admin', role: 'ADMIN', pinHash: 'x' } });
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
     await db.recipe.create({ data: { menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 } });
     const order = await db.order.create({
