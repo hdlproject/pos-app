@@ -114,6 +114,9 @@ export default function AdminMenuPage() {
                     <span className={`text-xs font-bold ml-2 ${item.available ? 'text-success' : 'text-warning'}`}>
                       {item.available ? 'available' : 'sold out'}
                     </span>
+                    {item.outOfStockReason && (
+                      <div className="text-warning text-xs font-semibold mt-0.5">{item.outOfStockReason}</div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
