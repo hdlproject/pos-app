@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, roleProcedure } from '../trpc';
 import { recomputeAvailabilityForIngredient } from '../../stock/availability';
 
@@ -42,7 +43,14 @@ export const stockBatchRouter = router({
     .input(z.object({ lineId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.$transaction(async (tx) => {
-        const line = await tx.stockAdjustmentLine.delete({ where: { id: input.lineId } });
+        const line = await tx.stockAdjustmentLine.findUniqueOrThrow({
+          where: { id: input.lineId },
+          include: { batch: true },
+        });
+        if (line.batch.status !== 'PENDING') {
+          throw new TRPCError({ code: 'CONFLICT', message: 'Batch is no longer pending' });
+        }
+        await tx.stockAdjustmentLine.delete({ where: { id: input.lineId } });
         const remaining = await tx.stockAdjustmentLine.count({ where: { batchId: line.batchId } });
         if (remaining === 0) {
           await tx.stockAdjustmentBatch.delete({ where: { id: line.batchId } });
@@ -61,11 +69,15 @@ export const stockBatchRouter = router({
     .input(z.object({ batchId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.$transaction(async (tx) => {
-        const batch = await tx.stockAdjustmentBatch.findUniqueOrThrow({
-          where: { id: input.batchId },
-          include: { lines: true },
+        const { count } = await tx.stockAdjustmentBatch.updateMany({
+          where: { id: input.batchId, status: 'PENDING' },
+          data: { status: 'CONFIRMED', confirmedAt: new Date(), confirmedById: ctx.user.userId },
         });
-        for (const line of batch.lines) {
+        if (count !== 1) {
+          throw new TRPCError({ code: 'CONFLICT', message: 'Batch is no longer pending' });
+        }
+        const lines = await tx.stockAdjustmentLine.findMany({ where: { batchId: input.batchId } });
+        for (const line of lines) {
           await tx.ingredient.update({
             where: { id: line.ingredientId },
             data: { stockQty: { increment: line.delta } },
@@ -80,10 +92,6 @@ export const stockBatchRouter = router({
           });
           await recomputeAvailabilityForIngredient(tx, line.ingredientId);
         }
-        await tx.stockAdjustmentBatch.update({
-          where: { id: input.batchId },
-          data: { status: 'CONFIRMED', confirmedAt: new Date(), confirmedById: ctx.user.userId },
-        });
       });
       return { ok: true };
     }),
@@ -91,7 +99,16 @@ export const stockBatchRouter = router({
   cancel: roleProcedure('ADMIN')
     .input(z.object({ batchId: z.string() }))
     .mutation(({ ctx, input }) =>
-      ctx.db.stockAdjustmentBatch.update({ where: { id: input.batchId }, data: { status: 'CANCELLED' } })
+      ctx.db.$transaction(async (tx) => {
+        const { count } = await tx.stockAdjustmentBatch.updateMany({
+          where: { id: input.batchId, status: 'PENDING' },
+          data: { status: 'CANCELLED' },
+        });
+        if (count !== 1) {
+          throw new TRPCError({ code: 'CONFLICT', message: 'Batch is no longer pending' });
+        }
+        return tx.stockAdjustmentBatch.findUniqueOrThrow({ where: { id: input.batchId } });
+      })
     ),
 
   listHistory: roleProcedure('ADMIN').query(({ ctx }) =>

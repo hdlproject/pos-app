@@ -173,6 +173,58 @@ describe('stock batch router', () => {
     expect(cancelledBatch.status).toBe('CANCELLED');
   });
 
+  it('confirming an already-CONFIRMED batch a second time throws CONFLICT and does not double-apply the delta', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+
+    await admin.stockBatch.confirm({ batchId: batch!.id });
+
+    await expect(admin.stockBatch.confirm({ batchId: batch!.id })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+
+    const milkAfter = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
+    expect(Number(milkAfter.stockQty)).toBe(1500);
+    const movements = await db.stockMovement.findMany();
+    expect(movements).toHaveLength(1);
+  });
+
+  it('removeLine on a line belonging to an already-CONFIRMED batch throws CONFLICT and leaves the batch intact', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+    const lineId = batch!.lines[0].id;
+
+    await admin.stockBatch.confirm({ batchId: batch!.id });
+
+    await expect(admin.stockBatch.removeLine({ lineId })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+
+    const stillExists = await db.stockAdjustmentBatch.findUnique({ where: { id: batch!.id } });
+    expect(stillExists).not.toBeNull();
+    expect(stillExists?.status).toBe('CONFIRMED');
+  });
+
+  it('cancel on an already-CONFIRMED batch throws CONFLICT and leaves the status as CONFIRMED', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+
+    await admin.stockBatch.confirm({ batchId: batch!.id });
+
+    await expect(admin.stockBatch.cancel({ batchId: batch!.id })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+
+    const afterCancel = await db.stockAdjustmentBatch.findUniqueOrThrow({ where: { id: batch!.id } });
+    expect(afterCancel.status).toBe('CONFIRMED');
+  });
+
   it('listHistory returns confirmed and cancelled batches but never the pending one', async () => {
     const admin = await adminCaller();
     const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
