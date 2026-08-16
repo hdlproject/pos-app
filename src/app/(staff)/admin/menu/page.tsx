@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -7,10 +7,12 @@ import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { Popover } from '@/components/ui/Popover';
 
 const PAGE_SIZE = 10;
 
-type SortBy = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
+type SortField = 'name' | 'price';
+type SortOrder = 'asc' | 'desc';
 type AvailabilityFilter = 'all' | 'available' | 'soldout';
 type ViewMode = 'row' | 'thumbnail';
 
@@ -48,17 +50,34 @@ export default function AdminMenuPage() {
   });
 
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all');
-  const [sortBy, setSortBy] = useState<SortBy>('name-asc');
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [viewMode, setViewMode] = useState<ViewMode>('row');
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
 
   const categories = categoriesQuery.data ?? [];
   const usedCategoryIds = new Set((items.data ?? []).map((item) => item.categoryId));
 
   function resetToFirstPage() {
     setPage(1);
+  }
+
+  function toggleSearch() {
+    if (searchOpen) {
+      setSearchOpen(false);
+      setSearch('');
+      resetToFirstPage();
+    } else {
+      setSearchOpen(true);
+    }
   }
 
   const filteredItems = (items.data ?? [])
@@ -71,12 +90,8 @@ export default function AdminMenuPage() {
     });
 
   const sortedItems = [...filteredItems].sort((a, b) => {
-    switch (sortBy) {
-      case 'name-asc': return a.name.localeCompare(b.name);
-      case 'name-desc': return b.name.localeCompare(a.name);
-      case 'price-asc': return Number(a.price) - Number(b.price);
-      case 'price-desc': return Number(b.price) - Number(a.price);
-    }
+    const diff = sortField === 'name' ? a.name.localeCompare(b.name) : Number(a.price) - Number(b.price);
+    return sortOrder === 'asc' ? diff : -diff;
   });
 
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / PAGE_SIZE));
@@ -184,40 +199,145 @@ export default function AdminMenuPage() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 sm:flex-wrap mb-4">
-          <Input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); resetToFirstPage(); }}
-            placeholder="Search items…"
-            className="w-full sm:flex-1 sm:min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <Select
-            value={categoryFilter}
-            onChange={(v) => { setCategoryFilter(v); resetToFirstPage(); }}
-            options={[{ value: '', label: 'All categories' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
-            className="w-full sm:w-auto sm:min-w-[160px] px-3 py-2"
-          />
-          <Select
-            value={availabilityFilter}
-            onChange={(v) => { setAvailabilityFilter(v as AvailabilityFilter); resetToFirstPage(); }}
-            options={[
-              { value: 'all', label: 'All status' },
-              { value: 'available', label: 'Available' },
-              { value: 'soldout', label: 'Sold out' },
-            ]}
-            className="w-full sm:w-auto sm:min-w-[140px] px-3 py-2"
-          />
-          <Select
-            value={sortBy}
-            onChange={(v) => { setSortBy(v as SortBy); resetToFirstPage(); }}
-            options={[
-              { value: 'name-asc', label: 'Name (A-Z)' },
-              { value: 'name-desc', label: 'Name (Z-A)' },
-              { value: 'price-asc', label: 'Price (Low-High)' },
-              { value: 'price-desc', label: 'Price (High-Low)' },
-            ]}
-            className="w-full sm:w-auto sm:min-w-[170px] px-3 py-2"
-          />
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-1 flex-1 min-w-0">
+            {searchOpen && (
+              <Input
+                ref={searchInputRef}
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); resetToFirstPage(); }}
+                placeholder="Search items…"
+                className="w-full px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              />
+            )}
+            <button
+              onClick={toggleSearch}
+              aria-label={searchOpen ? 'Close search' : 'Search items'}
+              title={searchOpen ? 'Close search' : 'Search items'}
+              className="shrink-0 p-2 rounded-lg text-text-muted-2 hover:bg-surface-input transition-colors"
+            >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {searchOpen ? <path d="M6 6l12 12M18 6L6 18" /> : (
+                  <>
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                  </>
+                )}
+              </svg>
+            </button>
+          </div>
+
+          <Popover
+            trigger={({ open, toggle }) => (
+              <button
+                onClick={toggle}
+                aria-label="Filter"
+                title="Filter"
+                className={`shrink-0 p-2 rounded-lg transition-colors ${
+                  open || categoryFilter || availabilityFilter !== 'all'
+                    ? 'bg-surface-input text-accent'
+                    : 'text-text-muted-2 hover:bg-surface-input'
+                }`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z" />
+                </svg>
+              </button>
+            )}
+          >
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-xs font-bold text-text-muted-2 block mb-1">Category</label>
+                <Select
+                  value={categoryFilter}
+                  onChange={(v) => { setCategoryFilter(v); resetToFirstPage(); }}
+                  options={[{ value: '', label: 'All categories' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+                  className="w-full px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-muted-2 block mb-1">Status</label>
+                <Select
+                  value={availabilityFilter}
+                  onChange={(v) => { setAvailabilityFilter(v as AvailabilityFilter); resetToFirstPage(); }}
+                  options={[
+                    { value: 'all', label: 'All status' },
+                    { value: 'available', label: 'Available' },
+                    { value: 'soldout', label: 'Sold out' },
+                  ]}
+                  className="w-full px-3 py-2"
+                />
+              </div>
+            </div>
+          </Popover>
+
+          <Popover
+            trigger={({ open, toggle }) => (
+              <button
+                onClick={toggle}
+                aria-label="Sort"
+                title="Sort"
+                className={`shrink-0 p-2 rounded-lg transition-colors ${
+                  open ? 'bg-surface-input text-accent' : 'text-text-muted-2 hover:bg-surface-input'
+                }`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M8 6v12M8 6l-3 3M8 6l3 3M16 18V6M16 18l-3-3M16 18l3-3" />
+                </svg>
+              </button>
+            )}
+          >
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-xs font-bold text-text-muted-2 block mb-1">Sort by</label>
+                <Select
+                  value={sortField}
+                  onChange={(v) => { setSortField(v as SortField); resetToFirstPage(); }}
+                  options={[
+                    { value: 'name', label: 'Name' },
+                    { value: 'price', label: 'Price' },
+                  ]}
+                  className="w-full px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-text-muted-2 block mb-1">Order</label>
+                <Select
+                  value={sortOrder}
+                  onChange={(v) => { setSortOrder(v as SortOrder); resetToFirstPage(); }}
+                  options={[
+                    { value: 'asc', label: 'Ascending' },
+                    { value: 'desc', label: 'Descending' },
+                  ]}
+                  className="w-full px-3 py-2"
+                />
+              </div>
+            </div>
+          </Popover>
         </div>
 
         {viewMode === 'row' ? (
