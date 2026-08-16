@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Popover } from '@/components/ui/Popover';
 
 function StockStepper({
   unit,
@@ -33,25 +34,51 @@ function StockStepper({
   };
 
   return (
-    <div className="flex items-center gap-1">
-      <Button variant="outline" size="sm" onClick={() => commit((Number(text) || 0) - 1)}>
-        −
-      </Button>
-      <Input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => commit(Number(text) || 0)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit(Number(text) || 0);
-        }}
-        type="number"
-        className="w-20 px-2 py-1 border border-border-strong rounded-lg bg-surface-input text-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      />
-      <Button variant="outline" size="sm" onClick={() => commit((Number(text) || 0) + 1)}>
-        +
-      </Button>
-      <span className="text-xs text-text-muted-2">{unit}</span>
-    </div>
+    <Popover
+      trigger={({ open, toggle }) => (
+        <button
+          onClick={toggle}
+          aria-label="Adjust stock"
+          title="Adjust stock"
+          className={`shrink-0 p-2 rounded-lg transition-colors ${
+            open || pendingDelta !== 0 ? 'bg-surface-input text-accent' : 'text-text-muted-2 hover:bg-surface-input'
+          }`}
+        >
+          <svg
+            className="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+      )}
+    >
+      <div className="flex items-center gap-1">
+        <Button variant="outline" size="sm" onClick={() => commit((Number(text) || 0) - 1)}>
+          −
+        </Button>
+        <Input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => commit(Number(text) || 0)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit(Number(text) || 0);
+          }}
+          type="number"
+          className="w-20 px-2 py-1 border border-border-strong rounded-lg bg-surface-input text-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        />
+        <Button variant="outline" size="sm" onClick={() => commit((Number(text) || 0) + 1)}>
+          +
+        </Button>
+        <span className="text-xs text-text-muted-2">{unit}</span>
+      </div>
+    </Popover>
   );
 }
 
