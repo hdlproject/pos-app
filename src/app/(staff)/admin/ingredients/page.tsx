@@ -10,10 +10,12 @@ import { Popover } from '@/components/ui/Popover';
 function PendingBatchControls({
   lineCount,
   onCancel,
+  onReview,
   cancelling,
 }: {
   lineCount: number;
   onCancel: () => void;
+  onReview: () => void;
   cancelling: boolean;
 }) {
   return (
@@ -24,9 +26,117 @@ function PendingBatchControls({
       <Button variant="outline" size="sm" disabled={cancelling} onClick={onCancel}>
         Cancel Changes
       </Button>
-      <Link href="/admin/ingredients/review">
-        <Button variant="primary" size="sm">Review Changes</Button>
-      </Link>
+      <Button variant="primary" size="sm" onClick={onReview}>
+        Review Changes
+      </Button>
+    </div>
+  );
+}
+
+function ReviewModal({ onClose }: { onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const pending = trpc.stockBatch.getPending.useQuery();
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (pending.data?.note) setNote(pending.data.note);
+  }, [pending.data?.note]);
+
+  const removeLine = trpc.stockBatch.removeLine.useMutation({
+    onSuccess: () => utils.stockBatch.getPending.invalidate(),
+  });
+  const setNoteMutation = trpc.stockBatch.setNote.useMutation({
+    onSuccess: () => utils.stockBatch.getPending.invalidate(),
+  });
+  const confirm = trpc.stockBatch.confirm.useMutation({
+    onSuccess: () => {
+      utils.stockBatch.getPending.invalidate();
+      utils.stockBatch.listHistory.invalidate();
+      utils.ingredient.list.invalidate();
+      onClose();
+    },
+  });
+  const cancel = trpc.stockBatch.cancel.useMutation({
+    onSuccess: () => {
+      utils.stockBatch.getPending.invalidate();
+      utils.stockBatch.listHistory.invalidate();
+      onClose();
+    },
+  });
+
+  useEffect(() => {
+    if (!pending.isLoading && !pending.data) onClose();
+  }, [pending.isLoading, pending.data, onClose]);
+
+  if (!pending.data) return null;
+  const batch = pending.data;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-xl text-text">Review Stock Changes</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1 rounded-lg text-text-muted-2 hover:bg-surface-input transition-colors"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2 mb-4">
+          {batch.lines.map((line) => {
+            const current = Number(line.ingredient.stockQty);
+            const delta = Number(line.delta);
+            return (
+              <div key={line.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                <div>
+                  <span className="font-bold text-sm text-text">{line.ingredient.name}</span>
+                  <span className="text-text-muted text-sm ml-2">
+                    {current} → {current + delta} {line.ingredient.unit}
+                  </span>
+                  <span className={`text-xs font-bold ml-2 ${delta >= 0 ? 'text-success' : 'text-warning'}`}>
+                    {delta >= 0 ? '+' : ''}{delta} ({line.reason === 'RESTOCK' ? 'Restock' : 'Manual Adjust'})
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => removeLine.mutate({ lineId: line.id })}>
+                  Remove
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mb-4">
+          <label className="text-xs font-bold text-text-muted-2 block mb-1">Note (optional)</label>
+          <div className="flex gap-2">
+            <Input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Weekly restock from supplier X"
+              className="flex-1 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+            <Button variant="outline" size="sm" onClick={() => setNoteMutation.mutate({ batchId: batch.id, note })}>
+              Save Note
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="primary" disabled={confirm.isPending} onClick={() => confirm.mutate({ batchId: batch.id })}>
+            Confirm
+          </Button>
+          <Button variant="outline" disabled={cancel.isPending} onClick={() => cancel.mutate({ batchId: batch.id })}>
+            Cancel
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -112,6 +222,7 @@ export default function AdminIngredientsPage() {
   const pending = trpc.stockBatch.getPending.useQuery();
 
   const [showNewIngredientForm, setShowNewIngredientForm] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [initialStock, setInitialStock] = useState('');
@@ -208,6 +319,7 @@ export default function AdminIngredientsPage() {
             <PendingBatchControls
               lineCount={pending.data.lines.length}
               onCancel={() => cancelBatch.mutate({ batchId: pending.data!.id })}
+              onReview={() => setReviewOpen(true)}
               cancelling={cancelBatch.isPending}
             />
           )}
@@ -239,6 +351,8 @@ export default function AdminIngredientsPage() {
           })}
         </div>
       </Card>
+
+      {reviewOpen && <ReviewModal onClose={() => setReviewOpen(false)} />}
     </div>
   );
 }
