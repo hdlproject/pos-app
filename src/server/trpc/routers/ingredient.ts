@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { router, roleProcedure } from '../trpc';
+import { recomputeAvailabilityForIngredient } from '../../stock/availability';
 
 export const ingredientRouter = router({
   list: roleProcedure('ADMIN').query(({ ctx }) => ctx.db.ingredient.findMany()),
@@ -20,20 +21,21 @@ export const ingredientRouter = router({
       reason: z.enum(['MANUAL_ADJUST', 'RESTOCK']),
     }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.$transaction([
-        ctx.db.ingredient.update({
+      await ctx.db.$transaction(async (tx) => {
+        await tx.ingredient.update({
           where: { id: input.ingredientId },
           data: { stockQty: { increment: input.delta } },
-        }),
-        ctx.db.stockMovement.create({
+        });
+        await tx.stockMovement.create({
           data: {
             ingredientId: input.ingredientId,
             delta: input.delta,
             reason: input.reason,
             createdById: ctx.user.userId,
           },
-        }),
-      ]);
+        });
+        await recomputeAvailabilityForIngredient(tx, input.ingredientId);
+      });
       return { ok: true };
     }),
 
@@ -43,11 +45,15 @@ export const ingredientRouter = router({
       ingredientId: z.string(),
       qtyPerUnit: z.number().positive(),
     }))
-    .mutation(({ ctx, input }) =>
-      ctx.db.recipe.upsert({
-        where: { menuItemId_ingredientId: { menuItemId: input.menuItemId, ingredientId: input.ingredientId } },
-        create: input,
-        update: { qtyPerUnit: input.qtyPerUnit },
+    .mutation(async ({ ctx, input }) =>
+      ctx.db.$transaction(async (tx) => {
+        const recipe = await tx.recipe.upsert({
+          where: { menuItemId_ingredientId: { menuItemId: input.menuItemId, ingredientId: input.ingredientId } },
+          create: input,
+          update: { qtyPerUnit: input.qtyPerUnit },
+        });
+        await recomputeAvailabilityForIngredient(tx, input.ingredientId);
+        return recipe;
       })
     ),
 });
