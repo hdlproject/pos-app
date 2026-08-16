@@ -313,21 +313,20 @@ export default function AdminIngredientsPage() {
       )}
 
       <Card>
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h2 className="font-bold text-text">Stock</h2>
-          {pending.data && (
+        {pending.data && (
+          <div className="flex justify-end mb-3">
             <PendingBatchControls
               lineCount={pending.data.lines.length}
               onCancel={() => cancelBatch.mutate({ batchId: pending.data!.id })}
               onReview={() => setReviewOpen(true)}
               cancelling={cancelBatch.isPending}
             />
-          )}
-        </div>
+          </div>
+        )}
         <div className="grid grid-cols-[1fr_120px_auto] items-center gap-x-6 gap-y-1">
-          <span className="text-xs font-bold text-text-muted-2 uppercase pb-2">Name</span>
-          <span className="text-xs font-bold text-text-muted-2 uppercase pb-2 text-right">Stock</span>
-          <span className="pb-2" />
+          <span className="text-xs font-bold text-accent uppercase bg-accent/10 rounded-lg px-3 py-1.5 mb-1">Name</span>
+          <span className="text-xs font-bold text-accent uppercase bg-accent/10 rounded-lg px-3 py-1.5 mb-1 text-right">Stock</span>
+          <span className="mb-1" />
           {ingredients.data?.map((ing) => {
             const out = Number(ing.stockQty) <= 0;
             const line = pending.data?.lines.find((l) => l.ingredientId === ing.id);
