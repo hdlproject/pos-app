@@ -140,19 +140,46 @@ export default function AdminMenuPage() {
           <div className="flex gap-1 bg-bg p-1 rounded-lg">
             <button
               onClick={() => setViewMode('row')}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+              aria-label="Row view"
+              title="Row view"
+              className={`p-2 rounded-md transition-colors ${
                 viewMode === 'row' ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
               }`}
             >
-              Row
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
             <button
               onClick={() => setViewMode('thumbnail')}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+              aria-label="Thumbnail view"
+              title="Thumbnail view"
+              className={`p-2 rounded-md transition-colors ${
                 viewMode === 'thumbnail' ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
               }`}
             >
-              Thumbnail
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
             </button>
           </div>
         </div>
