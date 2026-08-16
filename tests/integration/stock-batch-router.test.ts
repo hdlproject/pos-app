@@ -58,4 +58,47 @@ describe('stock batch router', () => {
     expect(Number(pending?.lines[0].delta)).toBe(-50);
     expect(pending?.lines[0].reason).toBe('MANUAL_ADJUST');
   });
+
+  it('removeLine removes one line but keeps the batch when other lines remain', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500, lowStockThreshold: 100 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    await admin.stockBatch.stageChange({ ingredientId: beans.id, delta: 200, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+    const milkLine = batch!.lines.find((l) => l.ingredientId === milk.id)!;
+
+    await admin.stockBatch.removeLine({ lineId: milkLine.id });
+
+    const afterRemove = await admin.stockBatch.getPending();
+    expect(afterRemove?.status).toBe('PENDING');
+    expect(afterRemove?.lines).toHaveLength(1);
+    expect(afterRemove?.lines[0].ingredientId).toBe(beans.id);
+  });
+
+  it('removeLine on the last remaining line deletes the batch entirely', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+
+    await admin.stockBatch.removeLine({ lineId: batch!.lines[0].id });
+
+    const afterRemove = await admin.stockBatch.getPending();
+    expect(afterRemove).toBeNull();
+    const stillExists = await db.stockAdjustmentBatch.findUnique({ where: { id: batch!.id } });
+    expect(stillExists).toBeNull();
+  });
+
+  it('setNote updates the batch note', async () => {
+    const admin = await adminCaller();
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000, lowStockThreshold: 200 } });
+    await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
+    const batch = await admin.stockBatch.getPending();
+
+    await admin.stockBatch.setNote({ batchId: batch!.id, note: 'Weekly supplier delivery' });
+
+    const updated = await admin.stockBatch.getPending();
+    expect(updated?.note).toBe('Weekly supplier delivery');
+  });
 });
