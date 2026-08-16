@@ -37,6 +37,7 @@ type MenuItemWithCategory = {
   price: Prisma.Decimal;
   categoryId: string;
   available: boolean;
+  outOfStockReason: string | null;
   image: string | null;
   modifiers: Prisma.JsonValue;
   category: {
@@ -50,7 +51,7 @@ export const menuRouter = router({
   listAvailable: publicProcedure.query(
     ({ ctx }): Promise<MenuItemWithCategory[]> =>
       ctx.db.menuItem.findMany({
-        where: { available: true },
+        where: { available: true, outOfStockReason: null },
         include: { category: true },
         orderBy: { category: { sortOrder: 'asc' } },
       })

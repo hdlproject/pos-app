@@ -67,4 +67,17 @@ describe('menu router', () => {
     const updated = await admin.menu.updateItem({ id: item.id, available: false });
     expect(updated.available).toBe(false);
   });
+
+  it('excludes an auto-detected-out-of-stock item from listAvailable', async () => {
+    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const anon = appRouter.createCaller({ db, user: null });
+    const category = await admin.menu.createCategory({ name: 'Coffee', sortOrder: 1 });
+    const item = await admin.menu.createItem({
+      name: 'Latte', price: 4.5, categoryId: category.id, available: true,
+    });
+    await db.menuItem.update({ where: { id: item.id }, data: { outOfStockReason: 'Out of stock: Milk' } });
+
+    const available = await anon.menu.listAvailable();
+    expect(available.map((i) => i.id)).not.toContain(item.id);
+  });
 });
