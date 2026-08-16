@@ -69,23 +69,30 @@ export default function PosPage() {
           </div>
 
           <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
-            {visibleItems.map((item) => (
-              <Card key={item.id} className="flex flex-col gap-2.5">
-                <MenuItemThumbnail
-                  image={item.image}
-                  categoryName={item.category.name}
-                  alt={item.name}
-                  className="w-full h-20 rounded-xl"
-                />
-                <div className="font-bold text-text text-sm">{item.name}</div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-extrabold text-accent-tint text-sm">Rp {Number(item.price).toLocaleString('id-ID')}</div>
-                  <Button variant="dark" size="sm" onClick={() => addToCart(item.id)}>
-                    + Add
-                  </Button>
-                </div>
-              </Card>
-            ))}
+            {visibleItems.map((item) => {
+              const effectivelyAvailable = item.available && !item.outOfStockReason;
+              return (
+                <Card key={item.id} className={`flex flex-col gap-2.5 ${effectivelyAvailable ? '' : 'opacity-50'}`}>
+                  <MenuItemThumbnail
+                    image={item.image}
+                    categoryName={item.category.name}
+                    alt={item.name}
+                    className="w-full h-20 rounded-xl"
+                  />
+                  <div className="font-bold text-text text-sm">{item.name}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    {effectivelyAvailable ? (
+                      <div className="font-extrabold text-accent-tint text-sm">Rp {Number(item.price).toLocaleString('id-ID')}</div>
+                    ) : (
+                      <div className="text-warning text-xs font-semibold">{item.outOfStockReason ?? 'Sold out'}</div>
+                    )}
+                    <Button variant="dark" size="sm" disabled={!effectivelyAvailable} onClick={() => addToCart(item.id)}>
+                      + Add
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </main>
 
