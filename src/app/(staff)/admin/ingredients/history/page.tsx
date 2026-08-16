@@ -37,7 +37,8 @@ export default function IngredientHistoryPage() {
             </div>
             <div className="text-xs text-text-muted">
               Staged by {batch.createdBy.name}
-              {batch.status === 'CONFIRMED' && batch.confirmedBy && ` · Confirmed by ${batch.confirmedBy.name}`}
+              {batch.status === 'CONFIRMED' && batch.confirmedBy &&
+                ` · Confirmed by ${batch.confirmedBy.name} on ${new Date(batch.confirmedAt!).toLocaleString('id-ID')}`}
             </div>
           </Card>
         ))}
