@@ -323,20 +323,22 @@ export default function AdminIngredientsPage() {
             />
           </div>
         )}
-        <div className="grid grid-cols-[1fr_120px_auto] items-center gap-x-6 gap-y-1">
-          <span className="text-xs font-bold text-accent uppercase bg-accent/10 rounded-lg px-3 py-1.5 mb-1">Name</span>
-          <span className="text-xs font-bold text-accent uppercase bg-accent/10 rounded-lg px-3 py-1.5 mb-1 text-right">Stock</span>
-          <span className="mb-1" />
+        <div className="flex flex-col">
+          <div className="flex items-center gap-6 bg-surface-input rounded-lg px-3 py-2 mb-1 text-xs font-bold text-text-muted-2 uppercase">
+            <span className="flex-1">Name</span>
+            <span className="w-28 text-right">Stock</span>
+            <span className="w-10" />
+          </div>
           {ingredients.data?.map((ing) => {
             const out = Number(ing.stockQty) <= 0;
             const line = pending.data?.lines.find((l) => l.ingredientId === ing.id);
             return (
-              <div key={ing.id} className="contents">
-                <span className="font-bold text-sm text-text py-2">{ing.name}</span>
-                <span className={`text-sm text-right py-2 ${out ? 'text-warning' : 'text-text'}`}>
+              <div key={ing.id} className="flex items-center gap-6 px-3 py-2">
+                <span className="flex-1 font-bold text-sm text-text">{ing.name}</span>
+                <span className={`w-28 text-right text-sm ${out ? 'text-warning' : 'text-text'}`}>
                   {String(ing.stockQty)} {ing.unit}
                 </span>
-                <span className="py-2">
+                <span className="w-10 flex justify-center">
                   <StockStepper
                     unit={ing.unit}
                     pendingDelta={line ? Number(line.delta) : 0}
