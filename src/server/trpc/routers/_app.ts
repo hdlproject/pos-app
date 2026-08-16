@@ -7,6 +7,7 @@ import { orderRouter } from './order';
 import { kitchenRouter } from './kitchen';
 import { paymentRouter } from './payment';
 import { reportRouter } from './report';
+import { stockBatchRouter } from './stockBatch';
 
 export const appRouter = router({
   auth: authRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
   kitchen: kitchenRouter,
   payment: paymentRouter,
   report: reportRouter,
+  stockBatch: stockBatchRouter,
 });
 
 export type AppRouter = typeof appRouter;
