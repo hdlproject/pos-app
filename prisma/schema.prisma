@@ -47,6 +47,12 @@ enum StockReason {
   VOID_REVERT
 }
 
+enum StockBatchStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
 model Store {
   id   String @id @default(cuid())
   name String
@@ -63,6 +69,8 @@ model User {
   ordersCreated Order[]         @relation("OrderCreatedBy")
   payments      Payment[]
   stockMoves    StockMovement[]
+  createdBatches   StockAdjustmentBatch[] @relation("BatchCreatedBy")
+  confirmedBatches StockAdjustmentBatch[] @relation("BatchConfirmedBy")
 }
 
 model Table {
@@ -105,6 +113,7 @@ model Ingredient {
 
   recipes   Recipe[]
   movements StockMovement[]
+  adjustmentLines StockAdjustmentLine[]
 }
 
 model Recipe {
@@ -168,4 +177,30 @@ model StockMovement {
   createdAt    DateTime    @default(now())
   createdById  String
   createdBy    User        @relation(fields: [createdById], references: [id])
+}
+
+model StockAdjustmentBatch {
+  id            String            @id @default(cuid())
+  status        StockBatchStatus  @default(PENDING)
+  note          String?
+  createdAt     DateTime          @default(now())
+  createdById   String
+  createdBy     User              @relation("BatchCreatedBy", fields: [createdById], references: [id])
+  confirmedAt   DateTime?
+  confirmedById String?
+  confirmedBy   User?             @relation("BatchConfirmedBy", fields: [confirmedById], references: [id])
+
+  lines StockAdjustmentLine[]
+}
+
+model StockAdjustmentLine {
+  id           String     @id @default(cuid())
+  batchId      String
+  batch        StockAdjustmentBatch @relation(fields: [batchId], references: [id])
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  delta        Decimal    @db.Decimal(10, 3)
+  reason       StockReason
+
+  @@unique([batchId, ingredientId])
 }
