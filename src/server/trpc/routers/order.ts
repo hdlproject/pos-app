@@ -28,7 +28,7 @@ async function buildOrderItems(
   return items.map((i) => {
     const menuItem = byId.get(i.menuItemId);
     if (!menuItem) throw new TRPCError({ code: 'NOT_FOUND', message: `menu item ${i.menuItemId} not found` });
-    if (!menuItem.available) {
+    if (!menuItem.available || menuItem.outOfStockReason) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: `menu item ${menuItem.name} is not available` });
     }
     return {

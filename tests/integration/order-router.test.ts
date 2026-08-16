@@ -34,6 +34,23 @@ describe('order router', () => {
     expect(order.source).toBe('STAFF');
   });
 
+  it('rejects order creation for an item that is auto-out-of-stock even though the manual flag is still available', async () => {
+    const item = await seedMenu();
+    await db.menuItem.update({ where: { id: item.id }, data: { outOfStockReason: 'Out of stock: Milk' } });
+    const refreshed = await db.menuItem.findUniqueOrThrow({ where: { id: item.id } });
+    expect(refreshed.available).toBe(true);
+
+    await db.user.create({ data: { id: 'u1', name: 'C', role: 'STAFF', pinHash: await hashPin('1234') } });
+    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
+
+    await expect(
+      cashier.order.createStaff({
+        type: 'DINE_IN',
+        items: [{ menuItemId: item.id, qty: 1 }],
+      })
+    ).rejects.toThrow();
+  });
+
   it('QR customer creates an order by table token and can append items', async () => {
     const item = await seedMenu();
     const table = await db.table.create({ data: { label: 'T1', qrToken: 'tok-1' } });
