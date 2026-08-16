@@ -41,7 +41,7 @@ export default function PosPage() {
   }, 0);
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-bg">
+    <div className="min-h-screen md:h-screen overflow-y-auto md:overflow-hidden flex flex-col bg-bg">
       <PageHeader
         title="Point of Sale"
         right={
@@ -56,7 +56,7 @@ export default function PosPage() {
           </div>
         }
       />
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0">
         <main className="flex-1 min-w-0 flex flex-col p-6 overflow-y-auto">
           <h1 className="font-display text-2xl text-text mb-4">New Order</h1>
 
@@ -89,7 +89,7 @@ export default function PosPage() {
           </div>
         </main>
 
-        <aside className="w-[360px] shrink-0 bg-surface border-l border-border flex flex-col">
+        <aside className="w-full h-[70vh] md:h-auto md:w-[360px] md:shrink-0 bg-surface border-t md:border-t-0 md:border-l border-border flex flex-col">
           <div className="p-4 border-b border-border">
             <div className="flex gap-1.5 bg-bg p-1 rounded-xl">
               {(['DINE_IN', 'TAKEAWAY', 'DELIVERY'] as const).map((t) => (

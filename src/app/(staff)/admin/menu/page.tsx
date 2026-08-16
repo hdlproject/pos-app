@@ -50,12 +50,12 @@ export default function AdminMenuPage() {
 
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">New Item</h2>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-2 sm:flex-wrap">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Item name"
-            className="flex-1 min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="w-full sm:flex-1 sm:min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Input
             value={price}
@@ -64,7 +64,7 @@ export default function AdminMenuPage() {
             type="number"
             min="1"
             step="1"
-            className="w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="w-full sm:w-28 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Select
             value={categoryId}
@@ -75,10 +75,11 @@ export default function AdminMenuPage() {
             addNewLabel="+ Add new category…"
             addNewPlaceholder="New category name"
             onRemove={(id) => deleteCategory.mutate({ id })}
-            className="min-w-[180px] px-3 py-2"
+            className="w-full sm:w-auto sm:min-w-[180px] px-3 py-2"
           />
           <Button
             variant="dark"
+            className="w-full sm:w-auto"
             disabled={!name || !(Number(price) > 0) || !categoryId}
             onClick={() => createItem.mutate({ name, price: Number(price), categoryId, available: true, image: image ?? undefined })}
           >

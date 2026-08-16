@@ -14,9 +14,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen flex bg-bg">
-      <aside className="w-[230px] shrink-0 bg-surface border-r border-border flex flex-col p-3.5 sticky top-0 h-screen">
-        <div className="flex items-center gap-3 px-2 pb-5">
+    <div className="min-h-screen flex flex-col md:flex-row bg-bg">
+      <aside className="w-full md:w-[230px] md:shrink-0 bg-surface border-b md:border-b-0 md:border-r border-border flex flex-col p-3.5 md:sticky md:top-0 md:h-screen">
+        <div className="flex items-center gap-3 px-2 pb-3 md:pb-5">
           <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center text-white font-display text-xl leading-none">
             K
           </div>
@@ -25,14 +25,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="text-[10.5px] uppercase tracking-widest text-text-muted font-bold">Admin</div>
           </div>
         </div>
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible">
           {NAV.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3 py-2.5 rounded-xl font-bold text-sm ${
+                className={`shrink-0 md:shrink px-3 py-2.5 rounded-xl font-bold text-sm ${
                   active ? 'bg-accent text-white' : 'text-text-muted-2 hover:bg-surface-input'
                 }`}
               >
@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
         </nav>
-        <div className="mt-auto pt-3 px-2 border-t border-border">
+        <div className="mt-3 md:mt-auto pt-3 px-2 border-t border-border">
           <LogoutButton />
         </div>
       </aside>

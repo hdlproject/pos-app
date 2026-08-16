@@ -84,7 +84,7 @@ export function Select({
       </button>
 
       {open && (
-        <div className="absolute z-20 top-full mt-1 left-0 min-w-full w-max max-w-[280px] bg-surface border border-border rounded-xl shadow-lg py-1 max-h-64 overflow-y-auto">
+        <div className="absolute z-20 top-full mt-1 left-0 min-w-full w-max max-w-[min(280px,calc(100vw-2rem))] bg-surface border border-border rounded-xl shadow-lg py-1 max-h-64 overflow-y-auto">
           {options.map((opt) => (
             <div key={opt.value} className="flex items-center">
               <button

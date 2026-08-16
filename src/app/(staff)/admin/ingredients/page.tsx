@@ -22,28 +22,29 @@ export default function AdminIngredientsPage() {
 
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">New Ingredient</h2>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-2 sm:flex-wrap">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Name"
-            className="flex-1 min-w-[140px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="w-full sm:flex-1 sm:min-w-[140px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Input
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
             placeholder="Unit (g, ml, pcs)"
-            className="w-40 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="w-full sm:w-40 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Input
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
             placeholder="Low-stock threshold"
             type="number"
-            className="w-44 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="w-full sm:w-44 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <Button
             variant="dark"
+            className="w-full sm:w-auto"
             disabled={!name || !unit || !threshold}
             onClick={() => create.mutate({ name, unit, lowStockThreshold: Number(threshold), stockQty: 0 })}
           >

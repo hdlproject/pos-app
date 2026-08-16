@@ -67,7 +67,7 @@ export default function KdsPage() {
     <div className="min-h-screen bg-kds-bg text-kds-text">
       <PageHeader title="Kitchen Display" subtitle="Kopi & Co · Live" dark right={<LogoutButton dark />} />
       <main className="p-5 overflow-x-auto">
-        <div className="grid grid-flow-col auto-cols-[308px] gap-4 items-start">
+        <div className="grid grid-flow-col auto-cols-[85vw] sm:auto-cols-[308px] gap-4 items-start">
           {data?.map((order) => (
             <div key={order.id} className="flex flex-col min-h-[220px] bg-kds-card border border-kds-border rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-kds-card-header border-b border-kds-border">
@@ -110,7 +110,7 @@ export default function KdsPage() {
             </div>
           ))}
           {data?.length === 0 && (
-            <div className="w-[308px] flex flex-col items-center justify-center gap-3 py-14 px-6 text-kds-text-muted text-center">
+            <div className="w-[85vw] sm:w-[308px] flex flex-col items-center justify-center gap-3 py-14 px-6 text-kds-text-muted text-center">
               <div className="w-14 h-14 rounded-2xl bg-kds-card flex items-center justify-center text-2xl">🍳</div>
               <div className="font-extrabold text-kds-text-muted-2">All caught up</div>
               <div className="text-xs">No open tickets right now.</div>
