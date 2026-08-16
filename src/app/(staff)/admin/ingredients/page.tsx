@@ -7,6 +7,34 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Popover } from '@/components/ui/Popover';
 
+function PendingBatchBanner({
+  lineCount,
+  onCancel,
+  cancelling,
+}: {
+  lineCount: number;
+  onCancel: () => void;
+  cancelling: boolean;
+}) {
+  return (
+    <Card className="mb-5">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <span className="text-sm font-bold text-text">
+          {lineCount} pending change{lineCount === 1 ? '' : 's'} awaiting confirmation
+        </span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled={cancelling} onClick={onCancel}>
+            Cancel Changes
+          </Button>
+          <Link href="/admin/ingredients/review">
+            <Button variant="primary" size="sm">Review Changes</Button>
+          </Link>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function StockStepper({
   unit,
   pendingDelta,
@@ -107,6 +135,12 @@ export default function AdminIngredientsPage() {
   const removeLine = trpc.stockBatch.removeLine.useMutation({
     onSuccess: () => utils.stockBatch.getPending.invalidate(),
   });
+  const cancelBatch = trpc.stockBatch.cancel.useMutation({
+    onSuccess: () => {
+      utils.stockBatch.getPending.invalidate();
+      utils.stockBatch.listHistory.invalidate();
+    },
+  });
 
   return (
     <div className="p-6">
@@ -125,16 +159,11 @@ export default function AdminIngredientsPage() {
       </div>
 
       {pending.data && (
-        <Card className="mb-5">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-sm font-bold text-text">
-              {pending.data.lines.length} pending change{pending.data.lines.length === 1 ? '' : 's'} awaiting confirmation
-            </span>
-            <Link href="/admin/ingredients/review">
-              <Button variant="primary" size="sm">Review Changes</Button>
-            </Link>
-          </div>
-        </Card>
+        <PendingBatchBanner
+          lineCount={pending.data.lines.length}
+          onCancel={() => cancelBatch.mutate({ batchId: pending.data!.id })}
+          cancelling={cancelBatch.isPending}
+        />
       )}
 
       {showNewIngredientForm && (
