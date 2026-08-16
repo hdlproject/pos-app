@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, roleProcedure } from '../trpc';
-import { recomputeAvailabilityForIngredient } from '../../stock/availability';
+import { recomputeAvailabilityForIngredient, recomputeAvailabilityForMenuItem } from '../../stock/availability';
 
 export const ingredientRouter = router({
   list: roleProcedure('ADMIN').query(({ ctx }) => ctx.db.ingredient.findMany()),
@@ -55,4 +55,24 @@ export const ingredientRouter = router({
         return recipe;
       })
     ),
+
+  listRecipes: roleProcedure('ADMIN')
+    .input(z.object({ menuItemId: z.string() }))
+    .query(({ ctx, input }) =>
+      ctx.db.recipe.findMany({
+        where: { menuItemId: input.menuItemId },
+        include: { ingredient: true },
+        orderBy: { ingredient: { name: 'asc' } },
+      })
+    ),
+
+  removeRecipe: roleProcedure('ADMIN')
+    .input(z.object({ recipeId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.$transaction(async (tx) => {
+        const recipe = await tx.recipe.delete({ where: { id: input.recipeId } });
+        await recomputeAvailabilityForMenuItem(tx, recipe.menuItemId);
+      });
+      return { ok: true };
+    }),
 });

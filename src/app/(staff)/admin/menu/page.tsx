@@ -25,6 +25,96 @@ function normalizeForSearch(value: string): string {
     .toLowerCase();
 }
 
+function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string; menuItemName: string; onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const recipes = trpc.ingredient.listRecipes.useQuery({ menuItemId });
+  const ingredients = trpc.ingredient.list.useQuery();
+
+  const [ingredientId, setIngredientId] = useState('');
+  const [qty, setQty] = useState('');
+
+  const setRecipe = trpc.ingredient.setRecipe.useMutation({
+    onSuccess: () => {
+      utils.ingredient.listRecipes.invalidate({ menuItemId });
+      utils.menu.listAll.invalidate();
+      setIngredientId('');
+      setQty('');
+    },
+  });
+  const removeRecipe = trpc.ingredient.removeRecipe.useMutation({
+    onSuccess: () => {
+      utils.ingredient.listRecipes.invalidate({ menuItemId });
+      utils.menu.listAll.invalidate();
+    },
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-xl text-text">Recipe: {menuItemName}</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1 rounded-lg text-text-muted-2 hover:bg-surface-input transition-colors"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2 mb-4">
+          {recipes.data?.map((r) => (
+            <div key={r.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              <span className="text-sm text-text">
+                <span className="font-bold">{r.ingredient.name}</span>
+                <span className="text-text-muted ml-2">{String(r.qtyPerUnit)} {r.ingredient.unit} / unit</span>
+              </span>
+              <Button variant="outline" size="sm" onClick={() => removeRecipe.mutate({ recipeId: r.id })}>
+                Remove
+              </Button>
+            </div>
+          ))}
+          {recipes.data?.length === 0 && (
+            <p className="text-text-muted text-sm py-2">No ingredients linked yet.</p>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <Select
+            value={ingredientId}
+            onChange={setIngredientId}
+            options={(ingredients.data ?? []).map((i) => ({ value: i.id, label: i.name }))}
+            placeholder="Ingredient"
+            className="flex-1 px-3 py-2"
+          />
+          <Input
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            placeholder="Qty/unit"
+            type="number"
+            min="0"
+            step="any"
+            className="w-24 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          />
+          <Button
+            variant="dark"
+            size="sm"
+            disabled={!ingredientId || !(Number(qty) > 0)}
+            onClick={() => setRecipe.mutate({ menuItemId, ingredientId, qtyPerUnit: Number(qty) })}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminMenuPage() {
   const utils = trpc.useUtils();
   const items = trpc.menu.listAll.useQuery();
@@ -64,6 +154,8 @@ export default function AdminMenuPage() {
   const updateImage = trpc.menu.updateItem.useMutation({
     onSuccess: () => utils.menu.listAll.invalidate(),
   });
+
+  const [recipeItemId, setRecipeItemId] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -435,6 +527,9 @@ export default function AdminMenuPage() {
                     >
                       {editingImageId === item.id ? 'Cancel' : 'Edit image'}
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => setRecipeItemId(item.id)}>
+                      Recipe
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -484,6 +579,9 @@ export default function AdminMenuPage() {
                     onClick={() => setEditingImageId(editingImageId === item.id ? null : item.id)}
                   >
                     {editingImageId === item.id ? 'Cancel' : 'Edit image'}
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => setRecipeItemId(item.id)}>
+                    Recipe
                   </Button>
                   <Button
                     variant="outline"
@@ -536,6 +634,14 @@ export default function AdminMenuPage() {
           </div>
         )}
       </Card>
+
+      {recipeItemId && (
+        <RecipeModal
+          menuItemId={recipeItemId}
+          menuItemName={items.data?.find((i) => i.id === recipeItemId)?.name ?? ''}
+          onClose={() => setRecipeItemId(null)}
+        />
+      )}
     </div>
   );
 }
