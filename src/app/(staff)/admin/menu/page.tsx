@@ -120,7 +120,7 @@ export default function AdminMenuPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display text-2xl text-text">Menu Management</h1>
         {!showNewItemForm && (
-          <Button variant="dark" onClick={() => setShowNewItemForm(true)}>
+          <Button variant="primary" onClick={() => setShowNewItemForm(true)}>
             + New Item
           </Button>
         )}
