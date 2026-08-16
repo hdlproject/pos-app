@@ -178,28 +178,28 @@ export default function AdminIngredientsPage() {
 
       <Card>
         <h2 className="font-bold text-text mb-3">Stock</h2>
-        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-6 gap-y-1 text-xs font-bold text-text-muted-2 uppercase pb-2">
-          <span>Name</span>
-          <span className="text-right">Stock</span>
-          <span className="w-24">Status</span>
-          <span />
-        </div>
-        <div className="flex flex-col">
+        <div className="grid grid-cols-[1fr_120px_100px_auto] items-center gap-x-6 gap-y-1">
+          <span className="text-xs font-bold text-text-muted-2 uppercase pb-2">Name</span>
+          <span className="text-xs font-bold text-text-muted-2 uppercase pb-2 text-right">Stock</span>
+          <span className="text-xs font-bold text-text-muted-2 uppercase pb-2">Status</span>
+          <span className="pb-2" />
           {ingredients.data?.map((ing) => {
             const low = Number(ing.stockQty) < Number(ing.lowStockThreshold);
             return (
-              <div key={ing.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-6 py-2">
-                <span className="font-bold text-sm text-text">{ing.name}</span>
-                <span className={`text-sm text-right ${low ? 'text-warning' : 'text-text'}`}>
+              <div key={ing.id} className="contents">
+                <span className="font-bold text-sm text-text py-2">{ing.name}</span>
+                <span className={`text-sm text-right py-2 ${low ? 'text-warning' : 'text-text'}`}>
                   {String(ing.stockQty)} {ing.unit}
                 </span>
-                <span className="w-24">
+                <span className="py-2">
                   {low && <span className="text-xs font-extrabold text-warning">LOW STOCK</span>}
                 </span>
-                <StageChangePopover
-                  ingredientId={ing.id}
-                  onStage={(input) => stageChange.mutate(input)}
-                />
+                <span className="py-2">
+                  <StageChangePopover
+                    ingredientId={ing.id}
+                    onStage={(input) => stageChange.mutate(input)}
+                  />
+                </span>
               </div>
             );
           })}
