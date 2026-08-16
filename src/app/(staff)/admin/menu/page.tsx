@@ -117,13 +117,14 @@ export default function AdminMenuPage() {
 
   return (
     <div className="p-6">
-      <h1 className="font-display text-2xl text-text mb-6">Menu Management</h1>
-
-      {!showNewItemForm && (
-        <Button variant="dark" className="mb-5" onClick={() => setShowNewItemForm(true)}>
-          + New Item
-        </Button>
-      )}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-display text-2xl text-text">Menu Management</h1>
+        {!showNewItemForm && (
+          <Button variant="dark" onClick={() => setShowNewItemForm(true)}>
+            + New Item
+          </Button>
+        )}
+      </div>
 
       {showNewItemForm && (
         <Card className="mb-5">
