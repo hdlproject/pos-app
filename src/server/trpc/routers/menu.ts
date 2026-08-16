@@ -53,7 +53,7 @@ export const menuRouter = router({
       ctx.db.menuItem.findMany({
         where: { available: true, outOfStockReason: null },
         include: { category: true },
-        orderBy: { category: { sortOrder: 'asc' } },
+        orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
       })
   ),
 
@@ -61,7 +61,7 @@ export const menuRouter = router({
     ({ ctx }): Promise<MenuItemWithCategory[]> =>
       ctx.db.menuItem.findMany({
         include: { category: true },
-        orderBy: { category: { sortOrder: 'asc' } },
+        orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
       })
   ),
 
