@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import { Button } from './Button';
 import { MenuItemThumbnail } from './MenuItemThumbnail';
+import { uploadImage } from '@/lib/uploadImage';
 
 type ImageUploadProps = {
   value: string | null;
@@ -20,25 +21,11 @@ export function ImageUpload({ value, onChange, categoryName }: ImageUploadProps)
     if (!file) return;
 
     setError('');
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File too large (max 5MB)');
-      return;
-    }
-
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? 'Upload failed');
-        return;
-      }
-      onChange(data.url);
-    } catch {
-      setError('Upload failed');
+      onChange(await uploadImage(file));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
     }

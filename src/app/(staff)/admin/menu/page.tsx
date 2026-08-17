@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
+import { MenuItemThumbnailUpload } from '@/components/ui/MenuItemThumbnailUpload';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ImageUpload } from '@/components/ui/ImageUpload';
@@ -150,7 +150,6 @@ export default function AdminMenuPage() {
   });
   const toggleAvailable = trpc.menu.updateItem.useMutation({ onSuccess: () => utils.menu.listAll.invalidate() });
 
-  const [editingImageId, setEditingImageId] = useState<string | null>(null);
   const updateImage = trpc.menu.updateItem.useMutation({
     onSuccess: () => utils.menu.listAll.invalidate(),
   });
@@ -499,55 +498,38 @@ export default function AdminMenuPage() {
         {viewMode === 'row' ? (
           <div className="flex flex-col gap-2">
             {paginatedItems.map((item) => (
-              <div key={item.id} className="flex flex-col gap-2 py-2 border-b border-border last:border-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <MenuItemThumbnail
-                      image={item.image}
-                      categoryName={item.category.name}
-                      alt={item.name}
-                      className="w-10 h-10 rounded-lg shrink-0"
-                    />
-                    <div>
-                      <span className="font-bold text-sm text-text">{item.name}</span>
-                      <span className="text-text-muted text-sm ml-2">Rp {Number(item.price).toLocaleString('id-ID')}</span>
-                      <span className={`text-xs font-bold ml-2 ${item.available ? 'text-success' : 'text-warning'}`}>
-                        {item.available ? 'available' : 'sold out'}
-                      </span>
-                      {item.outOfStockReason && (
-                        <div className="text-warning text-xs font-semibold mt-0.5">{item.outOfStockReason}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingImageId(editingImageId === item.id ? null : item.id)}
-                    >
-                      {editingImageId === item.id ? 'Cancel' : 'Edit image'}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setRecipeItemId(item.id)}>
-                      Recipe
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
-                    >
-                      {item.available ? 'Mark sold out' : 'Mark available'}
-                    </Button>
+              <div key={item.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                <div className="flex items-center gap-3">
+                  <MenuItemThumbnailUpload
+                    image={item.image}
+                    categoryName={item.category.name}
+                    alt={item.name}
+                    onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
+                    className="w-10 h-10 rounded-lg"
+                  />
+                  <div>
+                    <span className="font-bold text-sm text-text">{item.name}</span>
+                    <span className="text-text-muted text-sm ml-2">Rp {Number(item.price).toLocaleString('id-ID')}</span>
+                    <span className={`text-xs font-bold ml-2 ${item.available ? 'text-success' : 'text-warning'}`}>
+                      {item.available ? 'available' : 'sold out'}
+                    </span>
+                    {item.outOfStockReason && (
+                      <div className="text-warning text-xs font-semibold mt-0.5">{item.outOfStockReason}</div>
+                    )}
                   </div>
                 </div>
-                {editingImageId === item.id && (
-                  <div className="pl-[52px]">
-                    <ImageUpload
-                      value={item.image}
-                      onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
-                      categoryName={item.category.name}
-                    />
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setRecipeItemId(item.id)}>
+                    Recipe
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
+                  >
+                    {item.available ? 'Mark sold out' : 'Mark available'}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -555,10 +537,11 @@ export default function AdminMenuPage() {
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
             {paginatedItems.map((item) => (
               <div key={item.id} className="flex flex-col gap-2 p-3 border border-border rounded-xl">
-                <MenuItemThumbnail
+                <MenuItemThumbnailUpload
                   image={item.image}
                   categoryName={item.category.name}
                   alt={item.name}
+                  onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
                   className="w-full h-24 rounded-lg"
                 />
                 <div>
@@ -572,14 +555,6 @@ export default function AdminMenuPage() {
                   )}
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setEditingImageId(editingImageId === item.id ? null : item.id)}
-                  >
-                    {editingImageId === item.id ? 'Cancel' : 'Edit image'}
-                  </Button>
                   <Button variant="outline" size="sm" className="w-full" onClick={() => setRecipeItemId(item.id)}>
                     Recipe
                   </Button>
@@ -592,13 +567,6 @@ export default function AdminMenuPage() {
                     {item.available ? 'Mark sold out' : 'Mark available'}
                   </Button>
                 </div>
-                {editingImageId === item.id && (
-                  <ImageUpload
-                    value={item.image}
-                    onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
-                    categoryName={item.category.name}
-                  />
-                )}
               </div>
             ))}
           </div>
