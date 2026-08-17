@@ -10,6 +10,10 @@ const NAV = [
   { href: '/admin/reports', label: 'Reports' },
 ];
 
+function isNavActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
@@ -28,7 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <nav className="flex flex-col gap-1">
           {NAV.map((item) => {
-            const active = pathname === item.href;
+            const active = isNavActive(pathname, item.href);
             return (
               <Link
                 key={item.href}
