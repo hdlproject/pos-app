@@ -510,7 +510,7 @@ export default function AdminIngredientsPage() {
             const out = Number(ing.stockQty) <= 0;
             const line = pending.data?.lines.find((l) => l.ingredientId === ing.id);
             return (
-              <div key={ing.id} className="flex items-center gap-6 px-3 py-2">
+              <div key={ing.id} className="flex items-center gap-6 px-3 py-2 border-b border-border last:border-0">
                 <span className="flex-1 font-bold text-sm text-text">{ing.name}</span>
                 <span className={`w-28 text-right text-sm ${out ? 'text-warning' : 'text-text'}`}>
                   {String(ing.stockQty)} {ing.unit}
