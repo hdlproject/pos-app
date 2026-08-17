@@ -152,7 +152,20 @@ async function main() {
     ],
   });
 
-  await db.table.create({ data: { label: 'T1', qrToken: 'seed-table-1-token' } });
+  await db.table.createMany({
+    data: [
+      { label: 'T1', qrToken: 'seed-table-1-token' },
+      { label: 'T2', qrToken: 'seed-table-2-token' },
+      { label: 'T3', qrToken: 'seed-table-3-token' },
+      { label: 'T4', qrToken: 'seed-table-4-token' },
+      { label: 'T5', qrToken: 'seed-table-5-token' },
+      { label: 'T6', qrToken: 'seed-table-6-token' },
+      { label: 'Bar 1', qrToken: 'seed-table-bar1-token' },
+      { label: 'Bar 2', qrToken: 'seed-table-bar2-token' },
+      { label: 'Patio 1', qrToken: 'seed-table-patio1-token' },
+      { label: 'Patio 2', qrToken: 'seed-table-patio2-token' },
+    ],
+  });
 }
 
 main().finally(() => db.$disconnect());
