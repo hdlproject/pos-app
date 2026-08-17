@@ -50,13 +50,13 @@ export function MenuItemThumbnailUpload({ image, categoryName, alt, onChange, cl
         title="Upload photo"
         className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-black/0 hover:bg-black/30 transition-colors"
       >
-        <span className="absolute bottom-0.5 right-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-black/70 text-white ring-2 ring-surface">
+        <span className="absolute bottom-1 right-1 flex items-center justify-center w-6 h-6 rounded-full bg-black/35 backdrop-blur-sm text-white shadow-sm">
           {uploading ? (
-            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 12a9 9 0 1 1-9-9" strokeLinecap="round" />
             </svg>
           ) : (
-            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 15V3m0 0-4 4m4-4 4 4" />
               <path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4" />
             </svg>

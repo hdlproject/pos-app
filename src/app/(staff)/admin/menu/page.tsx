@@ -505,7 +505,7 @@ export default function AdminMenuPage() {
                     categoryName={item.category.name}
                     alt={item.name}
                     onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
-                    className="w-10 h-10 rounded-lg"
+                    className="w-16 h-16 rounded-lg"
                   />
                   <div>
                     <span className="font-bold text-sm text-text">{item.name}</span>
@@ -542,7 +542,7 @@ export default function AdminMenuPage() {
                   categoryName={item.category.name}
                   alt={item.name}
                   onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
-                  className="w-full h-24 rounded-lg"
+                  className="w-full h-36 rounded-lg"
                 />
                 <div>
                   <div className="font-bold text-sm text-text truncate">{item.name}</div>
