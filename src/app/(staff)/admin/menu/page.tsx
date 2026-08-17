@@ -527,7 +527,7 @@ export default function AdminMenuPage() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
               <span>Item</span>
-              <span>Actions</span>
+              <span className="w-52 text-right">Actions</span>
             </div>
             {paginatedItems.map((item) => {
               const { effectivelyAvailable, reasonParts } = describeAvailability(item);
@@ -550,7 +550,7 @@ export default function AdminMenuPage() {
                     <AvailabilityReason parts={reasonParts} />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="w-52 flex items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setRecipeItemId(item.id)}>
                     Recipe
                   </Button>
@@ -587,7 +587,7 @@ export default function AdminMenuPage() {
                   </div>
                   <AvailabilityReason parts={reasonParts} />
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 mt-auto">
                   <Button variant="outline" size="sm" className="w-full" onClick={() => setRecipeItemId(item.id)}>
                     Recipe
                   </Button>
