@@ -36,5 +36,25 @@ describe('report router', () => {
 
     const shift = await admin.report.shiftSummary(range);
     expect(shift[0]).toMatchObject({ name: 'Cashier', orderCount: 1, total: 9 });
+
+    const detail = await admin.report.salesDetail(range);
+    expect(detail).toHaveLength(1);
+    expect(Number(detail[0].total)).toBe(9);
+    expect(detail[0].items).toHaveLength(1);
+    expect(detail[0].items[0]).toMatchObject({ qty: 2, menuItem: { name: 'Latte' } });
+  });
+
+  it('salesDetail excludes unpaid orders', async () => {
+    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
+    const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
+    await db.order.create({
+      data: { type: 'TAKEAWAY', status: 'OPEN', source: 'STAFF', total: 9, items: { create: [{ menuItemId: item.id, qty: 2, unitPrice: 4.5 }] } },
+    });
+
+    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const range = { from: new Date(Date.now() - 86400000).toISOString(), to: new Date(Date.now() + 86400000).toISOString() };
+
+    const detail = await admin.report.salesDetail(range);
+    expect(detail).toHaveLength(0);
   });
 });

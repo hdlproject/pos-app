@@ -36,6 +36,29 @@ export const reportRouter = router({
       .sort((a, b) => b.qtySold - a.qtySold);
   }),
 
+  salesDetail: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
+    return ctx.db.order.findMany({
+      where: { status: 'PAID', createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },
+      select: {
+        id: true,
+        type: true,
+        source: true,
+        total: true,
+        createdAt: true,
+        table: { select: { label: true } },
+        items: {
+          select: {
+            id: true,
+            qty: true,
+            unitPrice: true,
+            menuItem: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }),
+
   inventoryUsage: roleProcedure('ADMIN').input(dateRangeInput).query(async ({ ctx, input }) => {
     const usage = await ctx.db.stockMovement.findMany({
       where: { createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },

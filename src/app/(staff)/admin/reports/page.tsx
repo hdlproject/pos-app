@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { trpc } from '@/lib/trpc-client';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
 
@@ -27,14 +29,20 @@ export default function ReportsPage() {
   const sales = trpc.report.dailySales.useQuery(range);
   const best = trpc.report.bestSellers.useQuery(range);
   const bestData = best.data as unknown as BestSeller[] | undefined;
-  const usage = trpc.report.inventoryUsage.useQuery(range);
-  const shift = trpc.report.shiftSummary.useQuery(range);
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="font-display text-2xl text-text">Reports</h1>
-        <DateRangePicker from={from} to={to} onChange={({ from, to }) => { setFrom(from); setTo(to); }} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/admin/reports/sales">
+            <Button variant="outline" size="sm">Sales Detail</Button>
+          </Link>
+          <Link href="/admin/reports/hr">
+            <Button variant="outline" size="sm">Staff / HR</Button>
+          </Link>
+          <DateRangePicker from={from} to={to} onChange={({ from, to }) => { setFrom(from); setTo(to); }} />
+        </div>
       </div>
 
       <div className="grid gap-4 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
@@ -52,7 +60,7 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      <Card className="mb-5">
+      <Card>
         <h2 className="font-bold text-text mb-3">Best Sellers</h2>
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
@@ -65,38 +73,9 @@ export default function ReportsPage() {
               <span className="text-text-muted">{row.qtySold} sold</span>
             </div>
           ))}
-        </div>
-      </Card>
-
-      <Card className="mb-5">
-        <h2 className="font-bold text-text mb-3">Inventory Usage</h2>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
-            <span>Ingredient</span>
-            <span>Movement</span>
-          </div>
-          {usage.data?.usage.map((m) => (
-            <div key={m.id} className="flex justify-between text-sm px-3 py-1.5">
-              <span className="text-text font-semibold">{m.ingredient.name}</span>
-              <span className="text-text-muted">{String(m.delta)} ({m.reason})</span>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="font-bold text-text mb-3">Shift Summary</h2>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
-            <span>Staff</span>
-            <span>Orders / Total</span>
-          </div>
-          {shift.data?.map((s) => (
-            <div key={s.name} className="flex justify-between text-sm px-3 py-1.5">
-              <span className="text-text font-semibold">{s.name}</span>
-              <span className="text-text-muted">{s.orderCount} orders, {s.total} collected</span>
-            </div>
-          ))}
+          {bestData?.length === 0 && (
+            <p className="text-text-muted text-sm text-center py-6">No sales in this range.</p>
+          )}
         </div>
       </Card>
     </div>
