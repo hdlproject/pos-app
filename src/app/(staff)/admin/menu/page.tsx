@@ -25,10 +25,21 @@ function describeAvailability(item: { available: boolean; outOfStockReason: stri
   const reasonParts: string[] = [];
   if (!item.available) reasonParts.push('Marked as sold out');
   if (item.outOfStockReason) reasonParts.push(item.outOfStockReason);
-  return {
-    effectivelyAvailable,
-    reason: reasonParts.length > 0 ? reasonParts.join('; ') : null,
-  };
+  return { effectivelyAvailable, reasonParts };
+}
+
+function AvailabilityReason({ parts }: { parts: string[] }) {
+  if (parts.length === 0) return null;
+  return (
+    <div className="text-warning text-xs font-semibold mt-0.5">
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && <span className="text-text-muted-2 font-normal mx-1">|</span>}
+          {part}
+        </span>
+      ))}
+    </div>
+  );
 }
 type ViewMode = 'row' | 'thumbnail';
 
@@ -517,7 +528,7 @@ export default function AdminMenuPage() {
         {viewMode === 'row' ? (
           <div className="flex flex-col gap-2">
             {paginatedItems.map((item) => {
-              const { effectivelyAvailable, reason } = describeAvailability(item);
+              const { effectivelyAvailable, reasonParts } = describeAvailability(item);
               return (
               <div key={item.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="flex items-center gap-3">
@@ -526,7 +537,7 @@ export default function AdminMenuPage() {
                     categoryName={item.category.name}
                     alt={item.name}
                     onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
-                    className="w-16 h-16 rounded-lg"
+                    className="w-10 h-10 rounded-lg"
                   />
                   <div>
                     <span className="font-bold text-sm text-text">{item.name}</span>
@@ -534,9 +545,7 @@ export default function AdminMenuPage() {
                     <span className={`text-xs font-bold ml-2 ${effectivelyAvailable ? 'text-success' : 'text-warning'}`}>
                       {effectivelyAvailable ? 'available' : 'sold out'}
                     </span>
-                    {reason && (
-                      <div className="text-warning text-xs font-semibold mt-0.5">{reason}</div>
-                    )}
+                    <AvailabilityReason parts={reasonParts} />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -558,7 +567,7 @@ export default function AdminMenuPage() {
         ) : (
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
             {paginatedItems.map((item) => {
-              const { effectivelyAvailable, reason } = describeAvailability(item);
+              const { effectivelyAvailable, reasonParts } = describeAvailability(item);
               return (
               <div key={item.id} className="flex flex-col gap-2 p-3 border border-border rounded-xl">
                 <MenuItemThumbnailUpload
@@ -574,9 +583,7 @@ export default function AdminMenuPage() {
                   <div className={`text-xs font-bold ${effectivelyAvailable ? 'text-success' : 'text-warning'}`}>
                     {effectivelyAvailable ? 'available' : 'sold out'}
                   </div>
-                  {reason && (
-                    <div className="text-warning text-xs font-semibold mt-0.5">{reason}</div>
-                  )}
+                  <AvailabilityReason parts={reasonParts} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Button variant="outline" size="sm" className="w-full" onClick={() => setRecipeItemId(item.id)}>
