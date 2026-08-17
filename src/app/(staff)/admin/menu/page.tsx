@@ -14,6 +14,22 @@ const PAGE_SIZE = 10;
 type SortField = 'name' | 'price';
 type SortOrder = 'asc' | 'desc';
 type AvailabilityFilter = 'all' | 'available' | 'soldout';
+
+// Availability is two independent signals: the manual toggle (`available`)
+// and the ingredient-depletion auto-signal (`outOfStockReason`). Either one
+// being "off" makes the item effectively sold out -- this combines both
+// into a single label + reason string for display, since the raw
+// `available` flag alone doesn't reflect that.
+function describeAvailability(item: { available: boolean; outOfStockReason: string | null }) {
+  const effectivelyAvailable = item.available && !item.outOfStockReason;
+  const reasonParts: string[] = [];
+  if (!item.available) reasonParts.push('Marked as sold out');
+  if (item.outOfStockReason) reasonParts.push(item.outOfStockReason);
+  return {
+    effectivelyAvailable,
+    reason: reasonParts.length > 0 ? reasonParts.join('; ') : null,
+  };
+}
 type ViewMode = 'row' | 'thumbnail';
 
 function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string; menuItemName: string; onClose: () => void }) {
@@ -500,7 +516,9 @@ export default function AdminMenuPage() {
 
         {viewMode === 'row' ? (
           <div className="flex flex-col gap-2">
-            {paginatedItems.map((item) => (
+            {paginatedItems.map((item) => {
+              const { effectivelyAvailable, reason } = describeAvailability(item);
+              return (
               <div key={item.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="flex items-center gap-3">
                   <MenuItemThumbnailUpload
@@ -513,11 +531,11 @@ export default function AdminMenuPage() {
                   <div>
                     <span className="font-bold text-sm text-text">{item.name}</span>
                     <span className="text-text-muted text-sm ml-2">Rp {Number(item.price).toLocaleString('id-ID')}</span>
-                    <span className={`text-xs font-bold ml-2 ${item.available ? 'text-success' : 'text-warning'}`}>
-                      {item.available ? 'available' : 'sold out'}
+                    <span className={`text-xs font-bold ml-2 ${effectivelyAvailable ? 'text-success' : 'text-warning'}`}>
+                      {effectivelyAvailable ? 'available' : 'sold out'}
                     </span>
-                    {item.outOfStockReason && (
-                      <div className="text-warning text-xs font-semibold mt-0.5">{item.outOfStockReason}</div>
+                    {reason && (
+                      <div className="text-warning text-xs font-semibold mt-0.5">{reason}</div>
                     )}
                   </div>
                 </div>
@@ -534,11 +552,14 @@ export default function AdminMenuPage() {
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
-            {paginatedItems.map((item) => (
+            {paginatedItems.map((item) => {
+              const { effectivelyAvailable, reason } = describeAvailability(item);
+              return (
               <div key={item.id} className="flex flex-col gap-2 p-3 border border-border rounded-xl">
                 <MenuItemThumbnailUpload
                   image={item.image}
@@ -550,11 +571,11 @@ export default function AdminMenuPage() {
                 <div>
                   <div className="font-bold text-sm text-text truncate">{item.name}</div>
                   <div className="text-text-muted text-xs">Rp {Number(item.price).toLocaleString('id-ID')}</div>
-                  <div className={`text-xs font-bold ${item.available ? 'text-success' : 'text-warning'}`}>
-                    {item.available ? 'available' : 'sold out'}
+                  <div className={`text-xs font-bold ${effectivelyAvailable ? 'text-success' : 'text-warning'}`}>
+                    {effectivelyAvailable ? 'available' : 'sold out'}
                   </div>
-                  {item.outOfStockReason && (
-                    <div className="text-warning text-xs font-semibold mt-0.5">{item.outOfStockReason}</div>
+                  {reason && (
+                    <div className="text-warning text-xs font-semibold mt-0.5">{reason}</div>
                   )}
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -571,7 +592,8 @@ export default function AdminMenuPage() {
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
