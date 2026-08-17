@@ -60,12 +60,20 @@ export const reportRouter = router({
   }),
 
   // Sales-driven depletion only -- restocks and manual adjustments aren't
-  // sales activity, so they don't belong on the sales report.
+  // sales activity, so they don't belong on the sales report. Summarized
+  // per ingredient (one row per unique ingredient), not one row per
+  // movement -- this is a summary, not a raw ledger.
   inventoryUsage: roleProcedure('ADMIN').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const usage = await ctx.db.stockMovement.findMany({
+    const rows = await ctx.db.stockMovement.groupBy({
+      by: ['ingredientId'],
       where: { reason: 'SALE', createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },
-      include: { ingredient: true },
+      _sum: { delta: true },
     });
+    const ingredients = await ctx.db.ingredient.findMany({ where: { id: { in: rows.map((r) => r.ingredientId) } } });
+    const byId = new Map(ingredients.map((i) => [i.id, i]));
+    const usage = rows
+      .map((r) => ({ ingredientId: r.ingredientId, ingredient: byId.get(r.ingredientId), totalDelta: r._sum.delta ?? 0 }))
+      .sort((a, b) => Number(a.totalDelta) - Number(b.totalDelta));
     return { usage };
   }),
 

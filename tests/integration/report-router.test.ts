@@ -33,6 +33,8 @@ describe('report router', () => {
 
     const usage = await admin.report.inventoryUsage(range);
     expect(usage.usage).toHaveLength(1);
+    expect(usage.usage[0]).toMatchObject({ ingredient: { name: 'Milk' } });
+    expect(Number(usage.usage[0].totalDelta)).toBe(-400);
 
     const shift = await admin.report.shiftSummary(range);
     expect(shift[0]).toMatchObject({ name: 'Cashier', orderCount: 1, total: 9 });
@@ -56,7 +58,24 @@ describe('report router', () => {
 
     const usage = await admin.report.inventoryUsage(range);
     expect(usage.usage).toHaveLength(1);
-    expect(usage.usage[0].reason).toBe('SALE');
+    expect(Number(usage.usage[0].totalDelta)).toBe(-100);
+  });
+
+  it('inventoryUsage summarizes multiple sales of the same ingredient into one row', async () => {
+    const admin2 = await db.user.create({ data: { name: 'Admin2', role: 'ADMIN', pinHash: 'x' } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 500 } });
+    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500 } });
+    await db.stockMovement.create({ data: { ingredientId: milk.id, delta: -100, reason: 'SALE', createdById: admin2.id } });
+    await db.stockMovement.create({ data: { ingredientId: milk.id, delta: -50, reason: 'SALE', createdById: admin2.id } });
+    await db.stockMovement.create({ data: { ingredientId: beans.id, delta: -18, reason: 'SALE', createdById: admin2.id } });
+
+    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const range = { from: new Date(Date.now() - 86400000).toISOString(), to: new Date(Date.now() + 86400000).toISOString() };
+
+    const usage = await admin.report.inventoryUsage(range);
+    expect(usage.usage).toHaveLength(2);
+    const milkRow = usage.usage.find((u) => u.ingredient?.name === 'Milk');
+    expect(Number(milkRow!.totalDelta)).toBe(-150);
   });
 
   it('salesDetail excludes unpaid orders', async () => {
