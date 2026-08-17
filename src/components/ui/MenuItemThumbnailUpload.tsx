@@ -50,7 +50,7 @@ export function MenuItemThumbnailUpload({ image, categoryName, alt, onChange, cl
         title="Upload photo"
         className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-black/0 hover:bg-black/30 transition-colors"
       >
-        <span className="absolute bottom-1 right-1 flex items-center justify-center w-6 h-6 rounded-full bg-black/35 backdrop-blur-sm text-white shadow-sm">
+        <span className="absolute -bottom-1.5 -right-1.5 flex items-center justify-center w-6 h-6 rounded-full bg-black/35 backdrop-blur-sm text-white shadow-sm">
           {uploading ? (
             <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 12a9 9 0 1 1-9-9" strokeLinecap="round" />
