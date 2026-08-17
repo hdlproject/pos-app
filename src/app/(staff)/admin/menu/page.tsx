@@ -538,7 +538,7 @@ export default function AdminMenuPage() {
 
         {viewMode === 'row' ? (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
+            <div className="flex items-center justify-between bg-surface-input -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
               <span>Item</span>
               <span className="w-52 text-right">Actions</span>
             </div>

@@ -38,7 +38,7 @@ export default function SalesDetailPage() {
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">Orders</h2>
         <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
+          <div className="flex items-center justify-between bg-surface-input -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
             <span>Order</span>
             <span>Total</span>
           </div>
@@ -68,7 +68,7 @@ export default function SalesDetailPage() {
       <Card>
         <h2 className="font-bold text-text mb-3">Inventory Usage</h2>
         <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
+          <div className="flex items-center justify-between bg-surface-input -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
             <span>Ingredient</span>
             <span>Movement</span>
           </div>

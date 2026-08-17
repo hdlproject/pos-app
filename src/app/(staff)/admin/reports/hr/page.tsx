@@ -31,7 +31,7 @@ export default function HrReportPage() {
       <Card>
         <h2 className="font-bold text-text mb-3">Shift Summary</h2>
         <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
+          <div className="flex items-center justify-between bg-surface-input -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
             <span>Staff</span>
             <span>Orders / Total</span>
           </div>
