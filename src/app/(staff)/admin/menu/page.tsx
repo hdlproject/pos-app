@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/Card';
 import { MenuItemThumbnailUpload } from '@/components/ui/MenuItemThumbnailUpload';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { ImageUpload } from '@/components/ui/ImageUpload';
 import { Popover } from '@/components/ui/Popover';
 
 const PAGE_SIZE = 10;
@@ -225,7 +224,14 @@ export default function AdminMenuPage() {
               Cancel
             </Button>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 sm:flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <MenuItemThumbnailUpload
+              image={image}
+              categoryName={categories.find((c) => c.id === categoryId)?.name ?? ''}
+              alt="New item"
+              onChange={setImage}
+              className="w-12 h-12 rounded-lg"
+            />
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -260,13 +266,6 @@ export default function AdminMenuPage() {
             >
               Add Item
             </Button>
-          </div>
-          <div className="mt-3">
-            <ImageUpload
-              value={image}
-              onChange={setImage}
-              categoryName={categories.find((c) => c.id === categoryId)?.name ?? ''}
-            />
           </div>
         </Card>
       )}
