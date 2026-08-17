@@ -157,7 +157,7 @@ describe('stock batch router', () => {
     expect(updatedItem.outOfStockReason).toBe('Out of stock: Milk');
   });
 
-  it('cancel marks the batch CANCELLED without applying any stock change', async () => {
+  it('cancel deletes the batch and its lines without applying any stock change', async () => {
     const admin = await adminCaller();
     const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
@@ -169,8 +169,10 @@ describe('stock batch router', () => {
     expect(Number(milkAfter.stockQty)).toBe(1000);
     const movements = await db.stockMovement.findMany();
     expect(movements).toHaveLength(0);
-    const cancelledBatch = await db.stockAdjustmentBatch.findUniqueOrThrow({ where: { id: batch!.id } });
-    expect(cancelledBatch.status).toBe('CANCELLED');
+    const cancelledBatch = await db.stockAdjustmentBatch.findUnique({ where: { id: batch!.id } });
+    expect(cancelledBatch).toBeNull();
+    const cancelledLines = await db.stockAdjustmentLine.findMany({ where: { batchId: batch!.id } });
+    expect(cancelledLines).toHaveLength(0);
   });
 
   it('confirming an already-CONFIRMED batch a second time throws CONFLICT and does not double-apply the delta', async () => {
@@ -209,7 +211,7 @@ describe('stock batch router', () => {
     expect(stillExists?.status).toBe('CONFIRMED');
   });
 
-  it('cancel on an already-CONFIRMED batch throws CONFLICT and leaves the status as CONFIRMED', async () => {
+  it('cancel on an already-CONFIRMED batch throws CONFLICT and leaves the batch intact', async () => {
     const admin = await adminCaller();
     const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 500, reason: 'RESTOCK' });
@@ -225,7 +227,7 @@ describe('stock batch router', () => {
     expect(afterCancel.status).toBe('CONFIRMED');
   });
 
-  it('listHistory returns confirmed and cancelled batches but never the pending one', async () => {
+  it('listHistory returns confirmed batches, never cancelled or pending ones', async () => {
     const admin = await adminCaller();
     const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
     const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 500 } });
@@ -241,9 +243,9 @@ describe('stock batch router', () => {
     await admin.stockBatch.stageChange({ ingredientId: milk.id, delta: 10, reason: 'MANUAL_ADJUST' });
 
     const history = await admin.stockBatch.listHistory();
-    expect(history).toHaveLength(2);
-    expect(history.map((b) => b.status).sort()).toEqual(['CANCELLED', 'CONFIRMED']);
-    expect(history.every((b) => b.status !== 'PENDING')).toBe(true);
+    expect(history).toHaveLength(1);
+    expect(history[0].status).toBe('CONFIRMED');
+    expect(history[0].id).toBe(confirmedBatch!.id);
   });
 
   it('listHistory never exposes pinHash on createdBy or confirmedBy', async () => {

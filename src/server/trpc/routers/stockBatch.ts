@@ -96,24 +96,31 @@ export const stockBatchRouter = router({
       return { ok: true };
     }),
 
+  // Cancelled batches aren't kept for accounting review -- discard the
+  // batch and its lines entirely rather than marking status CANCELLED.
   cancel: roleProcedure('ADMIN')
     .input(z.object({ batchId: z.string() }))
-    .mutation(({ ctx, input }) =>
-      ctx.db.$transaction(async (tx) => {
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.$transaction(async (tx) => {
+        // No-op update used only to atomically check-and-lock the row:
+        // count is 0 if the batch is no longer PENDING (already
+        // confirmed/cancelled by a concurrent request).
         const { count } = await tx.stockAdjustmentBatch.updateMany({
           where: { id: input.batchId, status: 'PENDING' },
-          data: { status: 'CANCELLED' },
+          data: { status: 'PENDING' },
         });
         if (count !== 1) {
           throw new TRPCError({ code: 'CONFLICT', message: 'Batch is no longer pending' });
         }
-        return tx.stockAdjustmentBatch.findUniqueOrThrow({ where: { id: input.batchId } });
-      })
-    ),
+        await tx.stockAdjustmentLine.deleteMany({ where: { batchId: input.batchId } });
+        await tx.stockAdjustmentBatch.delete({ where: { id: input.batchId } });
+      });
+      return { ok: true };
+    }),
 
   listHistory: roleProcedure('ADMIN').query(({ ctx }) =>
     ctx.db.stockAdjustmentBatch.findMany({
-      where: { status: { in: ['CONFIRMED', 'CANCELLED'] } },
+      where: { status: 'CONFIRMED' },
       include: {
         lines: { include: { ingredient: true } },
         createdBy: { select: { id: true, name: true } },

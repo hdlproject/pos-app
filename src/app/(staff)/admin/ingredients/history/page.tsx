@@ -13,12 +13,8 @@ export default function IngredientHistoryPage() {
         {history.data?.map((batch) => (
           <Card key={batch.id}>
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-              <span
-                className={`text-xs font-extrabold uppercase px-2 py-1 rounded-full ${
-                  batch.status === 'CONFIRMED' ? 'bg-success/15 text-success' : 'bg-border text-text-muted-2'
-                }`}
-              >
-                {batch.status === 'CONFIRMED' ? 'Confirmed' : 'Cancelled'}
+              <span className="text-xs font-extrabold uppercase px-2 py-1 rounded-full bg-success/15 text-success">
+                Confirmed
               </span>
               <span className="text-xs text-text-muted">
                 {new Date(batch.createdAt).toLocaleString('id-ID')}
@@ -37,8 +33,7 @@ export default function IngredientHistoryPage() {
             </div>
             <div className="text-xs text-text-muted">
               Staged by {batch.createdBy.name}
-              {batch.status === 'CONFIRMED' && batch.confirmedBy &&
-                ` · Confirmed by ${batch.confirmedBy.name} on ${new Date(batch.confirmedAt!).toLocaleString('id-ID')}`}
+              {batch.confirmedBy && ` · Confirmed by ${batch.confirmedBy.name} on ${new Date(batch.confirmedAt!).toLocaleString('id-ID')}`}
             </div>
           </Card>
         ))}
