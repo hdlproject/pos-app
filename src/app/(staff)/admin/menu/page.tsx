@@ -559,7 +559,7 @@ export default function AdminMenuPage() {
                     size="sm"
                     onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
                   >
-                    {item.available ? 'Mark sold out' : 'Mark available'}
+                    {item.available ? 'Sold out' : 'Available'}
                   </Button>
                 </div>
               </div>
@@ -597,7 +597,7 @@ export default function AdminMenuPage() {
                     className="w-full"
                     onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
                   >
-                    {item.available ? 'Mark sold out' : 'Mark available'}
+                    {item.available ? 'Sold out' : 'Available'}
                   </Button>
                 </div>
               </div>
