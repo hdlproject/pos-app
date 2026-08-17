@@ -219,12 +219,12 @@ export default function AdminTablesPage() {
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
             {tables.data?.map((t) => (
               <div key={t.id} className="flex flex-col items-center gap-2 p-3 border border-border rounded-xl">
+                <QrPopover qrToken={t.qrToken} />
                 <EditableLabel
                   label={t.label}
                   onSave={(next) => rename.mutate({ id: t.id, label: next })}
                   error={renameError?.id === t.id ? renameError.message : null}
                 />
-                <QrPopover qrToken={t.qrToken} />
               </div>
             ))}
           </div>
