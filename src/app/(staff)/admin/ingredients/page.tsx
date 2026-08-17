@@ -353,16 +353,6 @@ export default function AdminIngredientsPage() {
       )}
 
       <Card>
-        <div className="flex justify-end min-h-[30px] mb-3">
-          {pending.data && (
-            <PendingBatchControls
-              lineCount={pending.data.lines.length}
-              onCancel={() => cancelBatch.mutate({ batchId: pending.data!.id })}
-              onReview={() => setReviewOpen(true)}
-              cancelling={cancelBatch.isPending}
-            />
-          )}
-        </div>
         <div className="flex items-center gap-2 mb-3">
           {searchOpen && (
             <Input
@@ -484,6 +474,16 @@ export default function AdminIngredientsPage() {
           </div>
         </div>
 
+        <div className="flex justify-end min-h-[30px] mb-1">
+          {pending.data && (
+            <PendingBatchControls
+              lineCount={pending.data.lines.length}
+              onCancel={() => cancelBatch.mutate({ batchId: pending.data!.id })}
+              onReview={() => setReviewOpen(true)}
+              cancelling={cancelBatch.isPending}
+            />
+          )}
+        </div>
         <div className="flex flex-col">
           <div className="flex items-center gap-6 bg-surface-input rounded-lg px-3 py-2 mb-1 text-xs font-bold text-text-muted-2 uppercase">
             <span className="flex-1">Name</span>
