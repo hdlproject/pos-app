@@ -7,6 +7,7 @@ import { MenuItemThumbnailUpload } from '@/components/ui/MenuItemThumbnailUpload
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Popover } from '@/components/ui/Popover';
+import { normalizeForSearch } from '@/lib/normalizeForSearch';
 
 const PAGE_SIZE = 10;
 
@@ -14,15 +15,6 @@ type SortField = 'name' | 'price';
 type SortOrder = 'asc' | 'desc';
 type AvailabilityFilter = 'all' | 'available' | 'soldout';
 type ViewMode = 'row' | 'thumbnail';
-
-// Strips diacritics (é, è, ñ, etc.) so search matches regardless of accents --
-// "caffe" should find "Caffè Latte" even without the grave accent typed.
-function normalizeForSearch(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
 
 function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string; menuItemName: string; onClose: () => void }) {
   const utils = trpc.useUtils();

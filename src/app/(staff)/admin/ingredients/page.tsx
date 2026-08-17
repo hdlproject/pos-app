@@ -1,11 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Popover } from '@/components/ui/Popover';
+import { normalizeForSearch } from '@/lib/normalizeForSearch';
+
+type StockSortField = 'name' | 'stock';
+type SortOrder = 'asc' | 'desc';
+type StockFilter = 'all' | 'in' | 'out';
 
 function PendingBatchControls({
   lineCount,
@@ -249,6 +255,40 @@ export default function AdminIngredientsPage() {
     },
   });
 
+  const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+  const [sortField, setSortField] = useState<StockSortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  function toggleSearch() {
+    if (searchOpen) {
+      setSearchOpen(false);
+      setSearch('');
+    } else {
+      setSearchOpen(true);
+    }
+  }
+
+  const normalizedSearch = normalizeForSearch(search);
+  const filteredIngredients = (ingredients.data ?? [])
+    .filter((ing) => normalizeForSearch(ing.name).includes(normalizedSearch))
+    .filter((ing) => {
+      if (stockFilter === 'all') return true;
+      const out = Number(ing.stockQty) <= 0;
+      return stockFilter === 'out' ? out : !out;
+    });
+
+  const sortedIngredients = [...filteredIngredients].sort((a, b) => {
+    const diff = sortField === 'name' ? a.name.localeCompare(b.name) : Number(a.stockQty) - Number(b.stockQty);
+    return sortOrder === 'asc' ? diff : -diff;
+  });
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
@@ -323,13 +363,134 @@ export default function AdminIngredientsPage() {
             />
           )}
         </div>
+        <div className="flex items-center gap-2 mb-3">
+          {searchOpen && (
+            <Input
+              ref={searchInputRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search ingredients…"
+              className="flex-1 min-w-0 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          )}
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              onClick={toggleSearch}
+              aria-label={searchOpen ? 'Close search' : 'Search ingredients'}
+              title={searchOpen ? 'Close search' : 'Search ingredients'}
+              className="shrink-0 p-2 rounded-lg text-text-muted-2 hover:bg-surface-input transition-colors"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {searchOpen ? <path d="M6 6l12 12M18 6L6 18" /> : (
+                  <>
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3" />
+                  </>
+                )}
+              </svg>
+            </button>
+
+            <Popover
+              trigger={({ open, toggle }) => (
+                <button
+                  onClick={toggle}
+                  aria-label="Filter"
+                  title="Filter"
+                  className={`shrink-0 p-2 rounded-lg transition-colors ${
+                    open || stockFilter !== 'all' ? 'bg-surface-input text-accent' : 'text-text-muted-2 hover:bg-surface-input'
+                  }`}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z" />
+                  </svg>
+                </button>
+              )}
+            >
+              <div>
+                <label className="text-xs font-bold text-text-muted-2 block mb-1">Status</label>
+                <Select
+                  value={stockFilter}
+                  onChange={(v) => setStockFilter(v as StockFilter)}
+                  options={[
+                    { value: 'all', label: 'All' },
+                    { value: 'in', label: 'In stock' },
+                    { value: 'out', label: 'Out of stock' },
+                  ]}
+                  className="w-full px-3 py-2"
+                />
+              </div>
+            </Popover>
+
+            <Popover
+              trigger={({ open, toggle }) => (
+                <button
+                  onClick={toggle}
+                  aria-label="Sort"
+                  title="Sort"
+                  className={`shrink-0 p-2 rounded-lg transition-colors ${
+                    open ? 'bg-surface-input text-accent' : 'text-text-muted-2 hover:bg-surface-input'
+                  }`}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 6v12M8 6l-3 3M8 6l3 3M16 18V6M16 18l-3-3M16 18l3-3" />
+                  </svg>
+                </button>
+              )}
+            >
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-xs font-bold text-text-muted-2 block mb-1">Sort by</label>
+                  <Select
+                    value={sortField}
+                    onChange={(v) => setSortField(v as StockSortField)}
+                    options={[
+                      { value: 'name', label: 'Name' },
+                      { value: 'stock', label: 'Stock' },
+                    ]}
+                    className="w-full px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-text-muted-2 block mb-1">Order</label>
+                  <div className="flex gap-1 bg-bg p-1 rounded-lg">
+                    <button
+                      onClick={() => setSortOrder('asc')}
+                      aria-label="Ascending"
+                      title="Ascending"
+                      className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-colors ${
+                        sortOrder === 'asc' ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 19V5M5 12l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setSortOrder('desc')}
+                      aria-label="Descending"
+                      title="Descending"
+                      className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-colors ${
+                        sortOrder === 'desc' ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 5v14M19 12l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Popover>
+          </div>
+        </div>
+
         <div className="flex flex-col">
           <div className="flex items-center gap-6 bg-surface-input rounded-lg px-3 py-2 mb-1 text-xs font-bold text-text-muted-2 uppercase">
             <span className="flex-1">Name</span>
             <span className="w-28 text-right">Stock</span>
             <span className="w-10" />
           </div>
-          {ingredients.data?.map((ing) => {
+          {sortedIngredients.map((ing) => {
             const out = Number(ing.stockQty) <= 0;
             const line = pending.data?.lines.find((l) => l.ingredientId === ing.id);
             return (
@@ -351,6 +512,10 @@ export default function AdminIngredientsPage() {
             );
           })}
         </div>
+
+        {sortedIngredients.length === 0 && (
+          <p className="text-text-muted text-sm text-center py-6">No ingredients match your filters.</p>
+        )}
       </Card>
 
       {reviewOpen && <ReviewModal onClose={() => setReviewOpen(false)} />}
