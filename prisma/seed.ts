@@ -205,16 +205,25 @@ async function main() {
 
   const itemPrice = new Map(items.map((i) => [i.name, Number(i.price)]));
 
+  const allRecipes = await db.recipe.findMany();
+  const recipesByItem = new Map<string, { ingredientId: string; qtyPerUnit: number }[]>();
+  for (const r of allRecipes) {
+    const list = recipesByItem.get(r.menuItemId) ?? [];
+    list.push({ ingredientId: r.ingredientId, qtyPerUnit: Number(r.qtyPerUnit) });
+    recipesByItem.set(r.menuItemId, list);
+  }
+
   for (const spec of orderSpecs) {
     const createdAt = daysAgo(spec.daysAgo, spec.hour);
     const total = spec.lines.reduce((sum, l) => sum + itemPrice.get(l.item)! * l.qty, 0);
-    await db.order.create({
+    const cashierId = userId(spec.cashier);
+    const order = await db.order.create({
       data: {
         type: spec.type,
         source: spec.source,
         status: 'PAID',
         tableId: spec.table ? tableId(spec.table) : undefined,
-        createdById: spec.source === 'STAFF' ? userId(spec.cashier) : undefined,
+        createdById: spec.source === 'STAFF' ? cashierId : undefined,
         total,
         createdAt,
         items: {
@@ -229,12 +238,29 @@ async function main() {
           create: {
             amount: total,
             method: 'CASH',
-            receivedById: userId(spec.cashier),
+            receivedById: cashierId,
             createdAt,
           },
         },
       },
     });
+
+    // Deduct ingredient stock for this sale, mirroring
+    // deductStockForOrder's effect (src/server/stock/deduct.ts), but with
+    // createdAt backdated to match the order instead of "now".
+    const deductions = new Map<string, number>();
+    for (const line of spec.lines) {
+      for (const recipe of recipesByItem.get(itemId(line.item)) ?? []) {
+        const qty = recipe.qtyPerUnit * line.qty;
+        deductions.set(recipe.ingredientId, (deductions.get(recipe.ingredientId) ?? 0) + qty);
+      }
+    }
+    for (const [ingId, qty] of deductions.entries()) {
+      await db.ingredient.update({ where: { id: ingId }, data: { stockQty: { decrement: qty } } });
+      await db.stockMovement.create({
+        data: { ingredientId: ingId, delta: -qty, reason: 'SALE', refOrderId: order.id, createdById: cashierId, createdAt },
+      });
+    }
   }
 }
 
