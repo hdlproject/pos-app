@@ -86,6 +86,11 @@ function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string
           <Input
             value={qty}
             onChange={(e) => setQty(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && ingredientId && Number(qty) > 0) {
+                setRecipe.mutate({ menuItemId, ingredientId, qtyPerUnit: Number(qty) });
+              }
+            }}
             placeholder="Qty/unit"
             type="number"
             min="0"
@@ -139,6 +144,11 @@ export default function AdminMenuPage() {
       setShowNewItemForm(false);
     },
   });
+  function handleNewItemKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && name && Number(price) > 0 && categoryId) {
+      createItem.mutate({ name, price: Number(price), categoryId, available: true, image: image ?? undefined });
+    }
+  }
   const toggleAvailable = trpc.menu.updateItem.useMutation({ onSuccess: () => utils.menu.listAll.invalidate() });
 
   const updateImage = trpc.menu.updateItem.useMutation({
@@ -227,12 +237,14 @@ export default function AdminMenuPage() {
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onKeyDown={handleNewItemKeyDown}
               placeholder="Item name"
               className="w-full sm:flex-1 sm:min-w-[160px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
             <Input
               value={price}
               onChange={(e) => setPrice(e.target.value)}
+              onKeyDown={handleNewItemKeyDown}
               placeholder="Price"
               type="number"
               min="1"

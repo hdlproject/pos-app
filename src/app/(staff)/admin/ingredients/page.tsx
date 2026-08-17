@@ -130,6 +130,9 @@ function ReviewModal({ onClose }: { onClose: () => void }) {
             <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setNoteMutation.mutate({ batchId: batch.id, note });
+              }}
               placeholder="e.g. Weekly restock from supplier X"
               className="flex-1 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
@@ -166,20 +169,24 @@ function StockStepper({
   onRemove: (lineId: string) => void;
 }) {
   const [text, setText] = useState(String(pendingDelta));
+  const [open, setOpen] = useState(false);
 
   useEffect(() => setText(String(pendingDelta)), [pendingDelta]);
 
-  const commit = (next: number) => {
+  const commit = (next: number, closeAfter = false) => {
     setText(String(next));
     if (next === 0) {
       if (pendingLineId) onRemove(pendingLineId);
     } else {
       onStage(next);
     }
+    if (closeAfter) setOpen(false);
   };
 
   return (
     <Popover
+      open={open}
+      onOpenChange={setOpen}
       trigger={({ open, toggle }) => (
         <button
           onClick={toggle}
@@ -213,7 +220,7 @@ function StockStepper({
           onChange={(e) => setText(e.target.value)}
           onBlur={() => commit(Number(text) || 0)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') commit(Number(text) || 0);
+            if (e.key === 'Enter') commit(Number(text) || 0, true);
           }}
           type="number"
           className="w-20 px-2 py-1 border border-border-strong rounded-lg bg-surface-input text-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -246,6 +253,11 @@ export default function AdminIngredientsPage() {
       setShowNewIngredientForm(false);
     },
   });
+  function handleNewIngredientKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && name && unit) {
+      create.mutate({ name, unit, stockQty: Number(initialStock) || 0 });
+    }
+  }
 
   const stageChange = trpc.stockBatch.stageChange.useMutation({
     onSuccess: () => utils.stockBatch.getPending.invalidate(),
@@ -322,18 +334,21 @@ export default function AdminIngredientsPage() {
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onKeyDown={handleNewIngredientKeyDown}
               placeholder="Name"
               className="w-full sm:flex-1 sm:min-w-[140px] px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
             <Input
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
+              onKeyDown={handleNewIngredientKeyDown}
               placeholder="Unit (g, ml, pcs)"
               className="w-full sm:w-32 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
             <Input
               value={initialStock}
               onChange={(e) => setInitialStock(e.target.value)}
+              onKeyDown={handleNewIngredientKeyDown}
               placeholder="Initial stock"
               type="number"
               min="0"
