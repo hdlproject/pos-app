@@ -25,20 +25,21 @@ function PendingBatchControls({
   cancelling: boolean;
 }) {
   const hasPending = lineCount > 0;
-  if (!hasPending) {
-    return <span className="text-xs font-bold text-text-muted-2">No pending changes</span>;
-  }
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between w-full">
       <span className="text-xs font-bold text-text-muted-2">
-        {lineCount} pending change{lineCount === 1 ? '' : 's'}
+        {hasPending ? `${lineCount} pending change${lineCount === 1 ? '' : 's'}` : 'No pending changes'}
       </span>
-      <Button variant="outline" size="sm" disabled={cancelling} onClick={onCancel}>
-        Cancel Changes
-      </Button>
-      <Button variant="primary" size="sm" onClick={onReview}>
-        Review Changes
-      </Button>
+      {hasPending && (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled={cancelling} onClick={onCancel}>
+            Cancel Changes
+          </Button>
+          <Button variant="primary" size="sm" onClick={onReview}>
+            Review Changes
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -357,7 +358,7 @@ export default function AdminIngredientsPage() {
       )}
 
       <Card>
-        <div className="flex justify-end mb-3">
+        <div className="flex justify-end items-center min-h-[30px] mb-3">
           <PendingBatchControls
             lineCount={pending.data?.lines.length ?? 0}
             onCancel={() => { if (pending.data) cancelBatch.mutate({ batchId: pending.data.id }); }}
