@@ -24,15 +24,16 @@ function PendingBatchControls({
   onReview: () => void;
   cancelling: boolean;
 }) {
+  const hasPending = lineCount > 0;
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs font-bold text-text-muted-2">
-        {lineCount} pending change{lineCount === 1 ? '' : 's'}
+        {hasPending ? `${lineCount} pending change${lineCount === 1 ? '' : 's'}` : 'No pending changes'}
       </span>
-      <Button variant="outline" size="sm" disabled={cancelling} onClick={onCancel}>
+      <Button variant="outline" size="sm" disabled={!hasPending || cancelling} onClick={onCancel}>
         Cancel Changes
       </Button>
-      <Button variant="primary" size="sm" onClick={onReview}>
+      <Button variant="primary" size="sm" disabled={!hasPending} onClick={onReview}>
         Review Changes
       </Button>
     </div>
@@ -474,15 +475,13 @@ export default function AdminIngredientsPage() {
           </div>
         </div>
 
-        <div className="flex justify-end min-h-[30px] mb-1">
-          {pending.data && (
-            <PendingBatchControls
-              lineCount={pending.data.lines.length}
-              onCancel={() => cancelBatch.mutate({ batchId: pending.data!.id })}
-              onReview={() => setReviewOpen(true)}
-              cancelling={cancelBatch.isPending}
-            />
-          )}
+        <div className="flex justify-end mb-1">
+          <PendingBatchControls
+            lineCount={pending.data?.lines.length ?? 0}
+            onCancel={() => { if (pending.data) cancelBatch.mutate({ batchId: pending.data.id }); }}
+            onReview={() => setReviewOpen(true)}
+            cancelling={cancelBatch.isPending}
+          />
         </div>
         <div className="flex flex-col">
           <div className="flex items-center gap-6 bg-surface-input rounded-lg px-3 py-2 mb-1 text-xs font-bold text-text-muted-2 uppercase">
