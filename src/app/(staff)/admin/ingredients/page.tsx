@@ -25,15 +25,18 @@ function PendingBatchControls({
   cancelling: boolean;
 }) {
   const hasPending = lineCount > 0;
+  if (!hasPending) {
+    return <span className="text-xs font-bold text-text-muted-2">No pending changes</span>;
+  }
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs font-bold text-text-muted-2">
-        {hasPending ? `${lineCount} pending change${lineCount === 1 ? '' : 's'}` : 'No pending changes'}
+        {lineCount} pending change{lineCount === 1 ? '' : 's'}
       </span>
-      <Button variant="outline" size="sm" disabled={!hasPending || cancelling} onClick={onCancel}>
+      <Button variant="outline" size="sm" disabled={cancelling} onClick={onCancel}>
         Cancel Changes
       </Button>
-      <Button variant="primary" size="sm" disabled={!hasPending} onClick={onReview}>
+      <Button variant="primary" size="sm" onClick={onReview}>
         Review Changes
       </Button>
     </div>
@@ -354,6 +357,15 @@ export default function AdminIngredientsPage() {
       )}
 
       <Card>
+        <div className="flex justify-end mb-3">
+          <PendingBatchControls
+            lineCount={pending.data?.lines.length ?? 0}
+            onCancel={() => { if (pending.data) cancelBatch.mutate({ batchId: pending.data.id }); }}
+            onReview={() => setReviewOpen(true)}
+            cancelling={cancelBatch.isPending}
+          />
+        </div>
+
         <div className="flex items-center gap-2 mb-3">
           {searchOpen && (
             <Input
@@ -475,14 +487,6 @@ export default function AdminIngredientsPage() {
           </div>
         </div>
 
-        <div className="flex justify-end mb-1">
-          <PendingBatchControls
-            lineCount={pending.data?.lines.length ?? 0}
-            onCancel={() => { if (pending.data) cancelBatch.mutate({ batchId: pending.data.id }); }}
-            onReview={() => setReviewOpen(true)}
-            cancelling={cancelBatch.isPending}
-          />
-        </div>
         <div className="flex flex-col">
           <div className="flex items-center gap-6 bg-surface-input rounded-lg px-3 py-2 mb-1 text-xs font-bold text-text-muted-2 uppercase">
             <span className="flex-1">Name</span>
