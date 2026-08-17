@@ -66,6 +66,9 @@ function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string
     },
   });
 
+  const selectedUnit = ingredients.data?.find((i) => i.id === ingredientId)?.unit;
+  const isEditingExisting = recipes.data?.some((r) => r.ingredientId === ingredientId) ?? false;
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center overflow-y-auto p-4"
@@ -92,9 +95,18 @@ function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string
                 <span className="font-bold">{r.ingredient.name}</span>
                 <span className="text-text-muted ml-2">{String(r.qtyPerUnit)} {r.ingredient.unit} / unit</span>
               </span>
-              <Button variant="outline" size="sm" onClick={() => removeRecipe.mutate({ recipeId: r.id })}>
-                Remove
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setIngredientId(r.ingredientId); setQty(String(r.qtyPerUnit)); }}
+                >
+                  Edit
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => removeRecipe.mutate({ recipeId: r.id })}>
+                  Remove
+                </Button>
+              </div>
             </div>
           ))}
           {recipes.data?.length === 0 && (
@@ -102,7 +114,7 @@ function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Select
             value={ingredientId}
             onChange={setIngredientId}
@@ -118,19 +130,20 @@ function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string
                 setRecipe.mutate({ menuItemId, ingredientId, qtyPerUnit: Number(qty) });
               }
             }}
-            placeholder="Qty/unit"
+            placeholder="Qty"
             type="number"
             min="0"
             step="any"
-            className="w-24 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="w-20 px-3 py-2 border border-border-strong rounded-lg bg-surface-input text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
+          {selectedUnit && <span className="text-xs text-text-muted-2 shrink-0">{selectedUnit}</span>}
           <Button
             variant="dark"
             size="sm"
             disabled={!ingredientId || !(Number(qty) > 0)}
             onClick={() => setRecipe.mutate({ menuItemId, ingredientId, qtyPerUnit: Number(qty) })}
           >
-            Add
+            {isEditingExisting ? 'Update' : 'Add'}
           </Button>
         </div>
       </div>
