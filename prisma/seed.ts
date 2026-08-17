@@ -9,13 +9,14 @@ const db = new PrismaClient({ adapter });
 async function main() {
   await db.store.create({ data: { name: 'Main Store' } });
 
-  await db.user.createMany({
+  const users = await db.user.createManyAndReturn({
     data: [
       { name: 'Admin', role: 'ADMIN', pinHash: await bcrypt.hash('1234', 10) },
       { name: 'Staff', role: 'STAFF', pinHash: await bcrypt.hash('2345', 10) },
       { name: 'Kitchen', role: 'KITCHEN', pinHash: await bcrypt.hash('4567', 10) },
     ],
   });
+  const userId = (name: string) => users.find((u) => u.name === name)!.id;
 
   const categories = await db.category.createManyAndReturn({
     data: [
@@ -152,7 +153,7 @@ async function main() {
     ],
   });
 
-  await db.table.createMany({
+  const tables = await db.table.createManyAndReturn({
     data: [
       { label: 'T1', qrToken: 'seed-table-1-token' },
       { label: 'T2', qrToken: 'seed-table-2-token' },
@@ -166,6 +167,75 @@ async function main() {
       { label: 'Patio 2', qrToken: 'seed-table-patio2-token' },
     ],
   });
+  const tableId = (label: string) => tables.find((t) => t.label === label)!.id;
+
+  // Sample completed sales spread across the last week, so Reports (revenue,
+  // best sellers, shift summary) has real data instead of an empty state.
+  const daysAgo = (n: number, hour: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    d.setHours(hour, 0, 0, 0);
+    return d;
+  };
+
+  const orderSpecs: {
+    daysAgo: number;
+    hour: number;
+    type: 'DINE_IN' | 'TAKEAWAY';
+    source: 'STAFF' | 'QR';
+    table?: string;
+    cashier: string;
+    lines: { item: string; qty: number }[];
+  }[] = [
+    { daysAgo: 6, hour: 8, type: 'DINE_IN', source: 'QR', table: 'T1', cashier: 'Staff', lines: [{ item: 'Espresso', qty: 2 }, { item: 'Butter Croissant', qty: 2 }] },
+    { daysAgo: 6, hour: 12, type: 'TAKEAWAY', source: 'STAFF', cashier: 'Staff', lines: [{ item: 'Nasi Goreng Spesial', qty: 1 }, { item: 'Lemon Tea', qty: 1 }] },
+    { daysAgo: 5, hour: 9, type: 'DINE_IN', source: 'QR', table: 'T3', cashier: 'Staff', lines: [{ item: 'Caffè Latte', qty: 1 }, { item: 'Cinnamon Roll', qty: 1 }] },
+    { daysAgo: 5, hour: 13, type: 'DINE_IN', source: 'QR', table: 'Bar 1', cashier: 'Admin', lines: [{ item: 'Chicken Katsu Rice', qty: 2 }] },
+    { daysAgo: 4, hour: 10, type: 'TAKEAWAY', source: 'STAFF', cashier: 'Staff', lines: [{ item: 'Kopi Susu Gula Aren', qty: 3 }] },
+    { daysAgo: 4, hour: 18, type: 'DINE_IN', source: 'QR', table: 'T5', cashier: 'Staff', lines: [{ item: 'Beef Rendang Rice', qty: 1 }, { item: 'Chamomile', qty: 1 }] },
+    { daysAgo: 3, hour: 8, type: 'DINE_IN', source: 'QR', table: 'Patio 1', cashier: 'Admin', lines: [{ item: 'Cappuccino', qty: 2 }, { item: 'Pain au Chocolat', qty: 2 }] },
+    { daysAgo: 3, hour: 19, type: 'TAKEAWAY', source: 'STAFF', cashier: 'Staff', lines: [{ item: 'Mie Ayam', qty: 2 }, { item: 'French Fries', qty: 1 }] },
+    { daysAgo: 2, hour: 11, type: 'DINE_IN', source: 'QR', table: 'T2', cashier: 'Staff', lines: [{ item: 'Americano', qty: 1 }, { item: 'Club Sandwich', qty: 1 }] },
+    { daysAgo: 2, hour: 17, type: 'DINE_IN', source: 'QR', table: 'Bar 2', cashier: 'Admin', lines: [{ item: 'Matcha Latte', qty: 2 }, { item: 'Cheesecake Slice', qty: 1 }] },
+    { daysAgo: 1, hour: 9, type: 'TAKEAWAY', source: 'STAFF', cashier: 'Staff', lines: [{ item: 'Cold Brew', qty: 2 }] },
+    { daysAgo: 1, hour: 14, type: 'DINE_IN', source: 'QR', table: 'T4', cashier: 'Staff', lines: [{ item: 'Caesar Salad', qty: 1 }, { item: 'Onion Rings', qty: 1 }] },
+    { daysAgo: 0, hour: 8, type: 'DINE_IN', source: 'QR', table: 'T1', cashier: 'Staff', lines: [{ item: 'Espresso', qty: 1 }, { item: 'Kopi Susu Gula Aren', qty: 1 }] },
+    { daysAgo: 0, hour: 11, type: 'TAKEAWAY', source: 'STAFF', cashier: 'Admin', lines: [{ item: 'Chicken Wings', qty: 1 }, { item: 'Teh Tarik', qty: 1 }] },
+  ];
+
+  const itemPrice = new Map(items.map((i) => [i.name, Number(i.price)]));
+
+  for (const spec of orderSpecs) {
+    const createdAt = daysAgo(spec.daysAgo, spec.hour);
+    const total = spec.lines.reduce((sum, l) => sum + itemPrice.get(l.item)! * l.qty, 0);
+    await db.order.create({
+      data: {
+        type: spec.type,
+        source: spec.source,
+        status: 'PAID',
+        tableId: spec.table ? tableId(spec.table) : undefined,
+        createdById: spec.source === 'STAFF' ? userId(spec.cashier) : undefined,
+        total,
+        createdAt,
+        items: {
+          create: spec.lines.map((l) => ({
+            menuItemId: itemId(l.item),
+            qty: l.qty,
+            unitPrice: itemPrice.get(l.item)!,
+            kitchenStatus: 'SERVED',
+          })),
+        },
+        payments: {
+          create: {
+            amount: total,
+            method: 'CASH',
+            receivedById: userId(spec.cashier),
+            createdAt,
+          },
+        },
+      },
+    });
+  }
 }
 
 main().finally(() => db.$disconnect());
