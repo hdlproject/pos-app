@@ -17,6 +17,22 @@ function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Rolling window ending today (not calendar-period boundaries) --
+// "latest data" reads as freshest N days, not e.g. "this calendar month".
+const PRESETS = [
+  { label: 'Day', days: 1 },
+  { label: 'Week', days: 7 },
+  { label: 'Month', days: 30 },
+  { label: 'Year', days: 365 },
+];
+
+function presetRange(days: number): { from: string; to: string } {
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - (days - 1));
+  return { from: toISODate(start), to: toISODate(today) };
+}
+
 function parseISODate(s: string): Date {
   const [y, m, d] = s.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -126,6 +142,26 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
 
       {open && (
         <div className="absolute z-20 top-full mt-2 right-0 bg-surface border border-border rounded-2xl shadow-lg p-3 w-[min(280px,calc(100vw-2rem))]">
+          <div className="flex gap-1 mb-3">
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  const range = presetRange(preset.days);
+                  onChange(range);
+                  const newTo = parseISODate(range.to);
+                  setViewYear(newTo.getFullYear());
+                  setViewMonth(newTo.getMonth());
+                  setSelecting(false);
+                  setOpen(false);
+                }}
+                className="flex-1 py-1.5 rounded-lg text-xs font-bold text-text-muted-2 bg-surface-input hover:bg-accent hover:text-white transition-colors"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center justify-between mb-2 px-1">
             <button
               type="button"
