@@ -110,7 +110,7 @@ export default function AdminTablesPage() {
   const [label, setLabel] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
   const [renameError, setRenameError] = useState<{ id: string; message: string } | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('row');
+  const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
 
   const create = trpc.table.create.useMutation({
     onSuccess: () => {
