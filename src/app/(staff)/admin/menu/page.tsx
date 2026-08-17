@@ -534,8 +534,8 @@ export default function AdminMenuPage() {
               return (
               <div
                 key={item.id}
-                className={`flex items-center justify-between py-2 px-2 border-b border-l-4 border-border last:border-b-0 ${
-                  effectivelyAvailable ? 'border-l-success' : 'border-l-warning'
+                className={`flex items-center justify-between py-2 px-2 rounded-lg border-b border-border last:border-b-0 ${
+                  effectivelyAvailable ? 'bg-success/5' : 'bg-warning/5'
                 }`}
               >
                 <div className="flex items-center gap-3">
