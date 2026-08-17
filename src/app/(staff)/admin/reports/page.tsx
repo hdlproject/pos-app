@@ -54,9 +54,13 @@ export default function ReportsPage() {
 
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">Best Sellers</h2>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
+            <span>Item</span>
+            <span>Sold</span>
+          </div>
           {bestData?.map((row) => (
-            <div key={row.menuItem?.id} className="flex justify-between text-sm py-1">
+            <div key={row.menuItem?.id} className="flex justify-between text-sm px-3 py-1.5">
               <span className="text-text font-semibold">{row.menuItem?.name}</span>
               <span className="text-text-muted">{row.qtySold} sold</span>
             </div>
@@ -66,21 +70,34 @@ export default function ReportsPage() {
 
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">Inventory Usage</h2>
-        {usage.data?.usage.map((m) => (
-          <div key={m.id} className="text-sm text-text-muted py-1">
-            {m.ingredient.name}: {String(m.delta)} ({m.reason})
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
+            <span>Ingredient</span>
+            <span>Movement</span>
           </div>
-        ))}
+          {usage.data?.usage.map((m) => (
+            <div key={m.id} className="flex justify-between text-sm px-3 py-1.5">
+              <span className="text-text font-semibold">{m.ingredient.name}</span>
+              <span className="text-text-muted">{String(m.delta)} ({m.reason})</span>
+            </div>
+          ))}
+        </div>
       </Card>
 
       <Card>
         <h2 className="font-bold text-text mb-3">Shift Summary</h2>
-        {shift.data?.map((s) => (
-          <div key={s.name} className="flex justify-between text-sm py-1">
-            <span className="text-text font-semibold">{s.name}</span>
-            <span className="text-text-muted">{s.orderCount} orders, {s.total} collected</span>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
+            <span>Staff</span>
+            <span>Orders / Total</span>
           </div>
-        ))}
+          {shift.data?.map((s) => (
+            <div key={s.name} className="flex justify-between text-sm px-3 py-1.5">
+              <span className="text-text font-semibold">{s.name}</span>
+              <span className="text-text-muted">{s.orderCount} orders, {s.total} collected</span>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   );

@@ -236,13 +236,60 @@ export default function AdminMenuPage() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
         <h1 className="font-display text-2xl text-text">Menu Management</h1>
-        {!showNewItemForm && (
-          <Button variant="primary" onClick={() => setShowNewItemForm(true)}>
-            + New Item
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 bg-bg p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode('row')}
+              aria-label="Row view"
+              title="Row view"
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'row' ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
+              }`}
+            >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('thumbnail')}
+              aria-label="Thumbnail view"
+              title="Thumbnail view"
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'thumbnail' ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
+              }`}
+            >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </button>
+          </div>
+          {!showNewItemForm && (
+            <Button variant="primary" onClick={() => setShowNewItemForm(true)}>
+              + New Item
+            </Button>
+          )}
+        </div>
       </div>
 
       {showNewItemForm && (
@@ -302,55 +349,6 @@ export default function AdminMenuPage() {
       )}
 
       <Card>
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h2 className="font-bold text-text">Items</h2>
-          <div className="flex gap-1 bg-bg p-1 rounded-lg">
-            <button
-              onClick={() => setViewMode('row')}
-              aria-label="Row view"
-              title="Row view"
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'row' ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
-              }`}
-            >
-              <svg
-                className="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setViewMode('thumbnail')}
-              aria-label="Thumbnail view"
-              title="Thumbnail view"
-              className={`p-2 rounded-md transition-colors ${
-                viewMode === 'thumbnail' ? 'bg-surface text-accent shadow-sm' : 'text-text-muted-2'
-              }`}
-            >
-              <svg
-                className="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
         <div className="flex items-center gap-2 mb-4">
           {searchOpen && (
             <Input
@@ -527,6 +525,10 @@ export default function AdminMenuPage() {
 
         {viewMode === 'row' ? (
           <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between bg-surface-input rounded-lg px-3 py-2 text-xs font-bold text-text-muted-2 uppercase">
+              <span>Item</span>
+              <span>Actions</span>
+            </div>
             {paginatedItems.map((item) => {
               const { effectivelyAvailable, reasonParts } = describeAvailability(item);
               return (
