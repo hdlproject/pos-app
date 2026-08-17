@@ -48,7 +48,7 @@ export default function ReportsPage() {
       <div className="grid gap-4 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         <Card>
           <div className="text-xs font-bold text-text-muted uppercase tracking-wide">Revenue</div>
-          <div className="text-2xl font-extrabold text-text mt-2">Rp {sales.data?.totalRevenue ?? 0}</div>
+          <div className="text-2xl font-extrabold text-text mt-2">Rp {(sales.data?.totalRevenue ?? 0).toLocaleString('id-ID')}</div>
         </Card>
         <Card>
           <div className="text-xs font-bold text-text-muted uppercase tracking-wide">Orders</div>
@@ -56,7 +56,9 @@ export default function ReportsPage() {
         </Card>
         <Card>
           <div className="text-xs font-bold text-text-muted uppercase tracking-wide">Avg order value</div>
-          <div className="text-2xl font-extrabold text-text mt-2">{sales.data?.avgOrderValue?.toFixed(2) ?? '0.00'}</div>
+          <div className="text-2xl font-extrabold text-text mt-2">
+            Rp {(sales.data?.avgOrderValue ?? 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+          </div>
         </Card>
       </div>
 
@@ -68,7 +70,7 @@ export default function ReportsPage() {
             <span>Sold</span>
           </div>
           {bestData?.map((row) => (
-            <div key={row.menuItem?.id} className="flex justify-between text-sm px-3 py-1.5">
+            <div key={row.menuItem?.id} className="flex justify-between text-sm px-3 py-1.5 border-b border-border last:border-0">
               <span className="text-text font-semibold">{row.menuItem?.name}</span>
               <span className="text-text-muted">{row.qtySold} sold</span>
             </div>

@@ -73,7 +73,7 @@ export default function SalesDetailPage() {
             <span>Movement</span>
           </div>
           {usage.data?.usage.map((m) => (
-            <div key={m.id} className="flex justify-between text-sm px-3 py-1.5">
+            <div key={m.id} className="flex justify-between text-sm px-3 py-1.5 border-b border-border last:border-0">
               <span className="text-text font-semibold">{m.ingredient.name}</span>
               <span className="text-text-muted">{String(m.delta)} ({m.reason})</span>
             </div>
