@@ -49,10 +49,10 @@ function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center overflow-y-auto p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto p-6">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 my-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-xl text-text">Recipe: {menuItemName}</h2>
           <button
