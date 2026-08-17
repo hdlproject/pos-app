@@ -550,7 +550,7 @@ export default function AdminMenuPage() {
                     <AvailabilityReason parts={reasonParts} />
                   </div>
                 </div>
-                <div className="w-52 flex items-center justify-end gap-2">
+                <div className="flex flex-col sm:flex-row sm:w-52 items-stretch sm:items-center justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setRecipeItemId(item.id)}>
                     Recipe
                   </Button>
