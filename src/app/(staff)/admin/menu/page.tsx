@@ -532,7 +532,12 @@ export default function AdminMenuPage() {
             {paginatedItems.map((item) => {
               const { effectivelyAvailable, reasonParts } = describeAvailability(item);
               return (
-              <div key={item.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              <div
+                key={item.id}
+                className={`flex items-center justify-between py-2 px-2 border-b border-l-4 border-border last:border-b-0 ${
+                  effectivelyAvailable ? 'border-l-success' : 'border-l-warning'
+                }`}
+              >
                 <div className="flex items-center gap-3">
                   <MenuItemThumbnailUpload
                     image={item.image}
@@ -571,7 +576,12 @@ export default function AdminMenuPage() {
             {paginatedItems.map((item) => {
               const { effectivelyAvailable, reasonParts } = describeAvailability(item);
               return (
-              <div key={item.id} className="flex flex-col gap-2 p-3 border border-border rounded-xl">
+              <div
+                key={item.id}
+                className={`flex flex-col gap-2 p-3 border rounded-xl ${
+                  effectivelyAvailable ? 'bg-success/5 border-success/25' : 'bg-warning/5 border-warning/25'
+                }`}
+              >
                 <MenuItemThumbnailUpload
                   image={item.image}
                   categoryName={item.category.name}
