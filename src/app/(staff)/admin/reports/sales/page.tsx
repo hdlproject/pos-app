@@ -43,7 +43,7 @@ export default function SalesDetailPage() {
             <span>Total</span>
           </div>
           {orders.data?.map((order) => (
-            <div key={order.id} className="flex flex-col gap-1 px-3 py-2 border-b border-border last:border-0">
+            <div key={order.id} className="flex flex-col gap-1 py-2 border-b border-border last:border-0">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text font-semibold">
                   {ORDER_TYPE_LABEL[order.type] ?? order.type}
@@ -73,7 +73,7 @@ export default function SalesDetailPage() {
             <span>Movement</span>
           </div>
           {usage.data?.usage.map((m) => (
-            <div key={m.id} className="flex justify-between text-sm px-3 py-1.5 border-b border-border last:border-0">
+            <div key={m.id} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
               <span className="text-text font-semibold">{m.ingredient.name}</span>
               <span className="text-text-muted">{String(m.delta)} ({m.reason})</span>
             </div>

@@ -70,7 +70,7 @@ export default function ReportsPage() {
             <span>Sold</span>
           </div>
           {bestData?.map((row) => (
-            <div key={row.menuItem?.id} className="flex justify-between text-sm px-3 py-1.5 border-b border-border last:border-0">
+            <div key={row.menuItem?.id} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
               <span className="text-text font-semibold">{row.menuItem?.name}</span>
               <span className="text-text-muted">{row.qtySold} sold</span>
             </div>

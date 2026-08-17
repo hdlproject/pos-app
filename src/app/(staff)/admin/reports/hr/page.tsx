@@ -36,7 +36,7 @@ export default function HrReportPage() {
             <span>Orders / Total</span>
           </div>
           {shift.data?.map((s) => (
-            <div key={s.name} className="flex justify-between text-sm px-3 py-1.5 border-b border-border last:border-0">
+            <div key={s.name} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
               <span className="text-text font-semibold">{s.name}</span>
               <span className="text-text-muted">{s.orderCount} orders, Rp {s.total.toLocaleString('id-ID')} collected</span>
             </div>
