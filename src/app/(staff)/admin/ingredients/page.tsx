@@ -501,7 +501,7 @@ export default function AdminIngredientsPage() {
         </div>
 
         <div className="flex flex-col">
-          <div className="flex items-center gap-6 bg-surface-input -mx-4 px-4 py-2 mb-1 text-xs font-bold text-text-muted-2 uppercase">
+          <div className="flex items-center gap-6 bg-bg -mx-4 px-4 py-2 mb-1 text-xs font-bold text-text-muted-2 uppercase">
             <span className="flex-1">Name</span>
             <span className="w-28 text-right">Stock</span>
             <span className="w-10" />

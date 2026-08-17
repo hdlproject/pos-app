@@ -200,7 +200,7 @@ export default function AdminTablesPage() {
       <Card>
         {viewMode === 'row' ? (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between bg-surface-input -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
+            <div className="flex items-center justify-between bg-bg -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
               <span>Table</span>
               <span>QR</span>
             </div>
