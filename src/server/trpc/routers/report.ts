@@ -59,9 +59,11 @@ export const reportRouter = router({
     });
   }),
 
+  // Sales-driven depletion only -- restocks and manual adjustments aren't
+  // sales activity, so they don't belong on the sales report.
   inventoryUsage: roleProcedure('ADMIN').input(dateRangeInput).query(async ({ ctx, input }) => {
     const usage = await ctx.db.stockMovement.findMany({
-      where: { createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },
+      where: { reason: 'SALE', createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },
       include: { ingredient: true },
     });
     return { usage };

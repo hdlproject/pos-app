@@ -44,6 +44,21 @@ describe('report router', () => {
     expect(detail[0].items[0]).toMatchObject({ qty: 2, menuItem: { name: 'Latte' } });
   });
 
+  it('inventoryUsage excludes restocks and manual adjustments, keeping only sales', async () => {
+    const admin2 = await db.user.create({ data: { name: 'Admin2', role: 'ADMIN', pinHash: 'x' } });
+    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 500 } });
+    await db.stockMovement.create({ data: { ingredientId: milk.id, delta: -100, reason: 'SALE', createdById: admin2.id } });
+    await db.stockMovement.create({ data: { ingredientId: milk.id, delta: 200, reason: 'RESTOCK', createdById: admin2.id } });
+    await db.stockMovement.create({ data: { ingredientId: milk.id, delta: -50, reason: 'MANUAL_ADJUST', createdById: admin2.id } });
+
+    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const range = { from: new Date(Date.now() - 86400000).toISOString(), to: new Date(Date.now() + 86400000).toISOString() };
+
+    const usage = await admin.report.inventoryUsage(range);
+    expect(usage.usage).toHaveLength(1);
+    expect(usage.usage[0].reason).toBe('SALE');
+  });
+
   it('salesDetail excludes unpaid orders', async () => {
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
     const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
