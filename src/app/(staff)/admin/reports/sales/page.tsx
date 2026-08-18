@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DataTable } from '@/components/ui/DataTable';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
 
 const ORDER_TYPE_LABEL: Record<string, string> = {
@@ -37,51 +38,53 @@ export default function SalesDetailPage() {
 
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">Orders</h2>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-bg -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
-            <span>Order</span>
-            <span>Total</span>
-          </div>
-          {orders.data?.map((order) => (
-            <div key={order.id} className="flex flex-col gap-1 py-2 border-b border-border last:border-0">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-text font-semibold">
-                  {ORDER_TYPE_LABEL[order.type] ?? order.type}
-                  {order.table && ` · ${order.table.label}`}
-                  <span className="text-text-muted font-normal ml-2">
-                    {new Date(order.createdAt).toLocaleString('id-ID')}
+        <DataTable
+          columns={[
+            {
+              header: 'Order',
+              render: (order) => (
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm text-text font-semibold">
+                    {ORDER_TYPE_LABEL[order.type] ?? order.type}
+                    {order.table && ` · ${order.table.label}`}
+                    <span className="text-text-muted font-normal ml-2">
+                      {new Date(order.createdAt).toLocaleString('id-ID')}
+                    </span>
                   </span>
-                </span>
-                <span className="text-text font-bold">Rp {Number(order.total).toLocaleString('id-ID')}</span>
-              </div>
-              <div className="text-xs text-text-muted">
-                {order.items.map((item) => `${item.menuItem.name} ×${item.qty}`).join(', ')}
-              </div>
-            </div>
-          ))}
-          {orders.data?.length === 0 && (
-            <p className="text-text-muted text-sm text-center py-6">No orders in this range.</p>
-          )}
-        </div>
+                  <span className="text-xs text-text-muted">
+                    {order.items.map((item) => `${item.menuItem.name} ×${item.qty}`).join(', ')}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              header: 'Total',
+              width: 'w-32',
+              align: 'right',
+              render: (order) => <span className="text-sm text-text font-bold">Rp {Number(order.total).toLocaleString('id-ID')}</span>,
+            },
+          ]}
+          rows={orders.data}
+          rowKey={(order) => order.id}
+          emptyMessage="No orders in this range."
+        />
       </Card>
 
       <Card>
         <h2 className="font-bold text-text mb-3">Inventory Usage</h2>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-bg -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
-            <span>Ingredient</span>
-            <span>Movement</span>
-          </div>
-          {usage.data?.usage.map((m) => (
-            <div key={m.ingredientId} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
-              <span className="text-text font-semibold">{m.ingredient?.name}</span>
-              <span className="text-text-muted">{String(m.totalDelta)} {m.ingredient?.unit}</span>
-            </div>
-          ))}
-          {usage.data?.usage.length === 0 && (
-            <p className="text-text-muted text-sm text-center py-6">No stock movements in this range.</p>
-          )}
-        </div>
+        <DataTable
+          columns={[
+            { header: 'Ingredient', render: (m) => <span className="text-sm text-text font-semibold">{m.ingredient?.name}</span> },
+            {
+              header: 'Movement',
+              align: 'right',
+              render: (m) => <span className="text-sm text-text-muted">{String(m.totalDelta)} {m.ingredient?.unit}</span>,
+            },
+          ]}
+          rows={usage.data?.usage}
+          rowKey={(m) => m.ingredientId}
+          emptyMessage="No stock movements in this range."
+        />
       </Card>
     </div>
   );

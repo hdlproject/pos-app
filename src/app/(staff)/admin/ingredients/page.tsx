@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Popover } from '@/components/ui/Popover';
+import { DataTable } from '@/components/ui/DataTable';
 import { normalizeForSearch } from '@/lib/normalizeForSearch';
 
 type StockSortField = 'name' | 'stock';
@@ -500,38 +501,48 @@ export default function AdminIngredientsPage() {
           </div>
         </div>
 
-        <div className="flex flex-col">
-          <div className="flex items-center gap-6 bg-bg -mx-4 px-4 py-2 mb-1 text-xs font-bold text-text-muted-2 uppercase">
-            <span className="flex-1">Name</span>
-            <span className="w-28 text-right">Stock</span>
-            <span className="w-10" />
-          </div>
-          {sortedIngredients.map((ing) => {
-            const out = Number(ing.stockQty) <= 0;
-            const line = pending.data?.lines.find((l) => l.ingredientId === ing.id);
-            return (
-              <div key={ing.id} className="flex items-center gap-6 py-2 border-b border-border last:border-0">
-                <span className="flex-1 font-bold text-sm text-text">{ing.name}</span>
-                <span className={`w-28 text-right text-sm ${out ? 'text-warning' : 'text-text'}`}>
-                  {String(ing.stockQty)} {ing.unit}
-                </span>
-                <span className="w-10 flex justify-center">
-                  <StockStepper
-                    unit={ing.unit}
-                    pendingDelta={line ? Number(line.delta) : 0}
-                    pendingLineId={line?.id}
-                    onStage={(delta) => stageChange.mutate({ ingredientId: ing.id, delta, reason: 'MANUAL_ADJUST' })}
-                    onRemove={(lineId) => removeLine.mutate({ lineId })}
-                  />
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {sortedIngredients.length === 0 && (
-          <p className="text-text-muted text-sm text-center py-6">No ingredients match your filters.</p>
-        )}
+        <DataTable
+          columns={[
+            {
+              header: 'Name',
+              render: (ing) => <span className="font-bold text-sm text-text">{ing.name}</span>,
+            },
+            {
+              header: 'Stock',
+              width: 'w-28',
+              align: 'right',
+              render: (ing) => {
+                const out = Number(ing.stockQty) <= 0;
+                return (
+                  <span className={`text-sm ${out ? 'text-warning' : 'text-text'}`}>
+                    {String(ing.stockQty)} {ing.unit}
+                  </span>
+                );
+              },
+            },
+            {
+              header: '',
+              width: 'w-10',
+              render: (ing) => {
+                const line = pending.data?.lines.find((l) => l.ingredientId === ing.id);
+                return (
+                  <div className="flex justify-center">
+                    <StockStepper
+                      unit={ing.unit}
+                      pendingDelta={line ? Number(line.delta) : 0}
+                      pendingLineId={line?.id}
+                      onStage={(delta) => stageChange.mutate({ ingredientId: ing.id, delta, reason: 'MANUAL_ADJUST' })}
+                      onRemove={(lineId) => removeLine.mutate({ lineId })}
+                    />
+                  </div>
+                );
+              },
+            },
+          ]}
+          rows={sortedIngredients}
+          rowKey={(ing) => ing.id}
+          emptyMessage="No ingredients match your filters."
+        />
       </Card>
 
       {reviewOpen && <ReviewModal onClose={() => setReviewOpen(false)} />}

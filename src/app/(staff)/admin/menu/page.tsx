@@ -7,6 +7,7 @@ import { MenuItemThumbnailUpload } from '@/components/ui/MenuItemThumbnailUpload
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Popover } from '@/components/ui/Popover';
+import { DataTable } from '@/components/ui/DataTable';
 import { normalizeForSearch } from '@/lib/normalizeForSearch';
 
 const PAGE_SIZE = 10;
@@ -537,53 +538,61 @@ export default function AdminMenuPage() {
         </div>
 
         {viewMode === 'row' ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between bg-bg -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
-              <span>Item</span>
-              <span className="w-52 text-right">Actions</span>
-            </div>
-            {paginatedItems.map((item) => {
-              const { effectivelyAvailable, reasonParts } = describeAvailability(item);
-              return (
-              <div
-                key={item.id}
-                className={`flex items-center justify-between -mx-4 px-4 py-2 border-b border-border last:border-b-0 ${
-                  effectivelyAvailable ? 'bg-success/5' : 'bg-warning/5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <MenuItemThumbnailUpload
-                    image={item.image}
-                    categoryName={item.category.name}
-                    alt={item.name}
-                    onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
-                    className="w-10 h-10 rounded-lg"
-                  />
-                  <div>
-                    <span className="font-bold text-sm text-text">{item.name}</span>
-                    <span className="text-text-muted text-sm ml-2">Rp {Number(item.price).toLocaleString('id-ID')}</span>
-                    <span className={`text-xs font-bold ml-2 ${effectivelyAvailable ? 'text-success' : 'text-warning'}`}>
-                      {effectivelyAvailable ? 'available' : 'sold out'}
-                    </span>
-                    <AvailabilityReason parts={reasonParts} />
+          <DataTable
+            columns={[
+              {
+                header: 'Item',
+                render: (item) => {
+                  const { effectivelyAvailable, reasonParts } = describeAvailability(item);
+                  return (
+                    <div className="flex items-center gap-3">
+                      <MenuItemThumbnailUpload
+                        image={item.image}
+                        categoryName={item.category.name}
+                        alt={item.name}
+                        onChange={(url) => updateImage.mutate({ id: item.id, image: url })}
+                        className="w-10 h-10 rounded-lg"
+                      />
+                      <div>
+                        <span className="font-bold text-sm text-text">{item.name}</span>
+                        <span className="text-text-muted text-sm ml-2">Rp {Number(item.price).toLocaleString('id-ID')}</span>
+                        <span className={`text-xs font-bold ml-2 ${effectivelyAvailable ? 'text-success' : 'text-warning'}`}>
+                          {effectivelyAvailable ? 'available' : 'sold out'}
+                        </span>
+                        <AvailabilityReason parts={reasonParts} />
+                      </div>
+                    </div>
+                  );
+                },
+              },
+              {
+                header: 'Actions',
+                width: 'w-52',
+                align: 'right',
+                render: (item) => (
+                  <div className="flex flex-col sm:flex-row sm:w-52 items-stretch sm:items-center justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setRecipeItemId(item.id)}>
+                      Recipe
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
+                    >
+                      {item.available ? 'Sold out' : 'Available'}
+                    </Button>
                   </div>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:w-52 items-stretch sm:items-center justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setRecipeItemId(item.id)}>
-                    Recipe
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleAvailable.mutate({ id: item.id, available: !item.available })}
-                  >
-                    {item.available ? 'Sold out' : 'Available'}
-                  </Button>
-                </div>
-              </div>
-              );
-            })}
-          </div>
+                ),
+              },
+            ]}
+            rows={paginatedItems}
+            rowKey={(item) => item.id}
+            emptyMessage="No items match your filters."
+            rowClassName={(item) => {
+              const { effectivelyAvailable } = describeAvailability(item);
+              return `-mx-4 px-4 ${effectivelyAvailable ? 'bg-success/5' : 'bg-warning/5'}`;
+            }}
+          />
         ) : (
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
             {paginatedItems.map((item) => {
@@ -629,7 +638,7 @@ export default function AdminMenuPage() {
           </div>
         )}
 
-        {sortedItems.length === 0 && (
+        {viewMode === 'thumbnail' && sortedItems.length === 0 && (
           <p className="text-text-muted text-sm text-center py-6">No items match your filters.</p>
         )}
 

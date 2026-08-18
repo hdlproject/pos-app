@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Popover } from '@/components/ui/Popover';
+import { DataTable } from '@/components/ui/DataTable';
 
 type ViewMode = 'row' | 'thumbnail';
 
@@ -199,22 +200,29 @@ export default function AdminTablesPage() {
 
       <Card>
         {viewMode === 'row' ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between bg-bg -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
-              <span>Table</span>
-              <span>QR</span>
-            </div>
-            {tables.data?.map((t) => (
-              <div key={t.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <EditableLabel
-                  label={t.label}
-                  onSave={(next) => rename.mutate({ id: t.id, label: next })}
-                  error={renameError?.id === t.id ? renameError.message : null}
-                />
-                <QrPopover qrToken={t.qrToken} />
-              </div>
-            ))}
-          </div>
+          <DataTable
+            columns={[
+              {
+                header: 'Table',
+                render: (t) => (
+                  <EditableLabel
+                    label={t.label}
+                    onSave={(next) => rename.mutate({ id: t.id, label: next })}
+                    error={renameError?.id === t.id ? renameError.message : null}
+                  />
+                ),
+              },
+              {
+                header: 'QR',
+                width: 'w-auto',
+                align: 'right',
+                render: (t) => <QrPopover qrToken={t.qrToken} />,
+              },
+            ]}
+            rows={tables.data}
+            rowKey={(t) => t.id}
+            emptyMessage="No tables yet."
+          />
         ) : (
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
             {tables.data?.map((t) => (
@@ -229,7 +237,7 @@ export default function AdminTablesPage() {
             ))}
           </div>
         )}
-        {tables.data?.length === 0 && (
+        {viewMode === 'thumbnail' && tables.data?.length === 0 && (
           <p className="text-text-muted text-sm text-center py-6">No tables yet.</p>
         )}
       </Card>

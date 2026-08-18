@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DataTable } from '@/components/ui/DataTable';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
 
 // Explicit view of the JSON-serialized shape returned by report.bestSellers,
@@ -64,21 +65,15 @@ export default function ReportsPage() {
 
       <Card>
         <h2 className="font-bold text-text mb-3">Best Sellers</h2>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-bg -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
-            <span>Item</span>
-            <span>Sold</span>
-          </div>
-          {bestData?.map((row) => (
-            <div key={row.menuItem?.id} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
-              <span className="text-text font-semibold">{row.menuItem?.name}</span>
-              <span className="text-text-muted">{row.qtySold} sold</span>
-            </div>
-          ))}
-          {bestData?.length === 0 && (
-            <p className="text-text-muted text-sm text-center py-6">No sales in this range.</p>
-          )}
-        </div>
+        <DataTable
+          columns={[
+            { header: 'Item', render: (row) => <span className="text-sm text-text font-semibold">{row.menuItem?.name}</span> },
+            { header: 'Sold', align: 'right', render: (row) => <span className="text-sm text-text-muted">{row.qtySold} sold</span> },
+          ]}
+          rows={bestData}
+          rowKey={(row) => row.menuItem?.id ?? ''}
+          emptyMessage="No sales in this range."
+        />
       </Card>
     </div>
   );

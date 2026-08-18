@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { DataTable } from '@/components/ui/DataTable';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
 
 export default function HrReportPage() {
@@ -30,21 +31,19 @@ export default function HrReportPage() {
 
       <Card>
         <h2 className="font-bold text-text mb-3">Shift Summary</h2>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between bg-bg -mx-4 px-4 py-2 text-xs font-bold text-text-muted-2 uppercase">
-            <span>Staff</span>
-            <span>Orders / Total</span>
-          </div>
-          {shift.data?.map((s) => (
-            <div key={s.name} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
-              <span className="text-text font-semibold">{s.name}</span>
-              <span className="text-text-muted">{s.orderCount} orders, Rp {s.total.toLocaleString('id-ID')} collected</span>
-            </div>
-          ))}
-          {shift.data?.length === 0 && (
-            <p className="text-text-muted text-sm text-center py-6">No shifts in this range.</p>
-          )}
-        </div>
+        <DataTable
+          columns={[
+            { header: 'Staff', render: (s) => <span className="text-sm text-text font-semibold">{s.name}</span> },
+            {
+              header: 'Orders / Total',
+              align: 'right',
+              render: (s) => <span className="text-sm text-text-muted">{s.orderCount} orders, Rp {s.total.toLocaleString('id-ID')} collected</span>,
+            },
+          ]}
+          rows={shift.data}
+          rowKey={(s) => s.name}
+          emptyMessage="No shifts in this range."
+        />
       </Card>
     </div>
   );
