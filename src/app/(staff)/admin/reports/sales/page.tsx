@@ -6,12 +6,18 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { DataTable } from '@/components/ui/DataTable';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
+import { SearchSortToolbar } from '@/components/ui/SearchSortToolbar';
+import { normalizeForSearch } from '@/lib/normalizeForSearch';
 
 const ORDER_TYPE_LABEL: Record<string, string> = {
   DINE_IN: 'Dine-in',
   TAKEAWAY: 'Takeaway',
   DELIVERY: 'Delivery',
 };
+
+type OrderSortField = 'date' | 'total';
+type UsageSortField = 'name' | 'movement';
+type SortOrder = 'asc' | 'desc';
 
 export default function SalesDetailPage() {
   const [from, setFrom] = useState(new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10));
@@ -23,6 +29,44 @@ export default function SalesDetailPage() {
 
   const orders = trpc.report.salesDetail.useQuery(range);
   const usage = trpc.report.inventoryUsage.useQuery(range);
+
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderTypeFilter, setOrderTypeFilter] = useState('all');
+  const [orderSortField, setOrderSortField] = useState<OrderSortField>('date');
+  const [orderSortOrder, setOrderSortOrder] = useState<SortOrder>('desc');
+
+  const [usageSearch, setUsageSearch] = useState('');
+  const [usageSortField, setUsageSortField] = useState<UsageSortField>('movement');
+  const [usageSortOrder, setUsageSortOrder] = useState<SortOrder>('asc');
+
+  const normalizedOrderSearch = normalizeForSearch(orderSearch);
+  const filteredOrders = (orders.data ?? [])
+    .filter((order) => orderTypeFilter === 'all' || order.type === orderTypeFilter)
+    .filter((order) => {
+      if (!normalizedOrderSearch) return true;
+      const haystack = [
+        order.table?.label ?? '',
+        ORDER_TYPE_LABEL[order.type] ?? order.type,
+        ...order.items.map((item) => item.menuItem.name),
+      ].join(' ');
+      return normalizeForSearch(haystack).includes(normalizedOrderSearch);
+    });
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    const diff = orderSortField === 'date'
+      ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      : Number(a.total) - Number(b.total);
+    return orderSortOrder === 'asc' ? diff : -diff;
+  });
+
+  const normalizedUsageSearch = normalizeForSearch(usageSearch);
+  const filteredUsage = (usage.data?.usage ?? [])
+    .filter((m) => !normalizedUsageSearch || normalizeForSearch(m.ingredient?.name ?? '').includes(normalizedUsageSearch));
+  const sortedUsage = [...filteredUsage].sort((a, b) => {
+    const diff = usageSortField === 'name'
+      ? (a.ingredient?.name ?? '').localeCompare(b.ingredient?.name ?? '')
+      : Number(a.totalDelta) - Number(b.totalDelta);
+    return usageSortOrder === 'asc' ? diff : -diff;
+  });
 
   return (
     <div className="p-6">
@@ -38,6 +82,30 @@ export default function SalesDetailPage() {
 
       <Card className="mb-5">
         <h2 className="font-bold text-text mb-3">Orders</h2>
+        <SearchSortToolbar
+          search={orderSearch}
+          onSearchChange={setOrderSearch}
+          searchPlaceholder="Search orders…"
+          sortOptions={[
+            { value: 'date', label: 'Date' },
+            { value: 'total', label: 'Total' },
+          ]}
+          sortField={orderSortField}
+          onSortFieldChange={(v) => setOrderSortField(v as OrderSortField)}
+          sortOrder={orderSortOrder}
+          onSortOrderChange={setOrderSortOrder}
+          filter={{
+            label: 'Type',
+            value: orderTypeFilter,
+            onChange: setOrderTypeFilter,
+            options: [
+              { value: 'all', label: 'All types' },
+              { value: 'DINE_IN', label: 'Dine-in' },
+              { value: 'TAKEAWAY', label: 'Takeaway' },
+              { value: 'DELIVERY', label: 'Delivery' },
+            ],
+          }}
+        />
         <DataTable
           columns={[
             {
@@ -64,14 +132,27 @@ export default function SalesDetailPage() {
               render: (order) => <span className="text-sm text-text font-bold">Rp {Number(order.total).toLocaleString('id-ID')}</span>,
             },
           ]}
-          rows={orders.data}
+          rows={sortedOrders}
           rowKey={(order) => order.id}
-          emptyMessage="No orders in this range."
+          emptyMessage="No orders match your filters."
         />
       </Card>
 
       <Card>
         <h2 className="font-bold text-text mb-3">Inventory Usage</h2>
+        <SearchSortToolbar
+          search={usageSearch}
+          onSearchChange={setUsageSearch}
+          searchPlaceholder="Search ingredients…"
+          sortOptions={[
+            { value: 'movement', label: 'Movement' },
+            { value: 'name', label: 'Ingredient' },
+          ]}
+          sortField={usageSortField}
+          onSortFieldChange={(v) => setUsageSortField(v as UsageSortField)}
+          sortOrder={usageSortOrder}
+          onSortOrderChange={setUsageSortOrder}
+        />
         <DataTable
           columns={[
             { header: 'Ingredient', render: (m) => <span className="text-sm text-text font-semibold">{m.ingredient?.name}</span> },
@@ -81,9 +162,9 @@ export default function SalesDetailPage() {
               render: (m) => <span className="text-sm text-text-muted">{String(m.totalDelta)} {m.ingredient?.unit}</span>,
             },
           ]}
-          rows={usage.data?.usage}
+          rows={sortedUsage}
           rowKey={(m) => m.ingredientId}
-          emptyMessage="No stock movements in this range."
+          emptyMessage="No stock movements match your filters."
         />
       </Card>
     </div>
