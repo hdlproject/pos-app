@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Popover } from '@/components/ui/Popover';
 import { DataTable } from '@/components/ui/DataTable';
+import { Pagination } from '@/components/ui/Pagination';
 import { normalizeForSearch } from '@/lib/normalizeForSearch';
 
 const PAGE_SIZE = 10;
@@ -643,29 +644,7 @@ export default function AdminMenuPage() {
         )}
 
         {sortedItems.length > 0 && (
-          <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-            <span className="text-xs text-text-muted">
-              Page {currentPage} of {totalPages} ({sortedItems.length} item{sortedItems.length === 1 ? '' : 's'})
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage <= 1}
-                onClick={() => setPage(currentPage - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setPage(currentPage + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} pageSize={PAGE_SIZE} totalItems={sortedItems.length} onPageChange={setPage} itemLabel="item" />
         )}
       </Card>
 

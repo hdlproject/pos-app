@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { DataTable } from '@/components/ui/DataTable';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
 import { SearchSortToolbar } from '@/components/ui/SearchSortToolbar';
+import { Pagination } from '@/components/ui/Pagination';
 import { normalizeForSearch } from '@/lib/normalizeForSearch';
 
 const ORDER_TYPE_LABEL: Record<string, string> = {
@@ -14,6 +15,8 @@ const ORDER_TYPE_LABEL: Record<string, string> = {
   TAKEAWAY: 'Takeaway',
   DELIVERY: 'Delivery',
 };
+
+const PAGE_SIZE = 10;
 
 type OrderSortField = 'date' | 'total';
 type UsageSortField = 'name' | 'movement';
@@ -34,10 +37,12 @@ export default function SalesDetailPage() {
   const [orderTypeFilter, setOrderTypeFilter] = useState('all');
   const [orderSortField, setOrderSortField] = useState<OrderSortField>('date');
   const [orderSortOrder, setOrderSortOrder] = useState<SortOrder>('desc');
+  const [orderPage, setOrderPage] = useState(1);
 
   const [usageSearch, setUsageSearch] = useState('');
   const [usageSortField, setUsageSortField] = useState<UsageSortField>('movement');
   const [usageSortOrder, setUsageSortOrder] = useState<SortOrder>('asc');
+  const [usagePage, setUsagePage] = useState(1);
 
   const normalizedOrderSearch = normalizeForSearch(orderSearch);
   const filteredOrders = (orders.data ?? [])
@@ -57,6 +62,9 @@ export default function SalesDetailPage() {
       : Number(a.total) - Number(b.total);
     return orderSortOrder === 'asc' ? diff : -diff;
   });
+  const orderTotalPages = Math.max(1, Math.ceil(sortedOrders.length / PAGE_SIZE));
+  const orderCurrentPage = Math.min(orderPage, orderTotalPages);
+  const paginatedOrders = sortedOrders.slice((orderCurrentPage - 1) * PAGE_SIZE, orderCurrentPage * PAGE_SIZE);
 
   const normalizedUsageSearch = normalizeForSearch(usageSearch);
   const filteredUsage = (usage.data?.usage ?? [])
@@ -67,6 +75,9 @@ export default function SalesDetailPage() {
       : Number(a.totalDelta) - Number(b.totalDelta);
     return usageSortOrder === 'asc' ? diff : -diff;
   });
+  const usageTotalPages = Math.max(1, Math.ceil(sortedUsage.length / PAGE_SIZE));
+  const usageCurrentPage = Math.min(usagePage, usageTotalPages);
+  const paginatedUsage = sortedUsage.slice((usageCurrentPage - 1) * PAGE_SIZE, usageCurrentPage * PAGE_SIZE);
 
   return (
     <div className="p-6">
@@ -84,20 +95,20 @@ export default function SalesDetailPage() {
         <h2 className="font-bold text-text mb-3">Orders</h2>
         <SearchSortToolbar
           search={orderSearch}
-          onSearchChange={setOrderSearch}
+          onSearchChange={(v) => { setOrderSearch(v); setOrderPage(1); }}
           searchPlaceholder="Search orders…"
           sortOptions={[
             { value: 'date', label: 'Date' },
             { value: 'total', label: 'Total' },
           ]}
           sortField={orderSortField}
-          onSortFieldChange={(v) => setOrderSortField(v as OrderSortField)}
+          onSortFieldChange={(v) => { setOrderSortField(v as OrderSortField); setOrderPage(1); }}
           sortOrder={orderSortOrder}
-          onSortOrderChange={setOrderSortOrder}
+          onSortOrderChange={(v) => { setOrderSortOrder(v); setOrderPage(1); }}
           filter={{
             label: 'Type',
             value: orderTypeFilter,
-            onChange: setOrderTypeFilter,
+            onChange: (v) => { setOrderTypeFilter(v); setOrderPage(1); },
             options: [
               { value: 'all', label: 'All types' },
               { value: 'DINE_IN', label: 'Dine-in' },
@@ -132,26 +143,29 @@ export default function SalesDetailPage() {
               render: (order) => <span className="text-sm text-text font-bold">Rp {Number(order.total).toLocaleString('id-ID')}</span>,
             },
           ]}
-          rows={sortedOrders}
+          rows={paginatedOrders}
           rowKey={(order) => order.id}
           emptyMessage="No orders match your filters."
         />
+        {sortedOrders.length > 0 && (
+          <Pagination page={orderPage} pageSize={PAGE_SIZE} totalItems={sortedOrders.length} onPageChange={setOrderPage} itemLabel="order" />
+        )}
       </Card>
 
       <Card>
         <h2 className="font-bold text-text mb-3">Inventory Usage</h2>
         <SearchSortToolbar
           search={usageSearch}
-          onSearchChange={setUsageSearch}
+          onSearchChange={(v) => { setUsageSearch(v); setUsagePage(1); }}
           searchPlaceholder="Search ingredients…"
           sortOptions={[
             { value: 'movement', label: 'Movement' },
             { value: 'name', label: 'Ingredient' },
           ]}
           sortField={usageSortField}
-          onSortFieldChange={(v) => setUsageSortField(v as UsageSortField)}
+          onSortFieldChange={(v) => { setUsageSortField(v as UsageSortField); setUsagePage(1); }}
           sortOrder={usageSortOrder}
-          onSortOrderChange={setUsageSortOrder}
+          onSortOrderChange={(v) => { setUsageSortOrder(v); setUsagePage(1); }}
         />
         <DataTable
           columns={[
@@ -159,13 +173,16 @@ export default function SalesDetailPage() {
             {
               header: 'Movement',
               align: 'right',
-              render: (m) => <span className="text-sm text-text-muted">{String(m.totalDelta)} {m.ingredient?.unit}</span>,
+              render: (m) => <span className="text-sm text-text-muted">{Math.abs(Number(m.totalDelta))} {m.ingredient?.unit}</span>,
             },
           ]}
-          rows={sortedUsage}
+          rows={paginatedUsage}
           rowKey={(m) => m.ingredientId}
           emptyMessage="No stock movements match your filters."
         />
+        {sortedUsage.length > 0 && (
+          <Pagination page={usagePage} pageSize={PAGE_SIZE} totalItems={sortedUsage.length} onPageChange={setUsagePage} itemLabel="ingredient" />
+        )}
       </Card>
     </div>
   );
