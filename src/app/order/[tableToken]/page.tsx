@@ -71,6 +71,16 @@ export default function CustomerOrderPage() {
     setCart((c) => c.filter((i) => i.menuItemId !== menuItemId));
   }
 
+  function changeQty(menuItemId: string, delta: number) {
+    setCart((c) => {
+      const line = c.find((i) => i.menuItemId === menuItemId);
+      if (!line) return c;
+      const qty = line.qty + delta;
+      if (qty <= 0) return c.filter((i) => i.menuItemId !== menuItemId);
+      return c.map((i) => (i.menuItemId === menuItemId ? { ...i, qty } : i));
+    });
+  }
+
   function submit() {
     if (!cart.length) return;
     if (orderId) {
@@ -144,8 +154,25 @@ export default function CustomerOrderPage() {
                       onRemove={() => removeFromCart(line.menuItemId)}
                       rowClassName="bg-dark-ui"
                     >
-                      <div className="px-2 py-1.5 text-white text-xs">
-                        <span className="font-bold">×{line.qty}</span> {item?.name}
+                      <div className="px-2 py-1.5 text-white text-xs flex items-center justify-between gap-2">
+                        <span className="truncate">{item?.name}</span>
+                        <div className="flex items-center gap-1.5 shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => changeQty(line.menuItemId, -1)}
+                            aria-label={`Decrease ${item?.name ?? 'item'} quantity`}
+                            className="w-5 h-5 rounded-md bg-white/15 flex items-center justify-center font-bold"
+                          >
+                            −
+                          </button>
+                          <span className="font-bold w-3 text-center">{line.qty}</span>
+                          <button
+                            onClick={() => changeQty(line.menuItemId, 1)}
+                            aria-label={`Increase ${item?.name ?? 'item'} quantity`}
+                            className="w-5 h-5 rounded-md bg-white/15 flex items-center justify-center font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     </SwipeToRemove>
                   );

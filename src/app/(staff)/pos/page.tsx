@@ -68,6 +68,16 @@ export default function PosPage() {
     setCart((c) => c.filter((i) => i.menuItemId !== menuItemId));
   }
 
+  function changeQty(menuItemId: string, delta: number) {
+    setCart((c) => {
+      const line = c.find((i) => i.menuItemId === menuItemId);
+      if (!line) return c;
+      const qty = line.qty + delta;
+      if (qty <= 0) return c.filter((i) => i.menuItemId !== menuItemId);
+      return c.map((i) => (i.menuItemId === menuItemId ? { ...i, qty } : i));
+    });
+  }
+
   function submit() {
     createOrder.mutate({ type, tableId: type === 'DINE_IN' ? tableId || undefined : undefined, items: cart });
   }
@@ -179,7 +189,23 @@ export default function PosPage() {
                           <div className="font-bold text-sm text-text">{item?.name}</div>
                           <div className="text-xs text-text-muted">Rp {item ? Number(item.price).toLocaleString('id-ID') : ''} each</div>
                         </div>
-                        <div className="font-extrabold text-sm text-text">×{line.qty}</div>
+                        <div className="flex items-center gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => changeQty(line.menuItemId, -1)}
+                            aria-label={`Decrease ${item?.name ?? 'item'} quantity`}
+                            className="w-6 h-6 rounded-lg bg-surface-input text-text-muted-2 font-extrabold text-sm flex items-center justify-center hover:bg-border"
+                          >
+                            −
+                          </button>
+                          <div className="font-extrabold text-sm text-text w-4 text-center">{line.qty}</div>
+                          <button
+                            onClick={() => changeQty(line.menuItemId, 1)}
+                            aria-label={`Increase ${item?.name ?? 'item'} quantity`}
+                            className="w-6 h-6 rounded-lg bg-surface-input text-text-muted-2 font-extrabold text-sm flex items-center justify-center hover:bg-border"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     </SwipeToRemove>
                   </div>
