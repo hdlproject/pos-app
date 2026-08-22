@@ -144,20 +144,8 @@ export default function CustomerOrderPage() {
                       onRemove={() => removeFromCart(line.menuItemId)}
                       rowClassName="bg-dark-ui"
                     >
-                      <div className="flex items-center justify-between px-2 py-1.5">
-                        <div className="text-white text-xs">
-                          <span className="font-bold">×{line.qty}</span> {item?.name}
-                        </div>
-                        <button
-                          onClick={() => removeFromCart(line.menuItemId)}
-                          aria-label={`Remove ${item?.name ?? 'item'}`}
-                          title="Remove"
-                          className="p-1 rounded-lg text-white/70 hover:text-warning transition-colors"
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M6 6l12 12M18 6L6 18" />
-                          </svg>
-                        </button>
+                      <div className="px-2 py-1.5 text-white text-xs">
+                        <span className="font-bold">×{line.qty}</span> {item?.name}
                       </div>
                     </SwipeToRemove>
                   );
