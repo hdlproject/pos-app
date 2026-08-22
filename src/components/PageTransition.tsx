@@ -1,14 +1,14 @@
 'use client';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-const variants = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -16 },
-};
-
+// Enter-only fade (no AnimatePresence/exit stage): mode="wait" forced the
+// old page to fully animate out before the new one started, leaving a
+// blank gap and doubling the perceived duration on every navigation --
+// felt laggy, especially switching between admin tabs. A pure fade-in on
+// mount is snappier and doesn't fight page-to-page height differences the
+// way the old vertical slide did.
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
@@ -16,17 +16,13 @@ export function PageTransition({ children }: { children: ReactNode }) {
     // future layout-level state (scroll position, collapsed sections, etc.)
     // will reset on every navigation, not just full page loads. Accepted
     // trade-off of animating uniformly across all routes without special-casing.
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={pathname}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        variants={variants}
-        transition={{ duration: 0.25, ease: 'easeOut' }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      key={pathname}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
+    >
+      {children}
+    </motion.div>
   );
 }
