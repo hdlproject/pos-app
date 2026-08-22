@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 import { Select } from '@/components/ui/Select';
+import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 
 type CartLine = { menuItemId: string; qty: number };
 
@@ -171,24 +172,28 @@ export default function PosPage() {
               cart.map((line) => {
                 const item = items.find((m) => m.id === line.menuItemId);
                 return (
-                  <div key={line.menuItemId} className="flex justify-between items-start px-2 py-2.5 border-b border-border">
-                    <div>
-                      <div className="font-bold text-sm text-text">{item?.name}</div>
-                      <div className="text-xs text-text-muted">Rp {item ? Number(item.price).toLocaleString('id-ID') : ''} each</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="font-extrabold text-sm text-text">×{line.qty}</div>
-                      <button
-                        onClick={() => removeFromCart(line.menuItemId)}
-                        aria-label={`Remove ${item?.name ?? 'item'}`}
-                        title="Remove"
-                        className="p-1 rounded-lg text-text-muted-2 hover:bg-surface-input hover:text-warning transition-colors"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M6 6l12 12M18 6L6 18" />
-                        </svg>
-                      </button>
-                    </div>
+                  <div key={line.menuItemId} className="border-b border-border">
+                    <SwipeToRemove onRemove={() => removeFromCart(line.menuItemId)}>
+                      <div className="flex justify-between items-start px-2 py-2.5">
+                        <div>
+                          <div className="font-bold text-sm text-text">{item?.name}</div>
+                          <div className="text-xs text-text-muted">Rp {item ? Number(item.price).toLocaleString('id-ID') : ''} each</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-extrabold text-sm text-text">×{line.qty}</div>
+                          <button
+                            onClick={() => removeFromCart(line.menuItemId)}
+                            aria-label={`Remove ${item?.name ?? 'item'}`}
+                            title="Remove"
+                            className="p-1 rounded-lg text-text-muted-2 hover:bg-surface-input hover:text-warning transition-colors"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M6 6l12 12M18 6L6 18" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </SwipeToRemove>
                   </div>
                 );
               })

@@ -5,6 +5,7 @@ import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
+import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 
 // Explicit flat view of the field this page actually reads off the
 // createByTable mutation's result. The real return type flows through
@@ -138,21 +139,27 @@ export default function CustomerOrderPage() {
                 {cart.map((line) => {
                   const item = items.find((m) => m.id === line.menuItemId);
                   return (
-                    <div key={line.menuItemId} className="flex items-center justify-between px-2 py-1.5">
-                      <div className="text-white text-xs">
-                        <span className="font-bold">×{line.qty}</span> {item?.name}
+                    <SwipeToRemove
+                      key={line.menuItemId}
+                      onRemove={() => removeFromCart(line.menuItemId)}
+                      rowClassName="bg-dark-ui"
+                    >
+                      <div className="flex items-center justify-between px-2 py-1.5">
+                        <div className="text-white text-xs">
+                          <span className="font-bold">×{line.qty}</span> {item?.name}
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(line.menuItemId)}
+                          aria-label={`Remove ${item?.name ?? 'item'}`}
+                          title="Remove"
+                          className="p-1 rounded-lg text-white/70 hover:text-warning transition-colors"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 6l12 12M18 6L6 18" />
+                          </svg>
+                        </button>
                       </div>
-                      <button
-                        onClick={() => removeFromCart(line.menuItemId)}
-                        aria-label={`Remove ${item?.name ?? 'item'}`}
-                        title="Remove"
-                        className="p-1 rounded-lg text-white/70 hover:text-warning transition-colors"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M6 6l12 12M18 6L6 18" />
-                        </svg>
-                      </button>
-                    </div>
+                    </SwipeToRemove>
                   );
                 })}
               </div>
