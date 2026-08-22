@@ -63,6 +63,10 @@ export default function PosPage() {
     });
   }
 
+  function removeFromCart(menuItemId: string) {
+    setCart((c) => c.filter((i) => i.menuItemId !== menuItemId));
+  }
+
   function submit() {
     createOrder.mutate({ type, tableId: type === 'DINE_IN' ? tableId || undefined : undefined, items: cart });
   }
@@ -172,7 +176,19 @@ export default function PosPage() {
                       <div className="font-bold text-sm text-text">{item?.name}</div>
                       <div className="text-xs text-text-muted">Rp {item ? Number(item.price).toLocaleString('id-ID') : ''} each</div>
                     </div>
-                    <div className="font-extrabold text-sm text-text">×{line.qty}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-extrabold text-sm text-text">×{line.qty}</div>
+                      <button
+                        onClick={() => removeFromCart(line.menuItemId)}
+                        aria-label={`Remove ${item?.name ?? 'item'}`}
+                        title="Remove"
+                        className="p-1 rounded-lg text-text-muted-2 hover:bg-surface-input hover:text-warning transition-colors"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 );
               })

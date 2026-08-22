@@ -22,6 +22,7 @@ export default function CustomerOrderPage() {
   const [cart, setCart] = useState<{ menuItemId: string; qty: number }[]>([]);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>('All');
+  const [cartOpen, setCartOpen] = useState(false);
   const openOrder = trpc.order.getOpenOrderByTableToken.useQuery({ tableToken });
   const createOrder = trpc.order.createByTable.useMutation({
     onSuccess: (order: unknown) => { setOrderId((order as CreatedOrder).id); setCart([]); },
@@ -63,6 +64,10 @@ export default function CustomerOrderPage() {
       if (existing) return c.map((i) => (i.menuItemId === menuItemId ? { ...i, qty: i.qty + 1 } : i));
       return [...c, { menuItemId, qty: 1 }];
     });
+  }
+
+  function removeFromCart(menuItemId: string) {
+    setCart((c) => c.filter((i) => i.menuItemId !== menuItemId));
   }
 
   function submit() {
@@ -128,13 +133,40 @@ export default function CustomerOrderPage() {
 
         {cartCount > 0 && (
           <div className="absolute left-0 right-0 bottom-0 p-4 bg-gradient-to-t from-surface via-surface/95 to-transparent">
+            {cartOpen && (
+              <div className="bg-dark-ui rounded-2xl p-2 mb-2 shadow-lg flex flex-col gap-1 max-h-48 overflow-y-auto">
+                {cart.map((line) => {
+                  const item = items.find((m) => m.id === line.menuItemId);
+                  return (
+                    <div key={line.menuItemId} className="flex items-center justify-between px-2 py-1.5">
+                      <div className="text-white text-xs">
+                        <span className="font-bold">×{line.qty}</span> {item?.name}
+                      </div>
+                      <button
+                        onClick={() => removeFromCart(line.menuItemId)}
+                        aria-label={`Remove ${item?.name ?? 'item'}`}
+                        title="Remove"
+                        className="p-1 rounded-lg text-white/70 hover:text-warning transition-colors"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div className="bg-dark-ui rounded-2xl p-1.5 flex items-center gap-2.5 shadow-lg">
-              <div className="flex items-center gap-3 py-2 pl-3 flex-1">
+              <button
+                onClick={() => setCartOpen((o) => !o)}
+                className="flex items-center gap-3 py-2 pl-3 flex-1 text-left"
+              >
                 <span className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center text-sm font-extrabold">
                   {cartCount}
                 </span>
                 <div className="text-white text-sm font-bold">{orderId ? 'Add to open tab' : 'Start order'}</div>
-              </div>
+              </button>
               <Button variant="primary" onClick={submit} disabled={!cart.length}>
                 {orderId ? 'Add' : 'Submit'}
               </Button>
