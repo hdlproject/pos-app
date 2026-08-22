@@ -57,7 +57,7 @@ export function SwipeToRemove({
       <motion.div
         drag="x"
         dragDirectionLock
-        dragConstraints={{ left: DRAG_LIMIT, right: 0 }}
+        dragConstraints={{ left: revealed ? DRAG_LIMIT : REVEAL_X, right: 0 }}
         dragElastic={{ left: 0.3, right: 0 }}
         style={{ x, touchAction: 'pan-y' }}
         onDragEnd={handleDragEnd}
