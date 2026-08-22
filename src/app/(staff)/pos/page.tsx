@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/Select';
 type CartLine = { menuItemId: string; qty: number };
 
 export default function PosPage() {
+  const me = trpc.auth.me.useQuery();
   const menu = trpc.menu.listAll.useQuery();
   const tables = trpc.table.list.useQuery();
   const [type, setType] = useState<'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'>('TAKEAWAY');
@@ -19,6 +20,20 @@ export default function PosPage() {
   const [category, setCategory] = useState<string>('All');
   const [cart, setCart] = useState<CartLine[]>([]);
   const createOrder = trpc.order.createStaff.useMutation({ onSuccess: () => setCart([]) });
+
+  // Remember the last-selected category per logged-in user (not globally)
+  // so a shared POS terminal doesn't leak one staff member's last category
+  // to the next person who logs in on the same device.
+  useEffect(() => {
+    if (!me.data) return;
+    const saved = localStorage.getItem(`pos-category-${me.data.userId}`);
+    if (saved) setCategory(saved);
+  }, [me.data]);
+
+  function selectCategory(c: string) {
+    setCategory(c);
+    if (me.data) localStorage.setItem(`pos-category-${me.data.userId}`, c);
+  }
 
   function addToCart(menuItemId: string) {
     setCart((c) => {
@@ -62,7 +77,7 @@ export default function PosPage() {
 
           <div className="flex gap-2.5 flex-wrap mb-5">
             {categories.map((c) => (
-              <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
+              <Chip key={c} active={category === c} onClick={() => selectCategory(c)}>
                 {c}
               </Chip>
             ))}
