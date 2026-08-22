@@ -17,7 +17,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
       key={isLogin ? 'login' : 'app'}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>
