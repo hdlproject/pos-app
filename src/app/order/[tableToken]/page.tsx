@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
@@ -37,6 +37,25 @@ export default function CustomerOrderPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openOrder.data]);
+
+  // Cart-in-progress (items added but not yet submitted) survives a
+  // refresh too, keyed per table so two tables' QR sessions on the same
+  // device never mix. Restore runs once before the persist effect starts
+  // writing, same reasoning as the staff POS page's cart persistence.
+  const cartHydrated = useRef(false);
+  useEffect(() => {
+    if (cartHydrated.current) return;
+    const saved = localStorage.getItem(`order-cart-${tableToken}`);
+    if (saved) {
+      try { setCart(JSON.parse(saved)); } catch { /* ignore corrupt value */ }
+    }
+    cartHydrated.current = true;
+  }, [tableToken]);
+
+  useEffect(() => {
+    if (!cartHydrated.current) return;
+    localStorage.setItem(`order-cart-${tableToken}`, JSON.stringify(cart));
+  }, [cart, tableToken]);
 
   function addToCart(menuItemId: string) {
     setCart((c) => {

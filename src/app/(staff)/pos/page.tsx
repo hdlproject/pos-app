@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -34,6 +34,26 @@ export default function PosPage() {
     setCategory(c);
     if (me.data) localStorage.setItem(`pos-category-${me.data.userId}`, c);
   }
+
+  // In-progress order survives a refresh, per logged-in user (a shared
+  // terminal shouldn't leak one staff member's cart to the next). Restore
+  // must finish before the persist effect starts, or the persist effect's
+  // first run (still holding the pre-restore empty cart) would immediately
+  // overwrite the saved value.
+  const cartHydrated = useRef(false);
+  useEffect(() => {
+    if (!me.data || cartHydrated.current) return;
+    const saved = localStorage.getItem(`pos-cart-${me.data.userId}`);
+    if (saved) {
+      try { setCart(JSON.parse(saved)); } catch { /* ignore corrupt value */ }
+    }
+    cartHydrated.current = true;
+  }, [me.data]);
+
+  useEffect(() => {
+    if (!me.data || !cartHydrated.current) return;
+    localStorage.setItem(`pos-cart-${me.data.userId}`, JSON.stringify(cart));
+  }, [cart, me.data]);
 
   function addToCart(menuItemId: string) {
     setCart((c) => {
