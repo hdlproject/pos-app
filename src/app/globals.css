@@ -30,6 +30,13 @@
   --color-status-queued: #7d7364;
   --color-status-preparing: #e0a86a;
   --color-status-ready: #5fbf7f;
+
+  --color-type-dinein-bg: #2b3a2f;
+  --color-type-dinein-fg: #8fd3a4;
+  --color-type-takeaway-bg: #3a3320;
+  --color-type-takeaway-fg: #e0c06a;
+  --color-type-delivery-bg: #3a2b2b;
+  --color-type-delivery-fg: #e59a86;
 }
 
 html {
