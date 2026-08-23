@@ -5,9 +5,13 @@ import { trpc } from '@/lib/trpc-client';
 
 type LogoutButtonProps = {
   dark?: boolean;
+  // Called before logging out; return/resolve false to abort. Lets a page
+  // gate logout on its own state (e.g. an in-progress cart) with its own
+  // confirmation UI, without LogoutButton needing to know what that state is.
+  onBeforeLogout?: () => boolean | Promise<boolean>;
 };
 
-export function LogoutButton({ dark = false }: LogoutButtonProps) {
+export function LogoutButton({ dark = false, onBeforeLogout }: LogoutButtonProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const logout = trpc.auth.logout.useMutation({
@@ -21,9 +25,14 @@ export function LogoutButton({ dark = false }: LogoutButtonProps) {
     },
   });
 
+  async function handleClick() {
+    if (onBeforeLogout && !(await onBeforeLogout())) return;
+    logout.mutate();
+  }
+
   return (
     <button
-      onClick={() => logout.mutate()}
+      onClick={handleClick}
       disabled={logout.isPending}
       className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-offset-1 ${
         dark

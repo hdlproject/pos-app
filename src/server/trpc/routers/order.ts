@@ -234,12 +234,18 @@ export const orderRouter = router({
     })
   ),
 
-  cancel: roleProcedure('ADMIN')
+  // STAFF may only cancel a still-OPEN (pending, not yet dispatched) order
+  // -- e.g. from the Pending Purchases list. Cancelling anything already
+  // dispatched/served/paid is a refund-level decision and stays ADMIN-only.
+  cancel: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string(), reason: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.findUniqueOrThrow({ where: { id: input.orderId } });
       if (order.status === 'CANCELLED') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order already cancelled' });
+      }
+      if (ctx.user.role === 'STAFF' && order.status !== 'OPEN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'only an admin can cancel an order that has already been dispatched' });
       }
       // A charge-first order can be paid while still OPEN (stock already
       // deducted), not just once it reaches PAID -- payment existence, not

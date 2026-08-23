@@ -54,6 +54,37 @@ export default function PosPage() {
   // will be ordered.
   const [reviewOpen, setReviewOpen] = useState(false);
   const [paid, setPaid] = useState(false);
+  // Gates LogoutButton's own click when there's an in-progress cart --
+  // logoutResolve is the pending confirm/cancel Promise's resolver, held
+  // open until the user answers the in-app modal below.
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [logoutResolve, setLogoutResolve] = useState<((proceed: boolean) => void) | null>(null);
+
+  function confirmLogout(): boolean | Promise<boolean> {
+    const hasAnyCart = Object.values(carts).some((c) => c.length > 0);
+    if (!hasAnyCart) return true;
+    return new Promise<boolean>((resolve) => {
+      setLogoutResolve(() => resolve);
+      setLogoutConfirmOpen(true);
+    });
+  }
+
+  function cancelLogout() {
+    logoutResolve?.(false);
+    setLogoutConfirmOpen(false);
+    setLogoutResolve(null);
+  }
+
+  function proceedLogout() {
+    // An in-progress cart survives a refresh (deliberate), but not a
+    // logout -- a shared terminal shouldn't hand the next person who logs
+    // in a stale unsent order.
+    setCarts(EMPTY_CARTS);
+    if (me.data) localStorage.removeItem(`pos-cart-${me.data.userId}`);
+    logoutResolve?.(true);
+    setLogoutConfirmOpen(false);
+    setLogoutResolve(null);
+  }
 
   // Order-placed checkmark auto-dismisses instead of waiting on a "New
   // order" click -- confirming the payment itself now happens on the
@@ -195,16 +226,7 @@ export default function PosPage() {
                 Pending
               </span>
             )}
-            <div
-              onClickCapture={(e) => {
-                const hasAnyCart = Object.values(carts).some((c) => c.length > 0);
-                if (hasAnyCart && !window.confirm('You have an in-progress order. Log out anyway?')) {
-                  e.stopPropagation();
-                }
-              }}
-            >
-              <LogoutButton />
-            </div>
+            <LogoutButton onBeforeLogout={confirmLogout} />
           </>
         }
       />
@@ -461,6 +483,28 @@ export default function PosPage() {
                 <div className="font-display text-xl text-text">Order placed</div>
               </motion.div>
             )}
+          </div>
+        </div>
+      )}
+
+      {logoutConfirmOpen && (
+        <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-[380px] bg-surface rounded-3xl overflow-hidden shadow-2xl p-6 text-center">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-warning/15 flex items-center justify-center text-2xl text-warning">
+              !
+            </div>
+            <div className="font-display text-lg text-text mb-1.5">In-progress order</div>
+            <div className="text-sm text-text-muted font-semibold leading-relaxed mb-5">
+              You have items in the cart. Logging out will clear them.
+            </div>
+            <div className="flex gap-2.5">
+              <Button variant="outline" className="flex-1" onClick={cancelLogout}>
+                Cancel
+              </Button>
+              <Button variant="primary" className="flex-1" onClick={proceedLogout}>
+                Log out anyway
+              </Button>
+            </div>
           </div>
         </div>
       )}
