@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 
@@ -65,6 +67,7 @@ export default function CustomerOrderPage() {
       if (existing) return c.map((i) => (i.menuItemId === menuItemId ? { ...i, qty: i.qty + 1 } : i));
       return [...c, { menuItemId, qty: 1 }];
     });
+    setCartOpen(true);
   }
 
   function removeFromCart(menuItemId: string) {
@@ -93,120 +96,161 @@ export default function CustomerOrderPage() {
   const items = menu.data ?? [];
   const categories = ['All', ...Array.from(new Set(items.map((i) => i.category.name)))];
   const visibleItems = category === 'All' ? items : items.filter((i) => i.category.name === category);
+  const cartTotal = cart.reduce((sum, line) => {
+    const item = items.find((i) => i.id === line.menuItemId);
+    return sum + (item ? Number(item.price) * line.qty : 0);
+  }, 0);
   const cartCount = cart.reduce((sum, l) => sum + l.qty, 0);
 
   return (
-    <div className="min-h-screen flex items-start justify-center p-0 sm:p-4 bg-[radial-gradient(120%_60%_at_50%_0%,#e7dccb,#d3c6b3)]">
-      <div className="relative w-full max-w-[412px] bg-surface flex flex-col h-dvh overflow-hidden sm:h-[844px] sm:max-h-[calc(100dvh-32px)] sm:rounded-[34px] sm:shadow-2xl">
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-5 pt-5 pb-6 bg-gradient-to-br from-accent to-accent-hover text-white">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center font-display text-2xl">K</div>
-              <div>
-                <div className="font-display text-lg leading-tight">Kopi &amp; Co</div>
-                <div className="text-[11px] font-bold opacity-85">Self-order</div>
-              </div>
-            </div>
+    <div className="min-h-screen md:h-screen overflow-y-auto md:overflow-hidden flex flex-col bg-bg">
+      <PageHeader
+        title="Kopi & Co"
+        subtitle="Self-order"
+        right={
+          orderId ? (
+            <span className="text-[11px] font-bold text-text-muted-2 bg-surface-input px-3 py-1.5 rounded-full">
+              Tab open — pay at the end
+            </span>
+          ) : undefined
+        }
+      />
+      <div className="flex-1 flex flex-col md:flex-row min-h-0">
+        <main className="flex-1 min-w-0 flex flex-col p-6 overflow-y-auto">
+          <h1 className="font-display text-2xl text-text mb-4">Menu</h1>
+
+          <div className="flex gap-2.5 flex-wrap mb-5">
+            {categories.map((c) => (
+              <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
+                {c}
+              </Chip>
+            ))}
           </div>
 
-          <div className="sticky top-0 z-10 bg-surface py-3">
-            <div className="flex gap-2 overflow-x-auto px-4">
-              {categories.map((c) => (
-                <Chip key={c} active={category === c} onClick={() => setCategory(c)} className="shrink-0">
-                  {c}
-                </Chip>
-              ))}
-            </div>
-          </div>
-
-          <div className="px-4 pb-24 pt-1.5 flex flex-col gap-3">
+          <div className="grid grid-cols-3 gap-2.5 md:gap-3.5 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
             {visibleItems.map((item) => (
-              <div key={item.id} className="flex gap-3 bg-surface border border-border rounded-2xl p-3">
+              <Card key={item.id} className="flex flex-col gap-2.5">
                 <MenuItemThumbnail
                   image={item.image}
                   categoryName={item.category.name}
                   alt={item.name}
-                  className="w-16 h-16 rounded-xl shrink-0"
+                  className="w-full h-20 rounded-xl"
                 />
-                <div className="flex-1 min-w-0 flex flex-col">
-                  <span className="font-extrabold text-sm text-text">{item.name}</span>
-                  <div className="flex items-center justify-between mt-auto pt-2">
-                    <span className="font-extrabold text-sm text-accent-tint">Rp {Number(item.price).toLocaleString('id-ID')}</span>
-                    <Button variant="dark" size="sm" onClick={() => addToCart(item.id)}>
-                      Add
-                    </Button>
-                  </div>
+                <div className="font-bold text-text text-sm">{item.name}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-extrabold text-accent-tint text-sm">Rp {Number(item.price).toLocaleString('id-ID')}</div>
+                  <Button variant="dark" size="sm" onClick={() => addToCart(item.id)}>
+                    + Add
+                  </Button>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
-        </div>
+        </main>
 
-        {cartCount > 0 && (
-          <div className="absolute left-0 right-0 bottom-0 p-4 bg-gradient-to-t from-surface via-surface/95 to-transparent">
-            {cartOpen && (
-              <div className="bg-dark-ui rounded-2xl p-2 mb-2 shadow-lg flex flex-col gap-1 max-h-48 overflow-y-auto">
-                {cart.map((line) => {
-                  const item = items.find((m) => m.id === line.menuItemId);
-                  return (
-                    <SwipeToRemove
-                      key={line.menuItemId}
-                      onRemove={() => removeFromCart(line.menuItemId)}
-                      rowClassName="bg-dark-ui"
-                    >
-                      <div className="px-2 py-1.5 text-white text-xs flex items-center justify-between gap-2">
-                        <span className="truncate">{item?.name}</span>
-                        <div className="flex items-center gap-1.5 shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+        {cartOpen && (
+          <div
+            onClick={() => setCartOpen(false)}
+            className="fixed inset-0 z-10 bg-black/40 md:hidden"
+          />
+        )}
+
+        {!cartOpen && cartCount > 0 && (
+          <button
+            onClick={() => setCartOpen(true)}
+            className="fixed bottom-4 right-4 z-30 md:hidden flex items-center gap-2 bg-dark-ui text-white font-extrabold text-sm pl-2 pr-4 py-2 rounded-full shadow-2xl"
+          >
+            <span className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs">{cartCount}</span>
+            View cart
+          </button>
+        )}
+
+        <aside
+          className={`fixed inset-y-0 right-0 z-20 w-[85vw] max-w-[360px] shadow-2xl transition-transform duration-300 ease-out ${
+            cartOpen ? 'translate-x-0' : 'translate-x-full'
+          } md:static md:inset-auto md:z-auto md:w-[360px] md:max-w-none md:shadow-none md:translate-x-0 md:shrink-0 bg-surface border-l border-border flex flex-col`}
+        >
+          <div className="p-4 border-b border-border flex items-center justify-between md:block">
+            <span className="font-extrabold text-text text-sm">Your order</span>
+            <button
+              onClick={() => setCartOpen(false)}
+              aria-label="Close cart"
+              className="p-1.5 rounded-lg bg-surface-input text-text-muted-2 md:hidden"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-2">
+            {cart.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center gap-2 text-center px-8 py-10 text-text-muted">
+                <div className="w-12 h-12 rounded-2xl bg-surface-input flex items-center justify-center text-xl">🧺</div>
+                <div className="font-bold text-text-muted-2">No items yet</div>
+                <div className="text-xs">Tap a menu item to start your order.</div>
+              </div>
+            ) : (
+              cart.map((line) => {
+                const item = items.find((m) => m.id === line.menuItemId);
+                return (
+                  <div key={line.menuItemId} className="border-b border-border">
+                    <SwipeToRemove onRemove={() => removeFromCart(line.menuItemId)}>
+                      <div className="flex items-center gap-2.5 px-2 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm text-text truncate">{item?.name}</div>
+                          <div className="text-xs text-text-muted">Rp {item ? Number(item.price).toLocaleString('id-ID') : ''} each</div>
+                        </div>
+                        <div
+                          className="flex items-center gap-2 bg-surface-input rounded-lg p-0.5 shrink-0"
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
                           <button
                             onClick={() => changeQty(line.menuItemId, -1)}
                             aria-label={`Decrease ${item?.name ?? 'item'} quantity`}
-                            className="w-5 h-5 rounded-md bg-white/15 flex items-center justify-center font-bold"
+                            className="w-6 h-6 rounded-md bg-surface text-accent-tint font-extrabold text-sm flex items-center justify-center shadow-sm"
                           >
                             −
                           </button>
-                          <span className="font-bold w-3 text-center">{line.qty}</span>
+                          <div className="font-extrabold text-xs text-text w-4 text-center">{line.qty}</div>
                           <button
                             onClick={() => changeQty(line.menuItemId, 1)}
                             aria-label={`Increase ${item?.name ?? 'item'} quantity`}
-                            className="w-5 h-5 rounded-md bg-white/15 flex items-center justify-center font-bold"
+                            className="w-6 h-6 rounded-md bg-surface text-accent-tint font-extrabold text-sm flex items-center justify-center shadow-sm"
                           >
                             +
                           </button>
                         </div>
+                        <div className="w-16 shrink-0 text-right font-extrabold text-sm text-text">
+                          Rp {item ? (Number(item.price) * line.qty).toLocaleString('id-ID') : ''}
+                        </div>
                       </div>
                     </SwipeToRemove>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })
             )}
-            <div className="bg-dark-ui rounded-2xl p-1.5 flex items-center gap-2.5 shadow-lg">
-              <button
-                onClick={() => setCartOpen((o) => !o)}
-                className="flex items-center gap-3 py-2 pl-3 flex-1 text-left"
-              >
-                <span className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center text-sm font-extrabold">
-                  {cartCount}
-                </span>
-                <div className="text-white text-sm font-bold">{orderId ? 'Add to open tab' : 'Start order'}</div>
-              </button>
-              <Button variant="primary" onClick={submit} disabled={!cart.length}>
-                {orderId ? 'Add' : 'Submit'}
-              </Button>
-            </div>
           </div>
-        )}
-      </div>
 
-      {(createOrder.isSuccess || appendItems.isSuccess) && (
-        <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-sm font-bold text-success bg-white px-4 py-2 rounded-full shadow z-50">
-          Sent to kitchen!
-        </p>
-      )}
-      {orderId && (
-        <p className="fixed top-4 left-1/2 -translate-x-1/2 text-xs font-semibold text-text-muted bg-white/90 px-3 py-1.5 rounded-full shadow z-50">
-          Your tab stays open — order more anytime, pay at the end.
-        </p>
-      )}
+          <div className="border-t border-border p-4">
+            <div className="flex justify-between items-baseline pb-2.5 mb-1">
+              <span className="font-extrabold text-text">Total</span>
+              <span className="font-extrabold text-xl text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
+            </div>
+            <Button
+              variant="primary"
+              className="w-full mt-2"
+              disabled={!cart.length || createOrder.isPending || appendItems.isPending}
+              onClick={submit}
+            >
+              {orderId ? 'Add to tab' : 'Submit order'}
+            </Button>
+            {(createOrder.isSuccess || appendItems.isSuccess) && (
+              <p className="text-success text-xs font-semibold mt-2 text-center">Sent to kitchen!</p>
+            )}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
