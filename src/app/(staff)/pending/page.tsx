@@ -60,9 +60,10 @@ export default function PendingPurchasesPage() {
             <div className="text-xs">Charge-first orders show up here until confirmed.</div>
           </div>
         )}
-        {data?.map((order) => {
-          const paidAmount = order.payments.reduce((s, p) => s + Number(p.amount), 0);
-          return (
+        {data
+          ?.slice()
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .map((order) => (
             <Card key={order.id} className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -74,8 +75,8 @@ export default function PendingPurchasesPage() {
                     {order.items.map((i) => `${i.qty}× ${i.menuItem.name}`).join(', ')}
                   </div>
                 </div>
-                <span className="shrink-0 text-[10.5px] font-extrabold uppercase px-2 py-1 rounded-full bg-success/15 text-success">
-                  Paid Rp {paidAmount.toLocaleString('id-ID')}
+                <span className="shrink-0 text-[10.5px] font-extrabold uppercase px-2 py-1 rounded-full bg-surface-input text-text-muted-2">
+                  Placed {new Date(order.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
@@ -112,8 +113,7 @@ export default function PendingPurchasesPage() {
                 <p className="text-warning text-xs font-semibold text-right">{sendToKitchen.error.message}</p>
               )}
             </Card>
-          );
-        })}
+          ))}
       </main>
     </div>
   );
