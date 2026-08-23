@@ -21,7 +21,7 @@ export const paymentRouter = router({
       const change = input.tendered - total;
 
       await ctx.db.$transaction(async (tx) => {
-        await tx.payment.create({ data: { orderId: order.id, amount: total, method: 'CASH', receivedById: ctx.user.userId } });
+        await tx.payment.create({ data: { orderId: order.id, amount: total, method: 'ONLINE', receivedById: ctx.user.userId } });
         // OPEN means the cart-side "Charge Cash" flow paid before dispatching to
         // the kitchen -- leave status as OPEN so it stays off the KDS board until
         // order.sendToKitchen confirms it. Every other flow pays after the order

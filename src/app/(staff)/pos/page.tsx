@@ -19,7 +19,6 @@ type Carts = Record<OrderType, CartLine[]>;
 type CreatedOrder = { id: string };
 
 const EMPTY_CARTS: Carts = { DINE_IN: [], TAKEAWAY: [], DELIVERY: [] };
-const QUICK_CASH = [50000, 100000, 150000, 200000];
 
 export default function PosPage() {
   const me = trpc.auth.me.useQuery();
@@ -50,10 +49,11 @@ export default function PosPage() {
   const createPending = trpc.order.createStaff.useMutation({
     onSuccess: (_data: unknown, variables: { type: OrderType }) => setCarts((c) => ({ ...c, [variables.type]: [] })),
   });
+  // Online payment only -- no cash tendered/change to collect, so paying
+  // is a single confirm for the exact total rather than a manual amount.
   const payCash = trpc.payment.payCash.useMutation();
   const [paymentOrder, setPaymentOrder] = useState<{ id: string; total: number } | null>(null);
-  const [tendered, setTendered] = useState('');
-  const [change, setChange] = useState<number | null>(null);
+  const [paid, setPaid] = useState(false);
 
   // Remember the last-selected category per logged-in user (not globally)
   // so a shared POS terminal doesn't leak one staff member's last category
@@ -127,11 +127,11 @@ export default function PosPage() {
     setCarts((all) => ({ ...all, [type]: [] }));
   }
 
-  // Charge Cash creates the order as OPEN (paid before dispatch) instead of
+  // Charging creates the order as OPEN (paid before dispatch) instead of
   // sending it to the kitchen -- confirming payment below opens the modal;
   // the order only reaches the kitchen once someone dispatches it from the
   // pending-purchases list.
-  async function chargeCash() {
+  async function chargeOrder() {
     if (!cart.length) return;
     const order = (await createPending.mutateAsync({
       type,
@@ -140,23 +140,21 @@ export default function PosPage() {
       pending: true,
     })) as CreatedOrder;
     setPaymentOrder({ id: order.id, total: cartTotal });
-    setTendered('');
-    setChange(null);
+    setPaid(false);
   }
 
   function confirmPayment() {
     if (!paymentOrder) return;
-    const amount = Number(tendered) || 0;
+    // Online payment collects the exact total -- no tendered amount to type.
     payCash.mutate(
-      { orderId: paymentOrder.id, tendered: amount },
-      { onSuccess: (result) => { setChange(result.change); pending.refetch(); } }
+      { orderId: paymentOrder.id, tendered: paymentOrder.total },
+      { onSuccess: () => { setPaid(true); pending.refetch(); } }
     );
   }
 
   function closePaymentModal() {
     setPaymentOrder(null);
-    setTendered('');
-    setChange(null);
+    setPaid(false);
     payCash.reset();
   }
 
@@ -371,9 +369,9 @@ export default function PosPage() {
                 variant="primary"
                 className="flex-1"
                 disabled={!cart.length || createPending.isPending}
-                onClick={chargeCash}
+                onClick={chargeOrder}
               >
-                Charge · Cash
+                Charge
               </Button>
             </div>
           </div>
@@ -383,11 +381,11 @@ export default function PosPage() {
       {paymentOrder && (
         <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="w-full max-w-[420px] bg-surface rounded-3xl overflow-hidden shadow-2xl">
-            {change === null ? (
+            {!paid ? (
               <div>
                 <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border">
                   <div>
-                    <div className="font-display text-xl text-text">Cash Payment</div>
+                    <div className="font-display text-xl text-text">Online Payment</div>
                     <div className="text-xs text-text-muted font-semibold mt-0.5">
                       {type === 'DINE_IN' ? 'Dine-in' : type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'} · {cart.reduce((s, l) => s + l.qty, 0)} items
                     </div>
@@ -401,54 +399,15 @@ export default function PosPage() {
                   </button>
                 </div>
                 <div className="p-5">
-                  <div className="flex justify-between items-baseline px-4 py-3.5 bg-surface-input rounded-2xl mb-4">
+                  <div className="flex justify-between items-baseline px-4 py-3.5 bg-surface-input rounded-2xl mb-5">
                     <span className="text-sm font-bold text-accent-tint">Amount due</span>
                     <span className="text-2xl font-extrabold text-accent">Rp {paymentOrder.total.toLocaleString('id-ID')}</span>
                   </div>
 
-                  <label className="text-xs font-bold text-text-muted uppercase tracking-wide">Amount tendered</label>
-                  <div className="relative mt-1.5">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-extrabold text-text-muted">Rp</span>
-                    <input
-                      value={tendered}
-                      onChange={(e) => setTendered(e.target.value.replace(/[^0-9]/g, ''))}
-                      inputMode="numeric"
-                      placeholder="0"
-                      className="w-full pl-11 pr-4 py-3.5 border border-border-strong rounded-2xl bg-surface-input font-extrabold text-lg text-text outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {QUICK_CASH.map((v) => (
-                      <button
-                        key={v}
-                        onClick={() => setTendered(String(v))}
-                        className="flex-1 min-w-[calc(33%-6px)] py-2.5 px-2 border border-border-strong rounded-xl bg-surface font-bold text-xs text-text-muted"
-                      >
-                        Rp {v.toLocaleString('id-ID')}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-between items-baseline mt-4 pt-3.5 border-t border-dashed border-border-strong">
-                    <span className="font-extrabold text-text">Change</span>
-                    <span
-                      className={`text-xl font-extrabold ${
-                        Number(tendered) >= paymentOrder.total ? 'text-success' : 'text-warning'
-                      }`}
-                    >
-                      {Number(tendered) > 0
-                        ? Number(tendered) >= paymentOrder.total
-                          ? `Rp ${(Number(tendered) - paymentOrder.total).toLocaleString('id-ID')}`
-                          : `— short Rp ${(paymentOrder.total - Number(tendered)).toLocaleString('id-ID')}`
-                        : 'Rp 0'}
-                    </span>
-                  </div>
-
                   <Button
                     variant="success"
-                    className="w-full mt-5"
-                    disabled={Number(tendered) < paymentOrder.total || payCash.isPending}
+                    className="w-full"
+                    disabled={payCash.isPending}
                     onClick={confirmPayment}
                   >
                     Confirm payment
@@ -466,8 +425,6 @@ export default function PosPage() {
                 <div className="font-display text-xl text-text mb-1.5">Payment received</div>
                 <div className="text-sm text-text-muted font-semibold leading-relaxed">
                   Added to Pending Purchases — confirm it there to send to the kitchen.
-                  <br />
-                  Change due: <span className="text-accent font-extrabold">Rp {change.toLocaleString('id-ID')}</span>
                 </div>
                 <Button variant="primary" className="w-full mt-5" onClick={closePaymentModal}>
                   New order
