@@ -69,6 +69,40 @@ function orderAccent(items: KdsOrder['items']) {
   return 'border-t-status-queued';
 }
 
+// Elapsed-time badge color: a continuous green -> amber -> red gradient
+// instead of a flat "late past N minutes" cutoff, so ticket age reads as
+// a gradient of urgency rather than an abrupt jump.
+const URGENCY_STOPS: [number, string][] = [
+  [0, '#5fbf7f'], // fresh -- status-ready green
+  [10, '#e0a86a'], // status-preparing amber
+  [20, '#e59a86'], // kds-late red
+];
+
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function urgencyColor(elapsedMin: number): string {
+  const clamped = Math.min(Math.max(elapsedMin, 0), URGENCY_STOPS[URGENCY_STOPS.length - 1][0]);
+  let lo = URGENCY_STOPS[0];
+  let hi = URGENCY_STOPS[URGENCY_STOPS.length - 1];
+  for (let i = 0; i < URGENCY_STOPS.length - 1; i++) {
+    if (clamped >= URGENCY_STOPS[i][0] && clamped <= URGENCY_STOPS[i + 1][0]) {
+      lo = URGENCY_STOPS[i];
+      hi = URGENCY_STOPS[i + 1];
+      break;
+    }
+  }
+  const t = hi[0] === lo[0] ? 0 : (clamped - lo[0]) / (hi[0] - lo[0]);
+  const [r1, g1, b1] = hexToRgb(lo[1]);
+  const [r2, g2, b2] = hexToRgb(hi[1]);
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 export default function KdsPage() {
   const orders = trpc.order.listOpen.useQuery();
   // listOpen also returns SERVED orders (other consumers may still want
@@ -118,7 +152,6 @@ export default function KdsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(308px,1fr))] gap-4 items-start">
           {data?.map((order) => {
             const elapsedMin = Math.max(0, Math.round((now - new Date(order.createdAt).getTime()) / 60_000));
-            const isLate = elapsedMin >= 10;
             const typeBadge = TYPE_BADGE[order.type];
             const allReady = order.items.length > 0 && order.items.every((i) => i.kitchenStatus === 'READY' || i.kitchenStatus === 'SERVED');
             return (
@@ -135,7 +168,9 @@ export default function KdsPage() {
                   </div>
                   <div className="flex flex-col items-end leading-tight shrink-0">
                     <span className="text-[11px] font-extrabold text-kds-text">#{order.id.slice(-4).toUpperCase()}</span>
-                    <span className={`text-xs font-extrabold ${isLate ? 'text-kds-late' : 'text-kds-text-muted'}`}>{elapsedMin} min</span>
+                    <span className="text-xs font-extrabold" style={{ color: urgencyColor(elapsedMin) }}>
+                      {elapsedMin} min
+                    </span>
                   </div>
                 </div>
                 <div className="p-1.5 flex-1">
