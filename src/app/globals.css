@@ -24,12 +24,18 @@
   --color-kds-card: #241f18;
   --color-kds-card-header: #26211a;
   --color-kds-border: #322b21;
+  --color-kds-border-header: #2f291f;
+  --color-kds-border-row: #2a251c;
   --color-kds-text: #f2e9dc;
   --color-kds-text-muted: #8a7c66;
   --color-kds-text-muted-2: #b8ab95;
+  --color-kds-late: #e59a86;
   --color-status-queued: #7d7364;
   --color-status-preparing: #e0a86a;
   --color-status-ready: #5fbf7f;
+  --color-status-queued-pill-fg: #b8ab95;
+  --color-status-preparing-pill-fg: #e8b884;
+  --color-status-ready-pill-fg: #8fd3a4;
 
   --color-type-dinein-bg: #2b3a2f;
   --color-type-dinein-fg: #8fd3a4;
