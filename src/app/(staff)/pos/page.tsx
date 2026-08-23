@@ -171,7 +171,7 @@ export default function PosPage() {
           </div>
         </main>
 
-        <aside className="fixed inset-x-0 bottom-0 z-20 max-h-[65vh] rounded-t-2xl shadow-2xl md:static md:inset-auto md:z-auto md:max-h-none md:rounded-none md:shadow-none md:w-[360px] md:shrink-0 bg-surface border-t md:border-t-0 md:border-l border-border flex flex-col">
+        <aside className="fixed inset-y-0 right-0 z-20 w-[85vw] max-w-[360px] shadow-2xl md:static md:inset-auto md:z-auto md:w-[360px] md:max-w-none md:shadow-none md:shrink-0 bg-surface border-l border-border flex flex-col">
           <div className="p-4 border-b border-border">
             <div className="flex gap-1.5 bg-bg p-1 rounded-xl">
               {(['DINE_IN', 'TAKEAWAY', 'DELIVERY'] as const).map((t) => (
