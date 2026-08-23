@@ -14,8 +14,12 @@ import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 type OrderType = 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
 type CartLine = { menuItemId: string; qty: number };
 type Carts = Record<OrderType, CartLine[]>;
+// Matches the KDS/order pages' TS2589 workaround: an explicit flat view of
+// what these calls actually need, instead of the full inferred Prisma shape.
+type CreatedOrder = { id: string };
 
 const EMPTY_CARTS: Carts = { DINE_IN: [], TAKEAWAY: [], DELIVERY: [] };
+const QUICK_CASH = [50000, 100000, 150000, 200000];
 
 export default function PosPage() {
   const me = trpc.auth.me.useQuery();
@@ -41,6 +45,16 @@ export default function PosPage() {
   const createOrder = trpc.order.createStaff.useMutation({
     onSuccess: (_data: unknown, variables: { type: OrderType }) => setCarts((c) => ({ ...c, [variables.type]: [] })),
   });
+  // Separate mutation instance from createOrder above -- Charge Cash opens
+  // the payment modal instead of the "sent to kitchen" celebration, so it
+  // needs its own isSuccess/isPending that the cart-panel UI doesn't react to.
+  const createPending = trpc.order.createStaff.useMutation({
+    onSuccess: (_data: unknown, variables: { type: OrderType }) => setCarts((c) => ({ ...c, [variables.type]: [] })),
+  });
+  const payCash = trpc.payment.payCash.useMutation();
+  const [paymentOrder, setPaymentOrder] = useState<{ id: string; total: number } | null>(null);
+  const [tendered, setTendered] = useState('');
+  const [change, setChange] = useState<number | null>(null);
 
   // The success celebration takes over the cart panel; clear it back to the
   // normal empty-cart view after a beat rather than leaving it up forever.
@@ -119,8 +133,45 @@ export default function PosPage() {
     });
   }
 
+  function clearCart() {
+    setCarts((all) => ({ ...all, [type]: [] }));
+  }
+
   function submit() {
     createOrder.mutate({ type, tableId: type === 'DINE_IN' ? tableId || undefined : undefined, items: cart });
+  }
+
+  // Charge Cash creates the order as OPEN (paid before dispatch) instead of
+  // sending it to the kitchen -- confirming payment below opens the modal;
+  // the order only reaches the kitchen once someone dispatches it from the
+  // pending-purchases list.
+  async function chargeCash() {
+    if (!cart.length) return;
+    const order = (await createPending.mutateAsync({
+      type,
+      tableId: type === 'DINE_IN' ? tableId || undefined : undefined,
+      items: cart,
+      pending: true,
+    })) as CreatedOrder;
+    setPaymentOrder({ id: order.id, total: cartTotal });
+    setTendered('');
+    setChange(null);
+  }
+
+  function confirmPayment() {
+    if (!paymentOrder) return;
+    const amount = Number(tendered) || 0;
+    payCash.mutate(
+      { orderId: paymentOrder.id, tendered: amount },
+      { onSuccess: (result) => setChange(result.change) }
+    );
+  }
+
+  function closePaymentModal() {
+    setPaymentOrder(null);
+    setTendered('');
+    setChange(null);
+    payCash.reset();
   }
 
   const items = menu.data ?? [];
@@ -284,27 +335,33 @@ export default function PosPage() {
                 return (
                   <div key={line.menuItemId} className="border-b border-border">
                     <SwipeToRemove onRemove={() => removeFromCart(line.menuItemId)}>
-                      <div className="flex justify-between items-start px-2 py-2.5">
-                        <div>
-                          <div className="font-bold text-sm text-text">{item?.name}</div>
+                      <div className="flex items-center gap-2.5 px-2 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm text-text truncate">{item?.name}</div>
                           <div className="text-xs text-text-muted">Rp {item ? Number(item.price).toLocaleString('id-ID') : ''} each</div>
                         </div>
-                        <div className="flex items-center gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex items-center gap-2 bg-surface-input rounded-lg p-0.5 shrink-0"
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
                           <button
                             onClick={() => changeQty(line.menuItemId, -1)}
                             aria-label={`Decrease ${item?.name ?? 'item'} quantity`}
-                            className="w-6 h-6 rounded-lg bg-surface-input text-text-muted-2 font-extrabold text-sm flex items-center justify-center hover:bg-border"
+                            className="w-6 h-6 rounded-md bg-surface text-accent-tint font-extrabold text-sm flex items-center justify-center shadow-sm"
                           >
                             −
                           </button>
-                          <div className="font-extrabold text-sm text-text w-4 text-center">{line.qty}</div>
+                          <div className="font-extrabold text-xs text-text w-4 text-center">{line.qty}</div>
                           <button
                             onClick={() => changeQty(line.menuItemId, 1)}
                             aria-label={`Increase ${item?.name ?? 'item'} quantity`}
-                            className="w-6 h-6 rounded-lg bg-surface-input text-text-muted-2 font-extrabold text-sm flex items-center justify-center hover:bg-border"
+                            className="w-6 h-6 rounded-md bg-surface text-accent-tint font-extrabold text-sm flex items-center justify-center shadow-sm"
                           >
                             +
                           </button>
+                        </div>
+                        <div className="w-16 shrink-0 text-right font-extrabold text-sm text-text">
+                          Rp {item ? (Number(item.price) * line.qty).toLocaleString('id-ID') : ''}
                         </div>
                       </div>
                     </SwipeToRemove>
@@ -320,18 +377,134 @@ export default function PosPage() {
                 <span className="font-extrabold text-text">Total</span>
                 <span className="font-extrabold text-xl text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
               </div>
+              <div className="flex gap-2.5 mt-2">
+                <Button
+                  variant="outline"
+                  className="shrink-0"
+                  disabled={!cart.length}
+                  onClick={clearCart}
+                >
+                  Clear
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  disabled={!cart.length || createOrder.isPending}
+                  onClick={submit}
+                >
+                  Send to Kitchen
+                </Button>
+              </div>
               <Button
                 variant="primary"
-                className="w-full mt-2"
-                disabled={!cart.length || createOrder.isPending}
-                onClick={submit}
+                className="w-full mt-2.5"
+                disabled={!cart.length || createPending.isPending}
+                onClick={chargeCash}
               >
-                Send to Kitchen
+                Charge · Cash — Rp {cartTotal.toLocaleString('id-ID')}
               </Button>
             </div>
           )}
         </aside>
       </div>
+
+      {paymentOrder && (
+        <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-[420px] bg-surface rounded-3xl overflow-hidden shadow-2xl">
+            {change === null ? (
+              <div>
+                <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border">
+                  <div>
+                    <div className="font-display text-xl text-text">Cash Payment</div>
+                    <div className="text-xs text-text-muted font-semibold mt-0.5">
+                      {type === 'DINE_IN' ? 'Dine-in' : type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'} · {cart.reduce((s, l) => s + l.qty, 0)} items
+                    </div>
+                  </div>
+                  <button
+                    onClick={closePaymentModal}
+                    aria-label="Close"
+                    className="w-8 h-8 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center shrink-0"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="p-5">
+                  <div className="flex justify-between items-baseline px-4 py-3.5 bg-surface-input rounded-2xl mb-4">
+                    <span className="text-sm font-bold text-accent-tint">Amount due</span>
+                    <span className="text-2xl font-extrabold text-accent">Rp {paymentOrder.total.toLocaleString('id-ID')}</span>
+                  </div>
+
+                  <label className="text-xs font-bold text-text-muted uppercase tracking-wide">Amount tendered</label>
+                  <div className="relative mt-1.5">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-extrabold text-text-muted">Rp</span>
+                    <input
+                      value={tendered}
+                      onChange={(e) => setTendered(e.target.value.replace(/[^0-9]/g, ''))}
+                      inputMode="numeric"
+                      placeholder="0"
+                      className="w-full pl-11 pr-4 py-3.5 border border-border-strong rounded-2xl bg-surface-input font-extrabold text-lg text-text outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {QUICK_CASH.map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setTendered(String(v))}
+                        className="flex-1 min-w-[calc(33%-6px)] py-2.5 px-2 border border-border-strong rounded-xl bg-surface font-bold text-xs text-text-muted"
+                      >
+                        Rp {v.toLocaleString('id-ID')}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-baseline mt-4 pt-3.5 border-t border-dashed border-border-strong">
+                    <span className="font-extrabold text-text">Change</span>
+                    <span
+                      className={`text-xl font-extrabold ${
+                        Number(tendered) >= paymentOrder.total ? 'text-success' : 'text-warning'
+                      }`}
+                    >
+                      {Number(tendered) > 0
+                        ? Number(tendered) >= paymentOrder.total
+                          ? `Rp ${(Number(tendered) - paymentOrder.total).toLocaleString('id-ID')}`
+                          : `— short Rp ${(paymentOrder.total - Number(tendered)).toLocaleString('id-ID')}`
+                        : 'Rp 0'}
+                    </span>
+                  </div>
+
+                  <Button
+                    variant="success"
+                    className="w-full mt-5"
+                    disabled={Number(tendered) < paymentOrder.total || payCash.isPending}
+                    onClick={confirmPayment}
+                  >
+                    Confirm payment
+                  </Button>
+                  {payCash.isError && (
+                    <p className="text-warning text-xs font-semibold mt-2 text-center">{payCash.error.message}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="px-8 py-10 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/15 flex items-center justify-center text-3xl text-success">
+                  ✓
+                </div>
+                <div className="font-display text-xl text-text mb-1.5">Payment received</div>
+                <div className="text-sm text-text-muted font-semibold leading-relaxed">
+                  Added to Pending Purchases — confirm it there to send to the kitchen.
+                  <br />
+                  Change due: <span className="text-accent font-extrabold">Rp {change.toLocaleString('id-ID')}</span>
+                </div>
+                <Button variant="primary" className="w-full mt-5" onClick={closePaymentModal}>
+                  New order
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
