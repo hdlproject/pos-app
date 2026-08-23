@@ -136,6 +136,10 @@ export default function KdsPage() {
 
   const updateStatus = trpc.kitchen.updateItemStatus.useMutation({ onSuccess: () => orders.refetch() });
   const markServed = trpc.kitchen.markServed.useMutation({ onSuccess: () => orders.refetch() });
+  // Neither mutation had any visible failure feedback before -- a rejected
+  // call (e.g. a role the backend doesn't allow) just did nothing, which is
+  // exactly how "Bump - delivered" silently failing for KITCHEN went unnoticed.
+  const [errorOrderId, setErrorOrderId] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-kds-bg text-kds-text">
@@ -189,9 +193,10 @@ export default function KdsPage() {
                             </span>
                           ) : (
                             <button
-                              onClick={() =>
-                                updateStatus.mutate({ orderItemId: item.id, status: item.kitchenStatus === 'READY' ? 'PREPARING' : 'READY' })
-                              }
+                              onClick={() => {
+                                setErrorOrderId(order.id);
+                                updateStatus.mutate({ orderItemId: item.id, status: item.kitchenStatus === 'READY' ? 'PREPARING' : 'READY' });
+                              }}
                               aria-label={item.kitchenStatus === 'READY' ? `Undo ready for ${item.menuItem.name}` : `Mark ${item.menuItem.name} ready`}
                               title={item.kitchenStatus === 'READY' ? 'Click to undo' : 'Click to mark ready'}
                               className={`w-[22px] h-[22px] shrink-0 rounded-md border-2 flex items-center justify-center text-xs font-black cursor-pointer hover:opacity-70 ${STATUS_BORDER[item.kitchenStatus]} ${
@@ -212,7 +217,10 @@ export default function KdsPage() {
                         {item.kitchenStatus === 'QUEUED' && (
                           <div className="mt-2 pl-[32px]">
                             <button
-                              onClick={() => updateStatus.mutate({ orderItemId: item.id, status: 'PREPARING' })}
+                              onClick={() => {
+                                setErrorOrderId(order.id);
+                                updateStatus.mutate({ orderItemId: item.id, status: 'PREPARING' });
+                              }}
                               className="w-full py-1.5 rounded-lg bg-kds-card-header text-kds-text-muted-2 text-xs font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 focus-visible:ring-offset-kds-bg"
                             >
                               Preparing
@@ -226,6 +234,7 @@ export default function KdsPage() {
                 <div className="p-2.5 mt-auto">
                   <button
                     onClick={() => {
+                      setErrorOrderId(order.id);
                       if (allReady) {
                         markServed.mutate({ orderId: order.id });
                       } else {
@@ -238,6 +247,11 @@ export default function KdsPage() {
                   >
                     {allReady ? 'Bump · delivered' : 'Mark all ready'}
                   </button>
+                  {errorOrderId === order.id && (updateStatus.isError || markServed.isError) && (
+                    <p className="text-[11px] font-semibold text-kds-late mt-2 text-center">
+                      {(markServed.error ?? updateStatus.error)?.message}
+                    </p>
+                  )}
                 </div>
               </div>
             );

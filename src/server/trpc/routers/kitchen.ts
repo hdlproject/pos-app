@@ -27,7 +27,7 @@ export const kitchenRouter = router({
       return item;
     }),
 
-  markServed: roleProcedure('ADMIN', 'STAFF')
+  markServed: roleProcedure('ADMIN', 'STAFF', 'KITCHEN')
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.update({ where: { id: input.orderId }, data: { status: 'SERVED' } });
