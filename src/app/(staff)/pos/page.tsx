@@ -370,7 +370,7 @@ export default function PosPage() {
                 disabled={!cart.length || createPending.isPending}
                 onClick={chargeCash}
               >
-                Charge · Cash — Rp {cartTotal.toLocaleString('id-ID')}
+                Charge · Cash
               </Button>
             </div>
           </div>
