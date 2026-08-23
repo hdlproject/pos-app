@@ -61,14 +61,6 @@ const TYPE_BADGE: Record<string, { label: string; className: string }> = {
   DELIVERY: { label: 'Delivery', className: 'bg-type-delivery-bg text-type-delivery-fg' },
 };
 
-function orderAccent(items: KdsOrder['items']) {
-  if (items.length > 0 && items.every((i) => i.kitchenStatus === 'READY' || i.kitchenStatus === 'SERVED')) {
-    return 'border-t-status-ready';
-  }
-  if (items.some((i) => i.kitchenStatus === 'PREPARING')) return 'border-t-status-preparing';
-  return 'border-t-status-queued';
-}
-
 // Elapsed-time badge color: a continuous green -> amber -> red gradient
 // instead of a flat "late past N minutes" cutoff, so ticket age reads as
 // a gradient of urgency rather than an abrupt jump.
@@ -154,10 +146,16 @@ export default function KdsPage() {
             const elapsedMin = Math.max(0, Math.round((now - new Date(order.createdAt).getTime()) / 60_000));
             const typeBadge = TYPE_BADGE[order.type];
             const allReady = order.items.length > 0 && order.items.every((i) => i.kitchenStatus === 'READY' || i.kitchenStatus === 'SERVED');
+            // Ready tickets stay green regardless of age -- they're done,
+            // not urgent. Everything still in progress uses the same
+            // urgency gradient as the elapsed-time badge, so the whole
+            // card (not just the timer) signals how long it's been waiting.
+            const topColor = allReady ? '#5fbf7f' : urgencyColor(elapsedMin);
             return (
               <div
                 key={order.id}
-                className={`flex flex-col min-h-[220px] bg-kds-card border border-kds-border border-t-4 ${orderAccent(order.items)} rounded-2xl shadow-lg shadow-black/20 overflow-hidden`}
+                className="flex flex-col min-h-[220px] bg-kds-card border border-kds-border border-t-4 rounded-2xl shadow-lg shadow-black/20 overflow-hidden"
+                style={{ borderTopColor: topColor }}
               >
                 <div className="flex items-start justify-between gap-2 px-3.5 py-3 bg-kds-card-header border-b border-kds-border-header">
                   <div className="flex items-center gap-2 min-w-0">
