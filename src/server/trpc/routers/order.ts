@@ -4,7 +4,7 @@ import type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { router, protectedProcedure, publicProcedure, roleProcedure } from '../trpc';
 import { publishOrderEvent } from '../../ably';
-import { revertStockForOrder } from '../../stock/deduct';
+import { deductStockForOrder, revertStockForOrder } from '../../stock/deduct';
 import { redis } from '../../redis';
 
 const orderItemInput = z.object({
@@ -17,9 +17,6 @@ const createOrderInput = z.object({
   type: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']),
   tableId: z.string().optional(),
   items: z.array(orderItemInput).min(1),
-  // Charge-first cart flow: create the order as OPEN (paid before dispatch)
-  // instead of immediately SENT_TO_KITCHEN. Confirmed later via sendToKitchen.
-  pending: z.boolean().optional(),
 });
 
 async function buildOrderItems(
@@ -56,7 +53,7 @@ export const orderRouter = router({
         data: {
           type: input.type,
           tableId: input.tableId,
-          status: input.pending ? 'OPEN' : 'SENT_TO_KITCHEN',
+          status: 'SENT_TO_KITCHEN',
           source: 'STAFF',
           createdById: ctx.user.userId,
           total: calcTotal(items),
@@ -64,15 +61,46 @@ export const orderRouter = router({
         },
         include: { items: true },
       });
-      // A pending (charge-first) order isn't kitchen-relevant yet -- the
-      // real dispatch event fires later, from sendToKitchen.
-      if (!input.pending) {
-        try {
-          await publishOrderEvent('order.created', order);
-        } catch (err) {
-          console.error('publishOrderEvent failed for order.created', err);
-        }
+      try {
+        await publishOrderEvent('order.created', order);
+      } catch (err) {
+        console.error('publishOrderEvent failed for order.created', err);
       }
+      return order;
+    }),
+
+  // The charge-first cart flow: creates the order (OPEN, paid before
+  // dispatch) and charges it in one transaction. Order creation and
+  // payment used to be two separate calls (create, then payment.payCash)
+  // -- a failure between them left an OPEN order with no payment, which
+  // sendToKitchen's payment-existence guard would then reject forever with
+  // no way to recover except cancelling it. Atomic here: either both
+  // happen or neither does.
+  createAndCharge: roleProcedure('ADMIN', 'STAFF')
+    .input(createOrderInput)
+    .mutation(async ({ ctx, input }) => {
+      const items = await buildOrderItems(ctx.db, input.items);
+      const total = calcTotal(items);
+      const order = await ctx.db.$transaction(async (tx) => {
+        const created = await tx.order.create({
+          data: {
+            type: input.type,
+            tableId: input.tableId,
+            status: 'OPEN',
+            source: 'STAFF',
+            createdById: ctx.user.userId,
+            total,
+            items: { create: items },
+          },
+        });
+        await tx.payment.create({
+          data: { orderId: created.id, amount: total, method: 'ONLINE', receivedById: ctx.user.userId },
+        });
+        await deductStockForOrder(tx, created.id, ctx.user.userId);
+        return created;
+      });
+      // Not kitchen-relevant yet -- sendToKitchen publishes the dispatch
+      // event once someone actually confirms it from Pending Purchases.
       return order;
     }),
 

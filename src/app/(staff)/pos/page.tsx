@@ -15,9 +15,6 @@ import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 type OrderType = 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
 type CartLine = { menuItemId: string; qty: number };
 type Carts = Record<OrderType, CartLine[]>;
-// Matches the KDS/order pages' TS2589 workaround: an explicit flat view of
-// what these calls actually need, instead of the full inferred Prisma shape.
-type CreatedOrder = { id: string };
 
 const EMPTY_CARTS: Carts = { DINE_IN: [], TAKEAWAY: [], DELIVERY: [] };
 
@@ -41,22 +38,20 @@ export default function PosPage() {
   // where the panel is always visible in its own column.
   const [cartOpen, setCartOpen] = useState(false);
   // Explicit param types sidestep TS2589 "Type instantiation is excessively
-  // deep" -- the mutation's full input/output inference (order + items +
-  // the new optional `pending` flag) pushes past the compiler's recursion
-  // limit here, same class of error as the KDS/order pages' workarounds.
-  // Charge Cash is the only path to the kitchen now -- an order is created
-  // as pending (OPEN) and only reaches SENT_TO_KITCHEN once it's paid and
+  // deep" -- the mutation's full input/output inference pushes past the
+  // compiler's recursion limit here, same class of error as the KDS/order
+  // pages' workarounds.
+  // Charge Cash is the only path to the kitchen now -- createAndCharge
+  // creates the order as OPEN and charges it atomically (one transaction,
+  // not two separate calls), and it only reaches SENT_TO_KITCHEN once
   // confirmed from the Pending Purchases list.
-  const createPending = trpc.order.createStaff.useMutation({
+  const createAndCharge = trpc.order.createAndCharge.useMutation({
     onSuccess: (_data: unknown, variables: { type: OrderType }) => setCarts((c) => ({ ...c, [variables.type]: [] })),
   });
-  // Online payment only -- no cash tendered/change to collect, so paying
-  // is a single confirm for the exact total rather than a manual amount.
-  const payCash = trpc.payment.payCash.useMutation();
   // Create Order only opens the review modal -- nothing is placed in the
-  // DB until Confirm Order actually runs createPending + payCash. Until
-  // then the modal reads straight off the live cart, since it's still
-  // exactly what will be ordered.
+  // DB until Confirm Order actually runs createAndCharge. Until then the
+  // modal reads straight off the live cart, since it's still exactly what
+  // will be ordered.
   const [reviewOpen, setReviewOpen] = useState(false);
   const [paid, setPaid] = useState(false);
 
@@ -150,21 +145,13 @@ export default function PosPage() {
   }
 
   // Confirm Order is the one moment anything is actually placed: creates
-  // the order as OPEN (paid before dispatch) and immediately charges it.
+  // the order as OPEN (paid before dispatch) and charges it, atomically.
   // It only reaches the kitchen once someone dispatches it from the
   // pending-purchases list -- nothing happens on Create Order itself.
-  async function confirmOrder() {
+  function confirmOrder() {
     if (!cart.length) return;
-    const total = cartTotal;
-    const order = (await createPending.mutateAsync({
-      type,
-      tableId: type === 'DINE_IN' ? tableId || undefined : undefined,
-      items: cart,
-      pending: true,
-    })) as CreatedOrder;
-    // Online payment collects the exact total -- no tendered amount to type.
-    payCash.mutate(
-      { orderId: order.id, tendered: total },
+    createAndCharge.mutate(
+      { type, tableId: type === 'DINE_IN' ? tableId || undefined : undefined, items: cart },
       { onSuccess: () => { setPaid(true); pending.refetch(); } }
     );
   }
@@ -172,8 +159,7 @@ export default function PosPage() {
   function closeReview() {
     setReviewOpen(false);
     setPaid(false);
-    createPending.reset();
-    payCash.reset();
+    createAndCharge.reset();
   }
 
   const items = menu.data ?? [];
@@ -441,16 +427,13 @@ export default function PosPage() {
                   <Button
                     variant="primary"
                     className="w-full"
-                    disabled={createPending.isPending || payCash.isPending}
+                    disabled={createAndCharge.isPending}
                     onClick={confirmOrder}
                   >
                     Confirm Order
                   </Button>
-                  {createPending.isError && (
-                    <p className="text-warning text-xs font-semibold mt-2 text-center">{createPending.error.message}</p>
-                  )}
-                  {payCash.isError && (
-                    <p className="text-warning text-xs font-semibold mt-2 text-center">{payCash.error.message}</p>
+                  {createAndCharge.isError && (
+                    <p className="text-warning text-xs font-semibold mt-2 text-center">{createAndCharge.error.message}</p>
                   )}
                 </div>
               </div>
