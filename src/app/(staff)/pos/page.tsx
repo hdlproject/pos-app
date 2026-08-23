@@ -140,11 +140,14 @@ export default function PosPage() {
             ))}
           </div>
 
-          <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
+          <div
+            className="flex gap-3.5 overflow-x-auto pb-4 md:grid md:overflow-visible md:pb-0"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}
+          >
             {visibleItems.map((item) => {
               const effectivelyAvailable = item.available && !item.outOfStockReason;
               return (
-                <Card key={item.id} className={`flex flex-col gap-2.5 ${effectivelyAvailable ? '' : 'opacity-50'}`}>
+                <Card key={item.id} className={`w-40 shrink-0 md:w-auto flex flex-col gap-2.5 ${effectivelyAvailable ? '' : 'opacity-50'}`}>
                   <MenuItemThumbnail
                     image={item.image}
                     categoryName={item.category.name}
@@ -168,7 +171,7 @@ export default function PosPage() {
           </div>
         </main>
 
-        <aside className="w-full h-[70vh] md:h-auto md:w-[360px] md:shrink-0 bg-surface border-t md:border-t-0 md:border-l border-border flex flex-col">
+        <aside className="fixed inset-x-0 bottom-0 z-20 max-h-[65vh] rounded-t-2xl shadow-2xl md:static md:inset-auto md:z-auto md:max-h-none md:rounded-none md:shadow-none md:w-[360px] md:shrink-0 bg-surface border-t md:border-t-0 md:border-l border-border flex flex-col">
           <div className="p-4 border-b border-border">
             <div className="flex gap-1.5 bg-bg p-1 rounded-xl">
               {(['DINE_IN', 'TAKEAWAY', 'DELIVERY'] as const).map((t) => (
