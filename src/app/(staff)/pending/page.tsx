@@ -33,6 +33,7 @@ export default function PendingPurchasesPage() {
   const sendToKitchen = trpc.order.sendToKitchen.useMutation({ onSuccess: () => orders.refetch() });
   const cancel = trpc.order.cancel.useMutation({ onSuccess: () => orders.refetch() });
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-bg">
@@ -95,7 +96,10 @@ export default function PendingPurchasesPage() {
                     variant="primary"
                     size="sm"
                     disabled={sendToKitchen.isPending}
-                    onClick={() => sendToKitchen.mutate({ orderId: order.id })}
+                    onClick={() => {
+                      setConfirmingId(order.id);
+                      sendToKitchen.mutate({ orderId: order.id });
+                    }}
                   >
                     Confirm &amp; send to kitchen
                   </Button>
@@ -103,6 +107,9 @@ export default function PendingPurchasesPage() {
               </div>
               {cancel.isError && cancellingId === order.id && (
                 <p className="text-warning text-xs font-semibold text-right">{cancel.error.message}</p>
+              )}
+              {sendToKitchen.isError && confirmingId === order.id && (
+                <p className="text-warning text-xs font-semibold text-right">{sendToKitchen.error.message}</p>
               )}
             </Card>
           );
