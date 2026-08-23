@@ -134,7 +134,11 @@ export default function KdsPage() {
                   </div>
                 </div>
                 <div className="p-1.5 flex-1">
-                  {order.items.map((item) => {
+                  {/* Sorted by name only (never by status), so an item doesn't
+                      jump position in the list when its status changes. */}
+                  {[...order.items]
+                    .sort((a, b) => a.menuItem.name.localeCompare(b.menuItem.name))
+                    .map((item) => {
                     const isTerminal = item.kitchenStatus === 'READY' || item.kitchenStatus === 'SERVED';
                     return (
                       <div key={item.id} className="px-2 py-2.5 border-b border-kds-border-row last:border-b-0">
