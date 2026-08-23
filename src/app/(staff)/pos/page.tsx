@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'motion/react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -58,6 +59,17 @@ export default function PosPage() {
   // exactly what will be ordered.
   const [reviewOpen, setReviewOpen] = useState(false);
   const [paid, setPaid] = useState(false);
+
+  // Order-placed checkmark auto-dismisses instead of waiting on a "New
+  // order" click -- confirming the payment itself now happens on the
+  // Pending Purchases page, so this modal has nothing left to say once
+  // the order's placed.
+  useEffect(() => {
+    if (!paid) return;
+    const timer = setTimeout(() => closeReview(), 1200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paid]);
 
   // Remember the last-selected category per logged-in user (not globally)
   // so a shared POS terminal doesn't leak one staff member's last category
@@ -372,7 +384,7 @@ export default function PosPage() {
                 Clear
               </Button>
               <Button
-                variant="success"
+                variant="primary"
                 className="flex-1"
                 disabled={!cart.length}
                 onClick={openReview}
@@ -443,18 +455,28 @@ export default function PosPage() {
                 </div>
               </div>
             ) : (
-              <div className="px-8 py-10 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/15 flex items-center justify-center text-3xl text-success">
-                  ✓
-                </div>
-                <div className="font-display text-xl text-text mb-1.5">Payment received</div>
-                <div className="text-sm text-text-muted font-semibold leading-relaxed">
-                  Added to Pending Purchases — confirm it there to send to the kitchen.
-                </div>
-                <Button variant="primary" className="w-full mt-5" onClick={closeReview}>
-                  New order
-                </Button>
-              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="px-8 py-14 flex flex-col items-center gap-3"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+                  className="w-16 h-16 rounded-full bg-success flex items-center justify-center"
+                >
+                  <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <motion.path
+                      d="M5 13l4 4L19 7"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+                    />
+                  </svg>
+                </motion.div>
+                <div className="font-display text-xl text-text">Order placed</div>
+              </motion.div>
             )}
           </div>
         </div>
