@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -30,10 +31,14 @@ const TYPE_LABEL: Record<string, string> = {
 export default function PendingPurchasesPage() {
   const orders = trpc.order.listPendingDispatch.useQuery();
   const data = orders.data as unknown as PendingOrder[] | undefined;
-  const sendToKitchen = trpc.order.sendToKitchen.useMutation({ onSuccess: () => orders.refetch() });
+  // Refetch is delayed on success so the checkmark overlay below gets a
+  // beat to play before the card actually leaves the list -- same pattern
+  // as the KDS bump animation.
+  const sendToKitchen = trpc.order.sendToKitchen.useMutation();
   const cancel = trpc.order.cancel.useMutation({ onSuccess: () => orders.refetch() });
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [dispatchedId, setDispatchedId] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-bg">
@@ -64,7 +69,31 @@ export default function PendingPurchasesPage() {
           ?.slice()
           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
           .map((order) => (
-            <Card key={order.id} className="flex flex-col gap-3">
+            <Card key={order.id} className="relative overflow-hidden flex flex-col gap-3">
+              {dispatchedId === order.id && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute inset-0 z-10 bg-surface/95 flex flex-col items-center justify-center gap-2"
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+                    className="w-12 h-12 rounded-full bg-success flex items-center justify-center"
+                  >
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <motion.path
+                        d="M5 13l4 4L19 7"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.35, delay: 0.15, ease: 'easeOut' }}
+                      />
+                    </svg>
+                  </motion.div>
+                  <div className="font-extrabold text-sm text-text">Sent to kitchen</div>
+                </motion.div>
+              )}
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="font-bold text-text text-sm">
@@ -99,7 +128,15 @@ export default function PendingPurchasesPage() {
                     disabled={sendToKitchen.isPending}
                     onClick={() => {
                       setConfirmingId(order.id);
-                      sendToKitchen.mutate({ orderId: order.id });
+                      sendToKitchen.mutate(
+                        { orderId: order.id },
+                        {
+                          onSuccess: () => {
+                            setDispatchedId(order.id);
+                            setTimeout(() => orders.refetch(), 700);
+                          },
+                        }
+                      );
                     }}
                   >
                     Confirm &amp; send to kitchen
