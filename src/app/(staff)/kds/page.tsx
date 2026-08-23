@@ -125,13 +125,24 @@ export default function KdsPage() {
                     return (
                       <div key={item.id} className="px-2 py-2.5 border-b border-kds-border last:border-b-0">
                         <div className="flex items-center gap-2.5">
-                          <span
-                            className={`w-[22px] h-[22px] shrink-0 rounded-md border-2 flex items-center justify-center text-xs font-black ${STATUS_BORDER[item.kitchenStatus]} ${
-                              isTerminal ? `${STATUS_BG[item.kitchenStatus]} text-kds-bg` : 'text-transparent'
-                            }`}
-                          >
-                            ✓
-                          </span>
+                          {item.kitchenStatus === 'READY' ? (
+                            <button
+                              onClick={() => updateStatus.mutate({ orderItemId: item.id, status: 'PREPARING' })}
+                              aria-label={`Undo ready for ${item.menuItem.name}`}
+                              title="Click to undo"
+                              className={`w-[22px] h-[22px] shrink-0 rounded-md border-2 flex items-center justify-center text-xs font-black cursor-pointer hover:opacity-70 ${STATUS_BORDER[item.kitchenStatus]} ${STATUS_BG[item.kitchenStatus]} text-kds-bg`}
+                            >
+                              ✓
+                            </button>
+                          ) : (
+                            <span
+                              className={`w-[22px] h-[22px] shrink-0 rounded-md border-2 flex items-center justify-center text-xs font-black ${STATUS_BORDER[item.kitchenStatus]} ${
+                                isTerminal ? `${STATUS_BG[item.kitchenStatus]} text-kds-bg` : 'text-transparent'
+                              }`}
+                            >
+                              ✓
+                            </span>
+                          )}
                           <span className="font-extrabold text-sm min-w-[24px]">{item.qty}×</span>
                           <span className={`flex-1 text-sm font-bold ${isTerminal ? 'text-kds-text-muted line-through' : 'text-kds-text'}`}>
                             {item.menuItem.name}
