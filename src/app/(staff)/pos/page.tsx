@@ -175,21 +175,24 @@ export default function PosPage() {
         title="Point of Sale"
         right={
           <>
-            <Link
-              href="/pending"
-              className={`flex items-center gap-2 pl-3.5 pr-3 py-2 rounded-xl font-extrabold text-sm transition-colors ${
-                pendingCount > 0
-                  ? 'bg-warning/10 text-warning border border-warning/30 hover:bg-warning/15'
-                  : 'text-text-muted-2 hover:bg-surface-input'
-              }`}
-            >
-              Pending
-              {pendingCount > 0 && (
+            {pendingCount > 0 ? (
+              <Link
+                href="/pending"
+                className="flex items-center gap-2 pl-3.5 pr-3 py-2 rounded-xl font-extrabold text-sm border bg-warning/10 text-warning border-warning/30 hover:bg-warning/15 transition-colors"
+              >
+                Pending
                 <span className="w-5 h-5 rounded-full bg-warning text-white text-[11px] font-extrabold flex items-center justify-center animate-pulse">
                   {pendingCount}
                 </span>
-              )}
-            </Link>
+              </Link>
+            ) : (
+              <span
+                aria-disabled="true"
+                className="flex items-center gap-2 pl-3.5 pr-3 py-2 rounded-xl font-extrabold text-sm border bg-surface text-text-muted border-border-strong opacity-50 cursor-not-allowed"
+              >
+                Pending
+              </span>
+            )}
             <div
               onClickCapture={(e) => {
                 const hasAnyCart = Object.values(carts).some((c) => c.length > 0);
