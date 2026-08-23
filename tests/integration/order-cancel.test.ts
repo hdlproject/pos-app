@@ -36,6 +36,9 @@ describe('order cancel', () => {
     await db.stockMovement.create({
       data: { ingredientId: milk.id, delta: -200, reason: 'SALE', refOrderId: order.id, createdById: adminUser.id },
     });
+    await db.payment.create({
+      data: { orderId: order.id, amount: 4.5, method: 'CASH', receivedById: adminUser.id },
+    });
 
     const admin = appRouter.createCaller({ db, user: { userId: adminUser.id, role: 'ADMIN', name: 'A2' } });
     await admin.order.cancel({ orderId: order.id, reason: 'refund' });

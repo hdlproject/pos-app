@@ -17,6 +17,9 @@ const createOrderInput = z.object({
   type: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']),
   tableId: z.string().optional(),
   items: z.array(orderItemInput).min(1),
+  // Charge-first cart flow: create the order as OPEN (paid before dispatch)
+  // instead of immediately SENT_TO_KITCHEN. Confirmed later via sendToKitchen.
+  pending: z.boolean().optional(),
 });
 
 async function buildOrderItems(
@@ -53,7 +56,7 @@ export const orderRouter = router({
         data: {
           type: input.type,
           tableId: input.tableId,
-          status: 'SENT_TO_KITCHEN',
+          status: input.pending ? 'OPEN' : 'SENT_TO_KITCHEN',
           source: 'STAFF',
           createdById: ctx.user.userId,
           total: calcTotal(items),
@@ -61,13 +64,48 @@ export const orderRouter = router({
         },
         include: { items: true },
       });
-      try {
-        await publishOrderEvent('order.created', order);
-      } catch (err) {
-        console.error('publishOrderEvent failed for order.created', err);
+      // A pending (charge-first) order isn't kitchen-relevant yet -- the
+      // real dispatch event fires later, from sendToKitchen.
+      if (!input.pending) {
+        try {
+          await publishOrderEvent('order.created', order);
+        } catch (err) {
+          console.error('publishOrderEvent failed for order.created', err);
+        }
       }
       return order;
     }),
+
+  // Confirms a charge-first order (paid while still OPEN) and dispatches it
+  // to the kitchen. Requires an existing payment -- this is the manual
+  // stand-in for what a real payment gateway would confirm automatically.
+  sendToKitchen: roleProcedure('ADMIN', 'STAFF')
+    .input(z.object({ orderId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const order = await ctx.db.order.findUniqueOrThrow({ where: { id: input.orderId } });
+      if (order.status !== 'OPEN') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is not pending dispatch' });
+      }
+      const payment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
+      if (!payment) throw new TRPCError({ code: 'BAD_REQUEST', message: 'order has not been paid yet' });
+
+      const updated = await ctx.db.order.update({ where: { id: order.id }, data: { status: 'SENT_TO_KITCHEN' } });
+      try {
+        await publishOrderEvent('order.dispatched', updated);
+      } catch (err) {
+        console.error('publishOrderEvent failed for order.dispatched', err);
+      }
+      return updated;
+    }),
+
+  // Charge-first orders (paid, awaiting manual dispatch confirmation).
+  listPendingDispatch: roleProcedure('ADMIN', 'STAFF').query(({ ctx }) =>
+    ctx.db.order.findMany({
+      where: { status: 'OPEN' },
+      include: { items: { include: { menuItem: true } }, table: true, payments: true },
+      orderBy: { createdAt: 'asc' },
+    })
+  ),
 
   createByTable: publicProcedure
     .input(z.object({ tableToken: z.string(), items: z.array(orderItemInput).min(1) }))
@@ -100,7 +138,14 @@ export const orderRouter = router({
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.findUnique({ where: { id: input.orderId }, include: { table: true } });
       if (!order) throw new TRPCError({ code: 'NOT_FOUND' });
-      if (order.status === 'PAID' || order.status === 'CANCELLED') {
+      if (order.status === 'CANCELLED') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is closed' });
+      }
+      // A charge-first order (still OPEN, awaiting dispatch) has already
+      // collected a fixed cash amount -- status alone can't tell a paid
+      // OPEN order from an unpaid one, so check payment existence directly.
+      const existingPayment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
+      if (existingPayment) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is closed' });
       }
       if (order.table?.qrToken !== input.tableToken) {
@@ -149,9 +194,12 @@ export const orderRouter = router({
       return order ?? null;
     }),
 
+  // OPEN is excluded here on purpose: a charge-first order sits at OPEN
+  // until sendToKitchen confirms it, and shouldn't be kitchen-visible
+  // before that -- whether or not it's been paid yet.
   listOpen: roleProcedure('ADMIN', 'STAFF', 'KITCHEN').query(({ ctx }) =>
     ctx.db.order.findMany({
-      where: { status: { in: ['OPEN', 'SENT_TO_KITCHEN', 'READY', 'SERVED'] } },
+      where: { status: { in: ['SENT_TO_KITCHEN', 'READY', 'SERVED'] } },
       include: { items: { include: { menuItem: true } }, table: true },
       orderBy: { createdAt: 'asc' },
     })
@@ -164,10 +212,13 @@ export const orderRouter = router({
       if (order.status === 'CANCELLED') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order already cancelled' });
       }
-      const wasPaid = order.status === 'PAID';
+      // A charge-first order can be paid while still OPEN (stock already
+      // deducted), not just once it reaches PAID -- payment existence, not
+      // status, is what actually determines whether stock needs reverting.
+      const existingPayment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
       await ctx.db.$transaction(async (tx) => {
         await tx.order.update({ where: { id: order.id }, data: { status: 'CANCELLED', cancelReason: input.reason } });
-        if (wasPaid) {
+        if (existingPayment) {
           await revertStockForOrder(tx, order.id, ctx.user.userId);
         }
       });

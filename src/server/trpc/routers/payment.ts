@@ -10,8 +10,9 @@ export const paymentRouter = router({
     .input(z.object({ orderId: z.string(), tendered: z.number().positive() }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.findUniqueOrThrow({ where: { id: input.orderId } });
-      if (order.status === 'PAID') throw new TRPCError({ code: 'BAD_REQUEST', message: 'order already paid' });
       if (order.status === 'CANCELLED') throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is cancelled' });
+      const existingPayment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
+      if (existingPayment) throw new TRPCError({ code: 'BAD_REQUEST', message: 'order already paid' });
 
       const total = Number(order.total);
       if (input.tendered < total) {
@@ -21,7 +22,14 @@ export const paymentRouter = router({
 
       await ctx.db.$transaction(async (tx) => {
         await tx.payment.create({ data: { orderId: order.id, amount: total, method: 'CASH', receivedById: ctx.user.userId } });
-        await tx.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
+        // OPEN means the cart-side "Charge Cash" flow paid before dispatching to
+        // the kitchen -- leave status as OPEN so it stays off the KDS board until
+        // order.sendToKitchen confirms it. Every other flow pays after the order
+        // is already SENT_TO_KITCHEN/READY/SERVED, where PAID is the correct
+        // terminal status (unchanged from before).
+        if (order.status !== 'OPEN') {
+          await tx.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
+        }
         await deductStockForOrder(tx, order.id, ctx.user.userId);
       });
       try {

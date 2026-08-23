@@ -24,9 +24,12 @@ export const reportRouter = router({
   }),
 
   bestSellers: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
+    // A paid charge-first order can still be status OPEN (awaiting kitchen
+    // dispatch) rather than PAID -- payment existence is the real "counts
+    // as a sale" signal, not the status literal.
     const rows = await ctx.db.orderItem.groupBy({
       by: ['menuItemId'],
-      where: { order: { createdAt: { gte: new Date(input.from), lte: new Date(input.to) }, status: 'PAID' } },
+      where: { order: { createdAt: { gte: new Date(input.from), lte: new Date(input.to) }, payments: { some: {} } } },
       _sum: { qty: true },
     });
     const menuItems = await ctx.db.menuItem.findMany({ where: { id: { in: rows.map((r) => r.menuItemId) } } });
@@ -38,7 +41,7 @@ export const reportRouter = router({
 
   salesDetail: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
     return ctx.db.order.findMany({
-      where: { status: 'PAID', createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },
+      where: { payments: { some: {} }, createdAt: { gte: new Date(input.from), lte: new Date(input.to) } },
       select: {
         id: true,
         type: true,

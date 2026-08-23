@@ -34,8 +34,12 @@ export default function PosPage() {
   // reopened via the floating button once dismissed. No-op on desktop,
   // where the panel is always visible in its own column.
   const [cartOpen, setCartOpen] = useState(false);
+  // Explicit param types sidestep TS2589 "Type instantiation is excessively
+  // deep" -- the mutation's full input/output inference (order + items +
+  // the new optional `pending` flag) pushes past the compiler's recursion
+  // limit here, same class of error as the KDS/order pages' workarounds.
   const createOrder = trpc.order.createStaff.useMutation({
-    onSuccess: (_data, variables) => setCarts((c) => ({ ...c, [variables.type]: [] })),
+    onSuccess: (_data: unknown, variables: { type: OrderType }) => setCarts((c) => ({ ...c, [variables.type]: [] })),
   });
 
   // The success celebration takes over the cart panel; clear it back to the
