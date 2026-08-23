@@ -32,7 +32,11 @@ export function SwipeToRemove({
 
   function handleDragEnd() {
     const current = x.get();
-    if (current < REMOVE_THRESHOLD) {
+    // Elastic drag can overshoot past the constraint during the gesture,
+    // so position alone can't gate removal -- a fast first swipe could
+    // otherwise blow past REMOVE_THRESHOLD in one motion. Removal is only
+    // reachable from an already-revealed row (a second, deliberate swipe).
+    if (revealed && current < REMOVE_THRESHOLD) {
       remove();
     } else if (current < REVEAL_THRESHOLD) {
       setRevealed(true);
