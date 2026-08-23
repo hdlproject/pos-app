@@ -41,7 +41,10 @@ export default function PendingPurchasesPage() {
         subtitle="Paid, awaiting kitchen dispatch"
         right={
           <>
-            <Link href="/pos" className="font-bold text-sm text-text-muted-2 hover:text-text">
+            <Link
+              href="/pos"
+              className="pl-3.5 pr-3 py-2 rounded-xl font-extrabold text-sm border bg-surface text-text-muted-2 border-border-strong hover:bg-surface-input transition-colors"
+            >
               Back to POS
             </Link>
             <LogoutButton />
