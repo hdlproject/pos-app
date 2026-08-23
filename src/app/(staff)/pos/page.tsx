@@ -52,7 +52,11 @@ export default function PosPage() {
   // Online payment only -- no cash tendered/change to collect, so paying
   // is a single confirm for the exact total rather than a manual amount.
   const payCash = trpc.payment.payCash.useMutation();
-  const [paymentOrder, setPaymentOrder] = useState<{ id: string; total: number } | null>(null);
+  const [paymentOrder, setPaymentOrder] = useState<{
+    id: string;
+    total: number;
+    items: { name: string; qty: number; price: number }[];
+  } | null>(null);
   const [paid, setPaid] = useState(false);
 
   // Remember the last-selected category per logged-in user (not globally)
@@ -133,13 +137,20 @@ export default function PosPage() {
   // pending-purchases list.
   async function chargeOrder() {
     if (!cart.length) return;
+    // Snapshot the lines before creating the order -- createPending's
+    // onSuccess clears carts[type] right away, so `cart` itself would
+    // already be empty by the time the confirm modal renders.
+    const lineSummaries = cart.map((line) => {
+      const item = items.find((i) => i.id === line.menuItemId);
+      return { name: item?.name ?? 'Item', qty: line.qty, price: item ? Number(item.price) : 0 };
+    });
     const order = (await createPending.mutateAsync({
       type,
       tableId: type === 'DINE_IN' ? tableId || undefined : undefined,
       items: cart,
       pending: true,
     })) as CreatedOrder;
-    setPaymentOrder({ id: order.id, total: cartTotal });
+    setPaymentOrder({ id: order.id, total: cartTotal, items: lineSummaries });
     setPaid(false);
   }
 
@@ -371,7 +382,7 @@ export default function PosPage() {
                 disabled={!cart.length || createPending.isPending}
                 onClick={chargeOrder}
               >
-                Charge
+                Create Order
               </Button>
             </div>
           </div>
@@ -385,9 +396,10 @@ export default function PosPage() {
               <div>
                 <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border">
                   <div>
-                    <div className="font-display text-xl text-text">Online Payment</div>
+                    <div className="font-display text-xl text-text">Confirm Order</div>
                     <div className="text-xs text-text-muted font-semibold mt-0.5">
-                      {type === 'DINE_IN' ? 'Dine-in' : type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'} · {cart.reduce((s, l) => s + l.qty, 0)} items
+                      {type === 'DINE_IN' ? 'Dine-in' : type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'} ·{' '}
+                      {paymentOrder.items.reduce((s, l) => s + l.qty, 0)} items
                     </div>
                   </div>
                   <button
@@ -399,6 +411,17 @@ export default function PosPage() {
                   </button>
                 </div>
                 <div className="p-5">
+                  <div className="flex flex-col gap-1.5 mb-4">
+                    {paymentOrder.items.map((line, i) => (
+                      <div key={i} className="flex justify-between items-baseline text-sm">
+                        <span className="text-text-muted-2 font-semibold">
+                          {line.qty}× {line.name}
+                        </span>
+                        <span className="font-bold text-text">Rp {(line.price * line.qty).toLocaleString('id-ID')}</span>
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="flex justify-between items-baseline px-4 py-3.5 bg-surface-input rounded-2xl mb-5">
                     <span className="text-sm font-bold text-accent-tint">Amount due</span>
                     <span className="text-2xl font-extrabold text-accent">Rp {paymentOrder.total.toLocaleString('id-ID')}</span>
@@ -410,7 +433,7 @@ export default function PosPage() {
                     disabled={payCash.isPending}
                     onClick={confirmPayment}
                   >
-                    Confirm payment
+                    Confirm Order
                   </Button>
                   {payCash.isError && (
                     <p className="text-warning text-xs font-semibold mt-2 text-center">{payCash.error.message}</p>
