@@ -28,6 +28,11 @@ export default function PosPage() {
   // added under one type never bleeds into another.
   const [carts, setCarts] = useState<Carts>(EMPTY_CARTS);
   const cart = carts[type];
+  // Mobile-only: the cart panel overlays the item list rather than sitting
+  // beside it, so it opens automatically when an item is added and can be
+  // reopened via the floating button once dismissed. No-op on desktop,
+  // where the panel is always visible in its own column.
+  const [cartOpen, setCartOpen] = useState(false);
   const createOrder = trpc.order.createStaff.useMutation({
     onSuccess: (_data, variables) => setCarts((c) => ({ ...c, [variables.type]: [] })),
   });
@@ -80,6 +85,7 @@ export default function PosPage() {
         : [...c, { menuItemId, qty: 1 }];
       return { ...all, [type]: updated };
     });
+    setCartOpen(true);
   }
 
   function removeFromCart(menuItemId: string) {
@@ -110,6 +116,7 @@ export default function PosPage() {
     const item = items.find((i) => i.id === line.menuItemId);
     return sum + (item ? Number(item.price) * line.qty : 0);
   }, 0);
+  const cartCount = cart.reduce((sum, line) => sum + line.qty, 0);
 
   return (
     <div className="min-h-screen md:h-screen overflow-y-auto md:overflow-hidden flex flex-col bg-bg">
@@ -140,14 +147,11 @@ export default function PosPage() {
             ))}
           </div>
 
-          <div
-            className="flex gap-3.5 overflow-x-auto pb-4 md:grid md:overflow-visible md:pb-0"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}
-          >
+          <div className="grid grid-cols-3 gap-2.5 md:gap-3.5 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
             {visibleItems.map((item) => {
               const effectivelyAvailable = item.available && !item.outOfStockReason;
               return (
-                <Card key={item.id} className={`w-[calc((100%-1.75rem)/3)] shrink-0 md:w-auto flex flex-col gap-2.5 ${effectivelyAvailable ? '' : 'opacity-50'}`}>
+                <Card key={item.id} className={`flex flex-col gap-2.5 ${effectivelyAvailable ? '' : 'opacity-50'}`}>
                   <MenuItemThumbnail
                     image={item.image}
                     categoryName={item.category.name}
@@ -171,8 +175,41 @@ export default function PosPage() {
           </div>
         </main>
 
-        <aside className="fixed inset-y-0 right-0 z-20 w-[85vw] max-w-[360px] shadow-2xl md:static md:inset-auto md:z-auto md:w-[360px] md:max-w-none md:shadow-none md:shrink-0 bg-surface border-l border-border flex flex-col">
+        {cartOpen && (
+          <div
+            onClick={() => setCartOpen(false)}
+            className="fixed inset-0 z-10 bg-black/40 md:hidden"
+          />
+        )}
+
+        {!cartOpen && cartCount > 0 && (
+          <button
+            onClick={() => setCartOpen(true)}
+            className="fixed bottom-4 right-4 z-30 md:hidden flex items-center gap-2 bg-dark-ui text-white font-extrabold text-sm pl-2 pr-4 py-2 rounded-full shadow-2xl"
+          >
+            <span className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs">{cartCount}</span>
+            View cart
+          </button>
+        )}
+
+        <aside
+          className={`fixed inset-y-0 right-0 z-20 w-[85vw] max-w-[360px] shadow-2xl transition-transform duration-300 ease-out ${
+            cartOpen ? 'translate-x-0' : 'translate-x-full'
+          } md:static md:inset-auto md:z-auto md:w-[360px] md:max-w-none md:shadow-none md:translate-x-0 md:shrink-0 bg-surface border-l border-border flex flex-col`}
+        >
           <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between gap-2 mb-3 md:hidden">
+              <span className="font-extrabold text-text text-sm">Cart</span>
+              <button
+                onClick={() => setCartOpen(false)}
+                aria-label="Close cart"
+                className="p-1.5 rounded-lg bg-surface-input text-text-muted-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
             <div className="flex gap-1.5 bg-bg p-1 rounded-xl">
               {(['DINE_IN', 'TAKEAWAY', 'DELIVERY'] as const).map((t) => (
                 <button
