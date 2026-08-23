@@ -88,7 +88,12 @@ export default function KdsPage() {
     const client = new Ably.Realtime({ authUrl: '/api/ably-token' });
     const channel = client.channels.get('orders');
     const refetch = () => orders.refetch();
-    channel.subscribe(refetch);
+    // channel.subscribe's implicit attach returns a promise that rejects
+    // if the client is closed before it settles (StrictMode's dev-only
+    // double-invoke of effects triggers exactly that). We never await it,
+    // so an unhandled rejection would otherwise surface as a runtime
+    // error even though teardown below is already handling this case.
+    channel.subscribe(refetch)?.catch(() => {});
     return () => {
       try {
         channel.unsubscribe(refetch);
