@@ -224,11 +224,17 @@ export const orderRouter = router({
 
   // OPEN is excluded on purpose: a charge-first order sits at OPEN until
   // sendToKitchen confirms it, and shouldn't be kitchen-visible before
-  // that. SERVED is excluded too -- that's the KDS "Bump" action, meant
-  // to clear a ticket off the board once delivered, not leave it parked.
+  // that. SERVED (bumped/delivered) is included but bounded to the last
+  // few hours -- the KDS's Delivered/All filters need some recent history,
+  // but a full unbounded log would grow forever over a day's service.
   listOpen: roleProcedure('ADMIN', 'STAFF', 'KITCHEN').query(({ ctx }) =>
     ctx.db.order.findMany({
-      where: { status: { in: ['SENT_TO_KITCHEN', 'READY'] } },
+      where: {
+        OR: [
+          { status: { in: ['SENT_TO_KITCHEN', 'READY'] } },
+          { status: 'SERVED', createdAt: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) } },
+        ],
+      },
       include: { items: { include: { menuItem: true } }, table: true },
       orderBy: { createdAt: 'asc' },
     })

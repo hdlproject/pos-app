@@ -96,12 +96,32 @@ function urgencyColor(elapsedMin: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+type FilterMode = 'INFLIGHT' | 'DELIVERED' | 'ALL';
+
+const FILTERS: { key: FilterMode; label: string }[] = [
+  { key: 'INFLIGHT', label: 'Inflight' },
+  { key: 'DELIVERED', label: 'Delivered' },
+  { key: 'ALL', label: 'All' },
+];
+
 export default function KdsPage() {
   const orders = trpc.order.listOpen.useQuery();
-  // listOpen also returns SERVED orders (other consumers may still want
-  // those), but a bumped ticket should vanish from the kitchen board --
-  // filter it out here rather than narrowing the shared query.
-  const data = (orders.data as unknown as KdsOrder[] | undefined)?.filter((o) => o.status !== 'SERVED');
+  const raw = orders.data as unknown as KdsOrder[] | undefined;
+  // Default view hides delivered (bumped) tickets, same as before -- the
+  // filter tabs below just make that a choice instead of the only option.
+  const [filter, setFilter] = useState<FilterMode>('INFLIGHT');
+  const data = raw?.filter((o) => {
+    if (filter === 'INFLIGHT') return o.status !== 'SERVED';
+    if (filter === 'DELIVERED') return o.status === 'SERVED';
+    return true;
+  });
+  const inflightCount = raw?.filter((o) => o.status !== 'SERVED').length ?? 0;
+  const deliveredCount = raw?.filter((o) => o.status === 'SERVED').length ?? 0;
+  const filterCount: Record<FilterMode, number> = {
+    INFLIGHT: inflightCount,
+    DELIVERED: deliveredCount,
+    ALL: raw?.length ?? 0,
+  };
 
   // Drives the elapsed-time badge on each ticket -- re-ticking every 30s is
   // enough to keep "X min" honest without a per-second render cost.
@@ -150,20 +170,51 @@ export default function KdsPage() {
     <div className="min-h-screen bg-kds-bg text-kds-text">
       <PageHeader title="Kitchen Display" subtitle="Kopi & Co · Live" dark right={<LogoutButton dark />} />
       <main className="p-5">
+        <div className="flex gap-2 mb-4">
+          {FILTERS.map((f) => {
+            const active = filter === f.key;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-extrabold text-sm border transition-colors ${
+                  active
+                    ? 'bg-accent border-accent text-white'
+                    : 'bg-kds-card border-kds-border text-kds-text-muted-2 hover:bg-kds-card-header'
+                }`}
+              >
+                {f.label}
+                <span
+                  className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                    active ? 'bg-white/20 text-white' : 'bg-kds-bg text-kds-text-muted'
+                  }`}
+                >
+                  {filterCount[f.key]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(308px,1fr))] gap-4 items-start">
           {data?.map((order) => {
             const elapsedMin = Math.max(0, Math.round((now - new Date(order.createdAt).getTime()) / 60_000));
             const typeBadge = TYPE_BADGE[order.type];
             const allReady = order.items.length > 0 && order.items.every((i) => i.kitchenStatus === 'READY' || i.kitchenStatus === 'SERVED');
+            const isDelivered = order.status === 'SERVED';
             // Ready tickets stay green regardless of age -- they're done,
             // not urgent. Everything still in progress uses the same
             // urgency gradient as the elapsed-time badge, so the whole
             // card (not just the timer) signals how long it's been waiting.
-            const topColor = allReady ? '#5fbf7f' : urgencyColor(elapsedMin);
+            // Delivered tickets drop to a flat dark tone instead -- no
+            // urgency left to signal, and it visually recedes against the
+            // still-inflight (bright) cards when the All filter mixes both.
+            const topColor = isDelivered ? '#3a332a' : allReady ? '#5fbf7f' : urgencyColor(elapsedMin);
             return (
               <div
                 key={order.id}
-                className="relative flex flex-col min-h-[220px] bg-kds-card border border-kds-border border-t-4 rounded-2xl shadow-lg shadow-black/20 overflow-hidden"
+                className={`relative flex flex-col min-h-[220px] border border-kds-border border-t-4 rounded-2xl overflow-hidden ${
+                  isDelivered ? 'bg-kds-bg opacity-80' : 'bg-kds-card shadow-lg shadow-black/20'
+                }`}
                 style={{ borderTopColor: topColor }}
               >
                 {bumpedOrderId === order.id && (
@@ -199,8 +250,15 @@ export default function KdsPage() {
                   </div>
                   <div className="flex flex-col items-end leading-tight shrink-0">
                     <span className="text-[11px] font-extrabold text-kds-text">#{order.id.slice(-4).toUpperCase()}</span>
-                    <span className="text-xs font-extrabold" style={{ color: urgencyColor(elapsedMin) }}>
-                      {elapsedMin} min
+                    <span
+                      className="text-xs font-extrabold"
+                      style={{ color: isDelivered ? undefined : urgencyColor(elapsedMin) }}
+                    >
+                      {isDelivered ? (
+                        <span className="text-kds-text-muted">delivered</span>
+                      ) : (
+                        `${elapsedMin} min`
+                      )}
                     </span>
                   </div>
                 </div>
@@ -261,25 +319,31 @@ export default function KdsPage() {
                   })}
                 </div>
                 <div className="p-2.5 mt-auto">
-                  <button
-                    onClick={() => {
-                      setErrorOrderId(order.id);
-                      if (allReady) {
-                        setBumpedOrderId(order.id);
-                        markServed.mutate(
-                          { orderId: order.id },
-                          { onSuccess: () => setTimeout(() => orders.refetch(), 700) }
-                        );
-                      } else {
-                        order.items
-                          .filter((i) => i.kitchenStatus !== 'READY' && i.kitchenStatus !== 'SERVED')
-                          .forEach((i) => updateStatus.mutate({ orderItemId: i.id, status: 'READY' }));
-                      }
-                    }}
-                    className={`w-full py-3 rounded-xl font-extrabold text-sm text-white ${allReady ? 'bg-success' : 'bg-accent'}`}
-                  >
-                    {allReady ? 'Bump · delivered' : 'Mark all ready'}
-                  </button>
+                  {isDelivered ? (
+                    <div className="w-full py-3 rounded-xl font-extrabold text-sm text-center text-kds-text-muted bg-kds-card-header">
+                      Delivered
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setErrorOrderId(order.id);
+                        if (allReady) {
+                          setBumpedOrderId(order.id);
+                          markServed.mutate(
+                            { orderId: order.id },
+                            { onSuccess: () => setTimeout(() => orders.refetch(), 700) }
+                          );
+                        } else {
+                          order.items
+                            .filter((i) => i.kitchenStatus !== 'READY' && i.kitchenStatus !== 'SERVED')
+                            .forEach((i) => updateStatus.mutate({ orderItemId: i.id, status: 'READY' }));
+                        }
+                      }}
+                      className={`w-full py-3 rounded-xl font-extrabold text-sm text-white ${allReady ? 'bg-success' : 'bg-accent'}`}
+                    >
+                      {allReady ? 'Bump · delivered' : 'Mark all ready'}
+                    </button>
+                  )}
                   {errorOrderId === order.id && (updateStatus.isError || markServed.isError) && (
                     <p className="text-[11px] font-semibold text-kds-late mt-2 text-center">
                       {(markServed.error ?? updateStatus.error)?.message}
