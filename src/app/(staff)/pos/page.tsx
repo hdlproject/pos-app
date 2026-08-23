@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'motion/react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -45,12 +44,9 @@ export default function PosPage() {
   // deep" -- the mutation's full input/output inference (order + items +
   // the new optional `pending` flag) pushes past the compiler's recursion
   // limit here, same class of error as the KDS/order pages' workarounds.
-  const createOrder = trpc.order.createStaff.useMutation({
-    onSuccess: (_data: unknown, variables: { type: OrderType }) => setCarts((c) => ({ ...c, [variables.type]: [] })),
-  });
-  // Separate mutation instance from createOrder above -- Charge Cash opens
-  // the payment modal instead of the "sent to kitchen" celebration, so it
-  // needs its own isSuccess/isPending that the cart-panel UI doesn't react to.
+  // Charge Cash is the only path to the kitchen now -- an order is created
+  // as pending (OPEN) and only reaches SENT_TO_KITCHEN once it's paid and
+  // confirmed from the Pending Purchases list.
   const createPending = trpc.order.createStaff.useMutation({
     onSuccess: (_data: unknown, variables: { type: OrderType }) => setCarts((c) => ({ ...c, [variables.type]: [] })),
   });
@@ -58,15 +54,6 @@ export default function PosPage() {
   const [paymentOrder, setPaymentOrder] = useState<{ id: string; total: number } | null>(null);
   const [tendered, setTendered] = useState('');
   const [change, setChange] = useState<number | null>(null);
-
-  // The success celebration takes over the cart panel; clear it back to the
-  // normal empty-cart view after a beat rather than leaving it up forever.
-  useEffect(() => {
-    if (!createOrder.isSuccess) return;
-    const timer = setTimeout(() => createOrder.reset(), 2500);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createOrder.isSuccess]);
 
   // Remember the last-selected category per logged-in user (not globally)
   // so a shared POS terminal doesn't leak one staff member's last category
@@ -140,10 +127,6 @@ export default function PosPage() {
     setCarts((all) => ({ ...all, [type]: [] }));
   }
 
-  function submit() {
-    createOrder.mutate({ type, tableId: type === 'DINE_IN' ? tableId || undefined : undefined, items: cart });
-  }
-
   // Charge Cash creates the order as OPEN (paid before dispatch) instead of
   // sending it to the kitchen -- confirming payment below opens the modal;
   // the order only reaches the kitchen once someone dispatches it from the
@@ -192,10 +175,17 @@ export default function PosPage() {
         title="Point of Sale"
         right={
           <>
-            <Link href="/pending" className="flex items-center gap-2 font-bold text-sm text-text-muted-2 hover:text-text">
+            <Link
+              href="/pending"
+              className={`flex items-center gap-2 pl-3.5 pr-3 py-2 rounded-xl font-extrabold text-sm transition-colors ${
+                pendingCount > 0
+                  ? 'bg-warning/10 text-warning border border-warning/30 hover:bg-warning/15'
+                  : 'text-text-muted-2 hover:bg-surface-input'
+              }`}
+            >
               Pending
               {pendingCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-accent text-white text-[11px] font-extrabold flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-warning text-white text-[11px] font-extrabold flex items-center justify-center animate-pulse">
                   {pendingCount}
                 </span>
               )}
@@ -312,31 +302,7 @@ export default function PosPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-2">
-            {createOrder.isSuccess && cart.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="h-full flex flex-col items-center justify-center gap-3 text-center px-8 py-10"
-              >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 16 }}
-                  className="w-16 h-16 rounded-full bg-success flex items-center justify-center"
-                >
-                  <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <motion.path
-                      d="M5 13l4 4L19 7"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
-                    />
-                  </svg>
-                </motion.div>
-                <div className="font-extrabold text-text">Order sent to kitchen!</div>
-                <div className="text-xs text-text-muted">Ready for a new order.</div>
-              </motion.div>
-            ) : cart.length === 0 ? (
+            {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-2 text-center px-8 py-10 text-text-muted">
                 <div className="w-12 h-12 rounded-2xl bg-surface-input flex items-center justify-center text-xl">🧺</div>
                 <div className="font-bold text-text-muted-2">No items yet</div>
@@ -384,40 +350,30 @@ export default function PosPage() {
             )}
           </div>
 
-          {!(createOrder.isSuccess && cart.length === 0) && (
-            <div className="border-t border-border p-4">
-              <div className="flex justify-between items-baseline pb-2.5 mb-1">
-                <span className="font-extrabold text-text">Total</span>
-                <span className="font-extrabold text-xl text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
-              </div>
-              <div className="flex gap-2.5 mt-2">
-                <Button
-                  variant="outline"
-                  className="shrink-0"
-                  disabled={!cart.length}
-                  onClick={clearCart}
-                >
-                  Clear
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  disabled={!cart.length || createOrder.isPending}
-                  onClick={submit}
-                >
-                  Send to Kitchen
-                </Button>
-              </div>
+          <div className="border-t border-border p-4">
+            <div className="flex justify-between items-baseline pb-2.5 mb-1">
+              <span className="font-extrabold text-text">Total</span>
+              <span className="font-extrabold text-xl text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="flex gap-2.5 mt-2">
+              <Button
+                variant="outline"
+                className="shrink-0"
+                disabled={!cart.length}
+                onClick={clearCart}
+              >
+                Clear
+              </Button>
               <Button
                 variant="primary"
-                className="w-full mt-2.5"
+                className="flex-1"
                 disabled={!cart.length || createPending.isPending}
                 onClick={chargeCash}
               >
                 Charge · Cash — Rp {cartTotal.toLocaleString('id-ID')}
               </Button>
             </div>
-          )}
+          </div>
         </aside>
       </div>
 
