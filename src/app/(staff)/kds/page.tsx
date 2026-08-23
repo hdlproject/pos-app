@@ -359,7 +359,19 @@ export default function KdsPage() {
                           setBumpedOrderId(order.id);
                           markServed.mutate(
                             { orderId: order.id },
-                            { onSuccess: () => setTimeout(() => orders.refetch(), 700) }
+                            {
+                              onSuccess: () => {
+                                setTimeout(() => {
+                                  // On the Inflight-only view the card unmounts
+                                  // once refetch drops it, which used to hide
+                                  // the overlay incidentally. On All/Delivered
+                                  // it stays mounted, so this has to actually
+                                  // clear it or the checkmark never goes away.
+                                  setBumpedOrderId((id) => (id === order.id ? null : id));
+                                  orders.refetch();
+                                }, 700);
+                              },
+                            }
                           );
                         } else {
                           order.items
