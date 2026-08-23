@@ -57,7 +57,6 @@ export default function PendingPurchasesPage() {
           </div>
         )}
         {data?.map((order) => {
-          const hasPayment = order.payments.length > 0;
           const paidAmount = order.payments.reduce((s, p) => s + Number(p.amount), 0);
           return (
             <Card key={order.id} className="flex flex-col gap-3">
@@ -71,15 +70,9 @@ export default function PendingPurchasesPage() {
                     {order.items.map((i) => `${i.qty}× ${i.menuItem.name}`).join(', ')}
                   </div>
                 </div>
-                {hasPayment ? (
-                  <span className="shrink-0 text-[10.5px] font-extrabold uppercase px-2 py-1 rounded-full bg-success/15 text-success">
-                    Paid Rp {paidAmount.toLocaleString('id-ID')}
-                  </span>
-                ) : (
-                  <span className="shrink-0 text-[10.5px] font-extrabold uppercase px-2 py-1 rounded-full bg-warning/15 text-warning">
-                    Payment incomplete
-                  </span>
-                )}
+                <span className="shrink-0 text-[10.5px] font-extrabold uppercase px-2 py-1 rounded-full bg-success/15 text-success">
+                  Paid Rp {paidAmount.toLocaleString('id-ID')}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
                 <div className="font-extrabold text-accent">Rp {Number(order.total).toLocaleString('id-ID')}</div>
@@ -98,7 +91,7 @@ export default function PendingPurchasesPage() {
                   <Button
                     variant="primary"
                     size="sm"
-                    disabled={!hasPayment || sendToKitchen.isPending}
+                    disabled={sendToKitchen.isPending}
                     onClick={() => sendToKitchen.mutate({ orderId: order.id })}
                   >
                     Confirm &amp; send to kitchen
