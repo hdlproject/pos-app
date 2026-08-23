@@ -32,10 +32,11 @@ export function SwipeToRemove({
 
   function handleDragEnd() {
     const current = x.get();
-    // Elastic drag can overshoot past the constraint during the gesture,
-    // so position alone can't gate removal -- a fast first swipe could
-    // otherwise blow past REMOVE_THRESHOLD in one motion. Removal is only
-    // reachable from an already-revealed row (a second, deliberate swipe).
+    // First-stage drag is a hard stop at REVEAL_X (no elastic, no
+    // momentum), so it physically cannot reach REMOVE_THRESHOLD -- but
+    // gate on revealed too as defense in depth against any future change
+    // to those drag props. Removal is only reachable from an
+    // already-revealed row (a second, deliberate swipe).
     if (revealed && current < REMOVE_THRESHOLD) {
       remove();
     } else if (current < REVEAL_THRESHOLD) {
@@ -61,8 +62,9 @@ export function SwipeToRemove({
       <motion.div
         drag="x"
         dragDirectionLock
+        dragMomentum={false}
         dragConstraints={{ left: revealed ? DRAG_LIMIT : REVEAL_X, right: 0 }}
-        dragElastic={{ left: 0.3, right: 0 }}
+        dragElastic={{ left: revealed ? 0.3 : 0, right: 0 }}
         style={{ x, touchAction: 'pan-y' }}
         onDragEnd={handleDragEnd}
         className={`relative ${rowClassName}`}

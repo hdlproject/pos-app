@@ -10,17 +10,27 @@ import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 import { Select } from '@/components/ui/Select';
 import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 
+type OrderType = 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
 type CartLine = { menuItemId: string; qty: number };
+type Carts = Record<OrderType, CartLine[]>;
+
+const EMPTY_CARTS: Carts = { DINE_IN: [], TAKEAWAY: [], DELIVERY: [] };
 
 export default function PosPage() {
   const me = trpc.auth.me.useQuery();
   const menu = trpc.menu.listAll.useQuery();
   const tables = trpc.table.list.useQuery();
-  const [type, setType] = useState<'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'>('TAKEAWAY');
+  const [type, setType] = useState<OrderType>('TAKEAWAY');
   const [tableId, setTableId] = useState<string>('');
   const [category, setCategory] = useState<string>('All');
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const createOrder = trpc.order.createStaff.useMutation({ onSuccess: () => setCart([]) });
+  // Each order type keeps its own cart -- switching Dine-in/Takeaway/Delivery
+  // swaps which one is visible instead of sharing a single list, so an item
+  // added under one type never bleeds into another.
+  const [carts, setCarts] = useState<Carts>(EMPTY_CARTS);
+  const cart = carts[type];
+  const createOrder = trpc.order.createStaff.useMutation({
+    onSuccess: (_data, variables) => setCarts((c) => ({ ...c, [variables.type]: [] })),
+  });
 
   // Remember the last-selected category per logged-in user (not globally)
   // so a shared POS terminal doesn't leak one staff member's last category
@@ -46,35 +56,46 @@ export default function PosPage() {
     if (!me.data || cartHydrated.current) return;
     const saved = localStorage.getItem(`pos-cart-${me.data.userId}`);
     if (saved) {
-      try { setCart(JSON.parse(saved)); } catch { /* ignore corrupt value */ }
+      try {
+        const parsed = JSON.parse(saved);
+        // Older saved carts were a single flat array (pre-per-type split);
+        // treat that as a Takeaway cart, the previous default type.
+        setCarts(Array.isArray(parsed) ? { ...EMPTY_CARTS, TAKEAWAY: parsed } : { ...EMPTY_CARTS, ...parsed });
+      } catch { /* ignore corrupt value */ }
     }
     cartHydrated.current = true;
   }, [me.data]);
 
   useEffect(() => {
     if (!me.data || !cartHydrated.current) return;
-    localStorage.setItem(`pos-cart-${me.data.userId}`, JSON.stringify(cart));
-  }, [cart, me.data]);
+    localStorage.setItem(`pos-cart-${me.data.userId}`, JSON.stringify(carts));
+  }, [carts, me.data]);
 
   function addToCart(menuItemId: string) {
-    setCart((c) => {
+    setCarts((all) => {
+      const c = all[type];
       const existing = c.find((i) => i.menuItemId === menuItemId);
-      if (existing) return c.map((i) => (i.menuItemId === menuItemId ? { ...i, qty: i.qty + 1 } : i));
-      return [...c, { menuItemId, qty: 1 }];
+      const updated = existing
+        ? c.map((i) => (i.menuItemId === menuItemId ? { ...i, qty: i.qty + 1 } : i))
+        : [...c, { menuItemId, qty: 1 }];
+      return { ...all, [type]: updated };
     });
   }
 
   function removeFromCart(menuItemId: string) {
-    setCart((c) => c.filter((i) => i.menuItemId !== menuItemId));
+    setCarts((all) => ({ ...all, [type]: all[type].filter((i) => i.menuItemId !== menuItemId) }));
   }
 
   function changeQty(menuItemId: string, delta: number) {
-    setCart((c) => {
+    setCarts((all) => {
+      const c = all[type];
       const line = c.find((i) => i.menuItemId === menuItemId);
-      if (!line) return c;
+      if (!line) return all;
       const qty = line.qty + delta;
-      if (qty <= 0) return c.filter((i) => i.menuItemId !== menuItemId);
-      return c.map((i) => (i.menuItemId === menuItemId ? { ...i, qty } : i));
+      const updated = qty <= 0
+        ? c.filter((i) => i.menuItemId !== menuItemId)
+        : c.map((i) => (i.menuItemId === menuItemId ? { ...i, qty } : i));
+      return { ...all, [type]: updated };
     });
   }
 
@@ -97,7 +118,8 @@ export default function PosPage() {
         right={
           <div
             onClickCapture={(e) => {
-              if (cart.length > 0 && !window.confirm('You have an in-progress order. Log out anyway?')) {
+              const hasAnyCart = Object.values(carts).some((c) => c.length > 0);
+              if (hasAnyCart && !window.confirm('You have an in-progress order. Log out anyway?')) {
                 e.stopPropagation();
               }
             }}
