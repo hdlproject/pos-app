@@ -114,8 +114,8 @@ export default function KdsPage() {
   return (
     <div className="min-h-screen bg-kds-bg text-kds-text">
       <PageHeader title="Kitchen Display" subtitle="Kopi & Co · Live" dark right={<LogoutButton dark />} />
-      <main className="p-5 overflow-x-auto">
-        <div className="grid grid-flow-col auto-cols-[85vw] sm:auto-cols-[308px] gap-4 items-start">
+      <main className="p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(308px,1fr))] gap-4 items-start">
           {data?.map((order) => {
             const elapsedMin = Math.max(0, Math.round((now - new Date(order.createdAt).getTime()) / 60_000));
             const isLate = elapsedMin >= 10;
@@ -210,7 +210,7 @@ export default function KdsPage() {
             );
           })}
           {data?.length === 0 && (
-            <div className="w-[85vw] sm:w-[308px] flex flex-col items-center justify-center gap-3 py-14 px-6 text-kds-text-muted text-center">
+            <div className="col-span-full flex flex-col items-center justify-center gap-3 py-14 px-6 text-kds-text-muted text-center">
               <div className="w-14 h-14 rounded-2xl bg-kds-card flex items-center justify-center text-2xl">🍳</div>
               <div className="font-extrabold text-kds-text-muted-2">All caught up</div>
               <div className="text-xs">No open tickets right now.</div>
