@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -36,6 +37,15 @@ export default function PosPage() {
   const createOrder = trpc.order.createStaff.useMutation({
     onSuccess: (_data, variables) => setCarts((c) => ({ ...c, [variables.type]: [] })),
   });
+
+  // The success celebration takes over the cart panel; clear it back to the
+  // normal empty-cart view after a beat rather than leaving it up forever.
+  useEffect(() => {
+    if (!createOrder.isSuccess) return;
+    const timer = setTimeout(() => createOrder.reset(), 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createOrder.isSuccess]);
 
   // Remember the last-selected category per logged-in user (not globally)
   // so a shared POS terminal doesn't leak one staff member's last category
@@ -234,7 +244,31 @@ export default function PosPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-2">
-            {cart.length === 0 ? (
+            {createOrder.isSuccess && cart.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="h-full flex flex-col items-center justify-center gap-3 text-center px-8 py-10"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+                  className="w-16 h-16 rounded-full bg-success flex items-center justify-center"
+                >
+                  <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <motion.path
+                      d="M5 13l4 4L19 7"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+                    />
+                  </svg>
+                </motion.div>
+                <div className="font-extrabold text-text">Order sent to kitchen!</div>
+                <div className="text-xs text-text-muted">Ready for a new order.</div>
+              </motion.div>
+            ) : cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-2 text-center px-8 py-10 text-text-muted">
                 <div className="w-12 h-12 rounded-2xl bg-surface-input flex items-center justify-center text-xl">🧺</div>
                 <div className="font-bold text-text-muted-2">No items yet</div>
@@ -276,23 +310,22 @@ export default function PosPage() {
             )}
           </div>
 
-          <div className="border-t border-border p-4">
-            <div className="flex justify-between items-baseline pb-2.5 mb-1">
-              <span className="font-extrabold text-text">Total</span>
-              <span className="font-extrabold text-xl text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
+          {!(createOrder.isSuccess && cart.length === 0) && (
+            <div className="border-t border-border p-4">
+              <div className="flex justify-between items-baseline pb-2.5 mb-1">
+                <span className="font-extrabold text-text">Total</span>
+                <span className="font-extrabold text-xl text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
+              </div>
+              <Button
+                variant="primary"
+                className="w-full mt-2"
+                disabled={!cart.length || createOrder.isPending}
+                onClick={submit}
+              >
+                Send to Kitchen
+              </Button>
             </div>
-            <Button
-              variant="primary"
-              className="w-full mt-2"
-              disabled={!cart.length || createOrder.isPending}
-              onClick={submit}
-            >
-              Send to Kitchen
-            </Button>
-            {createOrder.isSuccess && (
-              <p className="text-success text-xs font-semibold mt-2 text-center">Order submitted.</p>
-            )}
-          </div>
+          )}
         </aside>
       </div>
     </div>
