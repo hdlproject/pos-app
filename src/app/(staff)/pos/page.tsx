@@ -147,7 +147,7 @@ export default function PosPage() {
             {visibleItems.map((item) => {
               const effectivelyAvailable = item.available && !item.outOfStockReason;
               return (
-                <Card key={item.id} className={`w-40 shrink-0 md:w-auto flex flex-col gap-2.5 ${effectivelyAvailable ? '' : 'opacity-50'}`}>
+                <Card key={item.id} className={`w-[calc((100%-1.75rem)/3)] shrink-0 md:w-auto flex flex-col gap-2.5 ${effectivelyAvailable ? '' : 'opacity-50'}`}>
                   <MenuItemThumbnail
                     image={item.image}
                     categoryName={item.category.name}
