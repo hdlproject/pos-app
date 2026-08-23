@@ -69,35 +69,39 @@ export default function KdsPage() {
       <main className="p-5 overflow-x-auto">
         <div className="grid grid-flow-col auto-cols-[85vw] sm:auto-cols-[308px] gap-4 items-start">
           {data?.map((order) => (
-            <div key={order.id} className="flex flex-col min-h-[220px] bg-kds-card border border-kds-border rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-kds-card-header border-b border-kds-border">
+            <div key={order.id} className="flex flex-col min-h-[220px] bg-kds-card border border-kds-border rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-3.5 py-3 bg-kds-card-header border-b border-kds-border">
                 <span className="text-base font-extrabold text-kds-text">{order.table?.label ?? order.type}</span>
-                <span className="text-[11px] font-bold uppercase tracking-wide text-kds-text-muted">{order.status}</span>
+                <span className="text-[10.5px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-full bg-kds-bg text-kds-text-muted-2">
+                  {order.status}
+                </span>
               </div>
               <div className="p-1.5 flex-1">
                 {order.items.map((item) => {
                   const isTerminal = item.kitchenStatus === 'READY' || item.kitchenStatus === 'SERVED';
                   return (
-                    <div key={item.id} className="flex items-center gap-2.5 px-2 py-2.5 border-b border-kds-border">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[item.kitchenStatus]}`} />
-                      <span className="font-extrabold text-sm min-w-[24px]">{item.qty}×</span>
-                      <span className={`flex-1 text-sm font-bold ${isTerminal ? 'text-kds-text-muted line-through' : 'text-kds-text'}`}>
-                        {item.menuItem.name}
-                      </span>
-                      <span className="text-[10.5px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-kds-card-header text-kds-text-muted-2">
-                        {STATUS_LABEL[item.kitchenStatus]}
-                      </span>
+                    <div key={item.id} className="px-2 py-2.5 border-b border-kds-border last:border-b-0">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[item.kitchenStatus]}`} />
+                        <span className="font-extrabold text-sm min-w-[24px]">{item.qty}×</span>
+                        <span className={`flex-1 text-sm font-bold ${isTerminal ? 'text-kds-text-muted line-through' : 'text-kds-text'}`}>
+                          {item.menuItem.name}
+                        </span>
+                        <span className="text-[10.5px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-kds-card-header text-kds-text-muted-2 shrink-0">
+                          {STATUS_LABEL[item.kitchenStatus]}
+                        </span>
+                      </div>
                       {!isTerminal && (
-                        <div className="flex gap-1.5 ml-1">
+                        <div className="flex gap-1.5 mt-2 pl-[26px]">
                           <button
                             onClick={() => updateStatus.mutate({ orderItemId: item.id, status: 'PREPARING' })}
-                            className="px-2 py-1 rounded-lg bg-kds-card-header text-kds-text-muted-2 text-[11px] font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 focus-visible:ring-offset-kds-bg"
+                            className="flex-1 py-1.5 rounded-lg bg-kds-card-header text-kds-text-muted-2 text-xs font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 focus-visible:ring-offset-kds-bg"
                           >
                             Preparing
                           </button>
                           <button
                             onClick={() => updateStatus.mutate({ orderItemId: item.id, status: 'READY' })}
-                            className="px-2 py-1 rounded-lg bg-status-ready text-kds-bg text-[11px] font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 focus-visible:ring-offset-kds-bg"
+                            className="flex-1 py-1.5 rounded-lg bg-status-ready text-kds-bg text-xs font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 focus-visible:ring-offset-kds-bg"
                           >
                             Ready
                           </button>
