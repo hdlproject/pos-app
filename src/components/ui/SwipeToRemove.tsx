@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'motion/react';
 import type { ReactNode } from 'react';
 
-const REVEAL_X = -80;
-const REVEAL_THRESHOLD = -40;
-const REMOVE_THRESHOLD = -160;
+const REVEAL_X = -56;
+const REVEAL_THRESHOLD = -28;
+const REMOVE_THRESHOLD = -140;
 const DRAG_LIMIT = -240;
 
 // Wraps a cart row in a two-stage swipe-to-remove. First swipe past
@@ -25,7 +25,7 @@ export function SwipeToRemove({
 }) {
   const [revealed, setRevealed] = useState(false);
   const x = useMotionValue(0);
-  const bgOpacity = useTransform(x, [-40, -10], [1, 0]);
+  const bgOpacity = useTransform(x, [-28, -8], [1, 0]);
 
   function remove() {
     animate(x, -400, { duration: 0.2, ease: 'easeIn', onComplete: onRemove });
