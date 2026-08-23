@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
@@ -25,6 +26,8 @@ export default function PosPage() {
   const me = trpc.auth.me.useQuery();
   const menu = trpc.menu.listAll.useQuery();
   const tables = trpc.table.list.useQuery();
+  const pending = trpc.order.listPendingDispatch.useQuery();
+  const pendingCount = pending.data?.length ?? 0;
   const [type, setType] = useState<OrderType>('TAKEAWAY');
   const [tableId, setTableId] = useState<string>('');
   const [category, setCategory] = useState<string>('All');
@@ -163,7 +166,7 @@ export default function PosPage() {
     const amount = Number(tendered) || 0;
     payCash.mutate(
       { orderId: paymentOrder.id, tendered: amount },
-      { onSuccess: (result) => setChange(result.change) }
+      { onSuccess: (result) => { setChange(result.change); pending.refetch(); } }
     );
   }
 
@@ -188,16 +191,26 @@ export default function PosPage() {
       <PageHeader
         title="Point of Sale"
         right={
-          <div
-            onClickCapture={(e) => {
-              const hasAnyCart = Object.values(carts).some((c) => c.length > 0);
-              if (hasAnyCart && !window.confirm('You have an in-progress order. Log out anyway?')) {
-                e.stopPropagation();
-              }
-            }}
-          >
-            <LogoutButton />
-          </div>
+          <>
+            <Link href="/pending" className="flex items-center gap-2 font-bold text-sm text-text-muted-2 hover:text-text">
+              Pending
+              {pendingCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-accent text-white text-[11px] font-extrabold flex items-center justify-center">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+            <div
+              onClickCapture={(e) => {
+                const hasAnyCart = Object.values(carts).some((c) => c.length > 0);
+                if (hasAnyCart && !window.confirm('You have an in-progress order. Log out anyway?')) {
+                  e.stopPropagation();
+                }
+              }}
+            >
+              <LogoutButton />
+            </div>
+          </>
         }
       />
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
