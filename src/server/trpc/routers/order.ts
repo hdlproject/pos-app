@@ -194,12 +194,13 @@ export const orderRouter = router({
       return order ?? null;
     }),
 
-  // OPEN is excluded here on purpose: a charge-first order sits at OPEN
-  // until sendToKitchen confirms it, and shouldn't be kitchen-visible
-  // before that -- whether or not it's been paid yet.
+  // OPEN is excluded on purpose: a charge-first order sits at OPEN until
+  // sendToKitchen confirms it, and shouldn't be kitchen-visible before
+  // that. SERVED is excluded too -- that's the KDS "Bump" action, meant
+  // to clear a ticket off the board once delivered, not leave it parked.
   listOpen: roleProcedure('ADMIN', 'STAFF', 'KITCHEN').query(({ ctx }) =>
     ctx.db.order.findMany({
-      where: { status: { in: ['SENT_TO_KITCHEN', 'READY', 'SERVED'] } },
+      where: { status: { in: ['SENT_TO_KITCHEN', 'READY'] } },
       include: { items: { include: { menuItem: true } }, table: true },
       orderBy: { createdAt: 'asc' },
     })

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Ably from 'ably';
+import { motion } from 'motion/react';
 import { trpc } from '@/lib/trpc-client';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { LogoutButton } from '@/components/ui/LogoutButton';
@@ -135,11 +136,15 @@ export default function KdsPage() {
   }, []);
 
   const updateStatus = trpc.kitchen.updateItemStatus.useMutation({ onSuccess: () => orders.refetch() });
-  const markServed = trpc.kitchen.markServed.useMutation({ onSuccess: () => orders.refetch() });
+  // Refetch is delayed on success (not fired immediately) so the checkmark
+  // overlay below gets a beat to actually play before the ticket vanishes
+  // from the board -- an instant refetch would yank the card away mid-animation.
+  const markServed = trpc.kitchen.markServed.useMutation();
   // Neither mutation had any visible failure feedback before -- a rejected
   // call (e.g. a role the backend doesn't allow) just did nothing, which is
   // exactly how "Bump - delivered" silently failing for KITCHEN went unnoticed.
   const [errorOrderId, setErrorOrderId] = useState<string | null>(null);
+  const [bumpedOrderId, setBumpedOrderId] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-kds-bg text-kds-text">
@@ -158,9 +163,33 @@ export default function KdsPage() {
             return (
               <div
                 key={order.id}
-                className="flex flex-col min-h-[220px] bg-kds-card border border-kds-border border-t-4 rounded-2xl shadow-lg shadow-black/20 overflow-hidden"
+                className="relative flex flex-col min-h-[220px] bg-kds-card border border-kds-border border-t-4 rounded-2xl shadow-lg shadow-black/20 overflow-hidden"
                 style={{ borderTopColor: topColor }}
               >
+                {bumpedOrderId === order.id && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="absolute inset-0 z-10 bg-kds-bg/95 flex flex-col items-center justify-center gap-2"
+                  >
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+                      className="w-14 h-14 rounded-full bg-success flex items-center justify-center"
+                    >
+                      <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <motion.path
+                          d="M5 13l4 4L19 7"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 0.35, delay: 0.15, ease: 'easeOut' }}
+                        />
+                      </svg>
+                    </motion.div>
+                    <div className="font-extrabold text-sm text-kds-text">Delivered</div>
+                  </motion.div>
+                )}
                 <div className="flex items-start justify-between gap-2 px-3.5 py-3 bg-kds-card-header border-b border-kds-border-header">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shrink-0 ${typeBadge?.className ?? 'bg-kds-bg text-kds-text-muted-2'}`}>
@@ -236,7 +265,11 @@ export default function KdsPage() {
                     onClick={() => {
                       setErrorOrderId(order.id);
                       if (allReady) {
-                        markServed.mutate({ orderId: order.id });
+                        setBumpedOrderId(order.id);
+                        markServed.mutate(
+                          { orderId: order.id },
+                          { onSuccess: () => setTimeout(() => orders.refetch(), 700) }
+                        );
                       } else {
                         order.items
                           .filter((i) => i.kitchenStatus !== 'READY' && i.kitchenStatus !== 'SERVED')
