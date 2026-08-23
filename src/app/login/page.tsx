@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
@@ -55,6 +56,15 @@ export default function LoginPage() {
               </Button>
             ))}
           </div>
+          {/* Customers never log in -- they reach /order/[tableToken] by
+              scanning a table's QR code. This links straight to a seeded
+              demo table so the self-order flow is reachable without one. */}
+          <Link
+            href={`/order/${DEMO_CUSTOMER_TABLE_TOKEN}`}
+            className="mt-2 w-full flex items-center justify-center px-3 py-1.5 rounded-xl border border-border-strong bg-surface text-text-muted-2 hover:bg-surface-input font-bold text-xs transition-colors"
+          >
+            Customer
+          </Link>
         </div>
       </div>
     </main>
@@ -66,6 +76,8 @@ const DEMO_LOGINS = [
   { role: 'Staff', pin: '2345' },
   { role: 'Kitchen', pin: '4567' },
 ];
+
+const DEMO_CUSTOMER_TABLE_TOKEN = 'seed-table-1-token';
 
 function landingPathForRole(role: string): string {
   if (role === 'KITCHEN') return '/kds';
