@@ -209,11 +209,39 @@ export default function KdsPage() {
             // urgency left to signal, and it visually recedes against the
             // still-inflight (bright) cards when the All filter mixes both.
             const topColor = isDelivered ? '#3a332a' : allReady ? '#5fbf7f' : urgencyColor(elapsedMin);
+            // Inflight tickets borrow the POS page's light cream/tan
+            // palette instead of the page's own dark theme -- reads as
+            // bright/active against both the dark kds-bg page and the
+            // dark-styled delivered cards. Delivered stays on the
+            // original dark theme.
+            const theme = isDelivered
+              ? {
+                  cardBg: 'bg-kds-bg',
+                  headerBg: 'bg-kds-card-header',
+                  cardBorder: 'border-kds-border',
+                  headerBorder: 'border-kds-border-header',
+                  rowBorder: 'border-kds-border-row',
+                  textPrimary: 'text-kds-text',
+                  textMuted: 'text-kds-text-muted',
+                  typeFallback: 'bg-kds-bg text-kds-text-muted-2',
+                  prepBtn: 'bg-kds-card-header text-kds-text-muted-2 focus-visible:ring-offset-kds-bg',
+                }
+              : {
+                  cardBg: 'bg-bg',
+                  headerBg: 'bg-surface',
+                  cardBorder: 'border-border-strong',
+                  headerBorder: 'border-border',
+                  rowBorder: 'border-border',
+                  textPrimary: 'text-text',
+                  textMuted: 'text-text-muted',
+                  typeFallback: 'bg-surface-input text-text-muted-2',
+                  prepBtn: 'bg-surface-input text-text-muted-2 focus-visible:ring-offset-surface',
+                };
             return (
               <div
                 key={order.id}
-                className={`relative flex flex-col min-h-[220px] border border-kds-border border-t-4 rounded-2xl overflow-hidden ${
-                  isDelivered ? 'bg-kds-bg opacity-80' : 'bg-kds-card shadow-lg shadow-black/20'
+                className={`relative flex flex-col min-h-[220px] border ${theme.cardBorder} border-t-4 rounded-2xl overflow-hidden ${
+                  isDelivered ? `${theme.cardBg} opacity-80` : `${theme.cardBg} shadow-lg shadow-black/40`
                 }`}
                 style={{ borderTopColor: topColor }}
               >
@@ -241,15 +269,15 @@ export default function KdsPage() {
                     <div className="font-extrabold text-sm text-kds-text">Delivered</div>
                   </motion.div>
                 )}
-                <div className="flex items-start justify-between gap-2 px-3.5 py-3 bg-kds-card-header border-b border-kds-border-header">
+                <div className={`flex items-start justify-between gap-2 px-3.5 py-3 ${theme.headerBg} border-b ${theme.headerBorder}`}>
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shrink-0 ${typeBadge?.className ?? 'bg-kds-bg text-kds-text-muted-2'}`}>
+                    <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md shrink-0 ${typeBadge?.className ?? theme.typeFallback}`}>
                       {typeBadge?.label ?? order.type}
                     </span>
-                    <span className="text-base font-extrabold text-kds-text truncate">{order.table?.label ?? typeBadge?.label ?? order.type}</span>
+                    <span className={`text-base font-extrabold ${theme.textPrimary} truncate`}>{order.table?.label ?? typeBadge?.label ?? order.type}</span>
                   </div>
                   <div className="flex flex-col items-end leading-tight shrink-0">
-                    <span className="text-[11px] font-extrabold text-kds-text">#{order.id.slice(-4).toUpperCase()}</span>
+                    <span className={`text-[11px] font-extrabold ${theme.textPrimary}`}>#{order.id.slice(-4).toUpperCase()}</span>
                     <span
                       className="text-xs font-extrabold"
                       style={{ color: isDelivered ? undefined : urgencyColor(elapsedMin) }}
@@ -270,7 +298,7 @@ export default function KdsPage() {
                     .map((item) => {
                     const isTerminal = item.kitchenStatus === 'READY' || item.kitchenStatus === 'SERVED';
                     return (
-                      <div key={item.id} className="px-2 py-2.5 border-b border-kds-border-row last:border-b-0">
+                      <div key={item.id} className={`px-2 py-2.5 border-b ${theme.rowBorder} last:border-b-0`}>
                         <div className="flex items-center gap-2.5">
                           {item.kitchenStatus === 'SERVED' ? (
                             <span
@@ -293,8 +321,8 @@ export default function KdsPage() {
                               ✓
                             </button>
                           )}
-                          <span className="font-extrabold text-sm min-w-[24px]">{item.qty}×</span>
-                          <span className={`flex-1 text-sm font-bold ${isTerminal ? 'text-kds-text-muted line-through' : 'text-kds-text'}`}>
+                          <span className={`font-extrabold text-sm min-w-[24px] ${theme.textPrimary}`}>{item.qty}×</span>
+                          <span className={`flex-1 text-sm font-bold ${isTerminal ? `${theme.textMuted} line-through` : theme.textPrimary}`}>
                             {item.menuItem.name}
                           </span>
                           <span className={`text-[10.5px] font-extrabold uppercase px-2 py-0.5 rounded-full shrink-0 ${PILL_CLASS[item.kitchenStatus]}`}>
@@ -308,7 +336,7 @@ export default function KdsPage() {
                                 setErrorOrderId(order.id);
                                 updateStatus.mutate({ orderItemId: item.id, status: 'PREPARING' });
                               }}
-                              className="w-full py-1.5 rounded-lg bg-kds-card-header text-kds-text-muted-2 text-xs font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 focus-visible:ring-offset-kds-bg"
+                              className={`w-full py-1.5 rounded-lg text-xs font-bold focus-visible:ring-2 focus-visible:ring-status-ready focus-visible:ring-offset-1 ${theme.prepBtn}`}
                             >
                               Preparing
                             </button>
