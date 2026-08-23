@@ -35,10 +35,11 @@ export default function PendingPurchasesPage() {
   // beat to play before the card actually leaves the list -- same pattern
   // as the KDS bump animation.
   const sendToKitchen = trpc.order.sendToKitchen.useMutation();
-  const cancel = trpc.order.cancel.useMutation({ onSuccess: () => orders.refetch() });
+  const cancel = trpc.order.cancel.useMutation();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [dispatchedId, setDispatchedId] = useState<string | null>(null);
+  const [cancelledId, setCancelledId] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-bg">
@@ -94,6 +95,30 @@ export default function PendingPurchasesPage() {
                   <div className="font-extrabold text-sm text-text">Sent to kitchen</div>
                 </motion.div>
               )}
+              {cancelledId === order.id && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute inset-0 z-10 bg-surface/95 flex flex-col items-center justify-center gap-2"
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+                    className="w-12 h-12 rounded-full bg-warning flex items-center justify-center"
+                  >
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <motion.path
+                        d="M6 6l12 12M18 6L6 18"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.35, delay: 0.15, ease: 'easeOut' }}
+                      />
+                    </svg>
+                  </motion.div>
+                  <div className="font-extrabold text-sm text-text">Cancelled</div>
+                </motion.div>
+              )}
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="font-bold text-text text-sm">
@@ -117,7 +142,15 @@ export default function PendingPurchasesPage() {
                     disabled={cancel.isPending}
                     onClick={() => {
                       setCancellingId(order.id);
-                      cancel.mutate({ orderId: order.id, reason: 'Cancelled from pending purchases' });
+                      cancel.mutate(
+                        { orderId: order.id, reason: 'Cancelled from pending purchases' },
+                        {
+                          onSuccess: () => {
+                            setCancelledId(order.id);
+                            setTimeout(() => orders.refetch(), 700);
+                          },
+                        }
+                      );
                     }}
                   >
                     Cancel
