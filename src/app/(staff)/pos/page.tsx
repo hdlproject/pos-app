@@ -372,7 +372,7 @@ export default function PosPage() {
                 Clear
               </Button>
               <Button
-                variant="primary"
+                variant="success"
                 className="flex-1"
                 disabled={!cart.length}
                 onClick={openReview}
@@ -427,7 +427,7 @@ export default function PosPage() {
                   </div>
 
                   <Button
-                    variant="success"
+                    variant="primary"
                     className="w-full"
                     disabled={createPending.isPending || payCash.isPending}
                     onClick={confirmOrder}
