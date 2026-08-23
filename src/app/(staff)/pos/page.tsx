@@ -52,11 +52,11 @@ export default function PosPage() {
   // Online payment only -- no cash tendered/change to collect, so paying
   // is a single confirm for the exact total rather than a manual amount.
   const payCash = trpc.payment.payCash.useMutation();
-  const [paymentOrder, setPaymentOrder] = useState<{
-    id: string;
-    total: number;
-    items: { name: string; qty: number; price: number }[];
-  } | null>(null);
+  // Create Order only opens the review modal -- nothing is placed in the
+  // DB until Confirm Order actually runs createPending + payCash. Until
+  // then the modal reads straight off the live cart, since it's still
+  // exactly what will be ordered.
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [paid, setPaid] = useState(false);
 
   // Remember the last-selected category per logged-in user (not globally)
@@ -131,41 +131,36 @@ export default function PosPage() {
     setCarts((all) => ({ ...all, [type]: [] }));
   }
 
-  // Charging creates the order as OPEN (paid before dispatch) instead of
-  // sending it to the kitchen -- confirming payment below opens the modal;
-  // the order only reaches the kitchen once someone dispatches it from the
-  // pending-purchases list.
-  async function chargeOrder() {
+  function openReview() {
     if (!cart.length) return;
-    // Snapshot the lines before creating the order -- createPending's
-    // onSuccess clears carts[type] right away, so `cart` itself would
-    // already be empty by the time the confirm modal renders.
-    const lineSummaries = cart.map((line) => {
-      const item = items.find((i) => i.id === line.menuItemId);
-      return { name: item?.name ?? 'Item', qty: line.qty, price: item ? Number(item.price) : 0 };
-    });
+    setPaid(false);
+    setReviewOpen(true);
+  }
+
+  // Confirm Order is the one moment anything is actually placed: creates
+  // the order as OPEN (paid before dispatch) and immediately charges it.
+  // It only reaches the kitchen once someone dispatches it from the
+  // pending-purchases list -- nothing happens on Create Order itself.
+  async function confirmOrder() {
+    if (!cart.length) return;
+    const total = cartTotal;
     const order = (await createPending.mutateAsync({
       type,
       tableId: type === 'DINE_IN' ? tableId || undefined : undefined,
       items: cart,
       pending: true,
     })) as CreatedOrder;
-    setPaymentOrder({ id: order.id, total: cartTotal, items: lineSummaries });
-    setPaid(false);
-  }
-
-  function confirmPayment() {
-    if (!paymentOrder) return;
     // Online payment collects the exact total -- no tendered amount to type.
     payCash.mutate(
-      { orderId: paymentOrder.id, tendered: paymentOrder.total },
+      { orderId: order.id, tendered: total },
       { onSuccess: () => { setPaid(true); pending.refetch(); } }
     );
   }
 
-  function closePaymentModal() {
-    setPaymentOrder(null);
+  function closeReview() {
+    setReviewOpen(false);
     setPaid(false);
+    createPending.reset();
     payCash.reset();
   }
 
@@ -379,8 +374,8 @@ export default function PosPage() {
               <Button
                 variant="primary"
                 className="flex-1"
-                disabled={!cart.length || createPending.isPending}
-                onClick={chargeOrder}
+                disabled={!cart.length}
+                onClick={openReview}
               >
                 Create Order
               </Button>
@@ -389,7 +384,7 @@ export default function PosPage() {
         </aside>
       </div>
 
-      {paymentOrder && (
+      {reviewOpen && (
         <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="w-full max-w-[420px] bg-surface rounded-3xl overflow-hidden shadow-2xl">
             {!paid ? (
@@ -398,12 +393,11 @@ export default function PosPage() {
                   <div>
                     <div className="font-display text-xl text-text">Confirm Order</div>
                     <div className="text-xs text-text-muted font-semibold mt-0.5">
-                      {type === 'DINE_IN' ? 'Dine-in' : type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'} ·{' '}
-                      {paymentOrder.items.reduce((s, l) => s + l.qty, 0)} items
+                      {type === 'DINE_IN' ? 'Dine-in' : type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'} · {cartCount} items
                     </div>
                   </div>
                   <button
-                    onClick={closePaymentModal}
+                    onClick={closeReview}
                     aria-label="Close"
                     className="w-8 h-8 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center shrink-0"
                   >
@@ -412,29 +406,37 @@ export default function PosPage() {
                 </div>
                 <div className="p-5">
                   <div className="flex flex-col gap-1.5 mb-4">
-                    {paymentOrder.items.map((line, i) => (
-                      <div key={i} className="flex justify-between items-baseline text-sm">
-                        <span className="text-text-muted-2 font-semibold">
-                          {line.qty}× {line.name}
-                        </span>
-                        <span className="font-bold text-text">Rp {(line.price * line.qty).toLocaleString('id-ID')}</span>
-                      </div>
-                    ))}
+                    {cart.map((line) => {
+                      const item = items.find((i) => i.id === line.menuItemId);
+                      return (
+                        <div key={line.menuItemId} className="flex justify-between items-baseline text-sm">
+                          <span className="text-text-muted-2 font-semibold">
+                            {line.qty}× {item?.name ?? 'Item'}
+                          </span>
+                          <span className="font-bold text-text">
+                            Rp {item ? (Number(item.price) * line.qty).toLocaleString('id-ID') : ''}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="flex justify-between items-baseline px-4 py-3.5 bg-surface-input rounded-2xl mb-5">
                     <span className="text-sm font-bold text-accent-tint">Amount due</span>
-                    <span className="text-2xl font-extrabold text-accent">Rp {paymentOrder.total.toLocaleString('id-ID')}</span>
+                    <span className="text-2xl font-extrabold text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
                   </div>
 
                   <Button
                     variant="success"
                     className="w-full"
-                    disabled={payCash.isPending}
-                    onClick={confirmPayment}
+                    disabled={createPending.isPending || payCash.isPending}
+                    onClick={confirmOrder}
                   >
                     Confirm Order
                   </Button>
+                  {createPending.isError && (
+                    <p className="text-warning text-xs font-semibold mt-2 text-center">{createPending.error.message}</p>
+                  )}
                   {payCash.isError && (
                     <p className="text-warning text-xs font-semibold mt-2 text-center">{payCash.error.message}</p>
                   )}
@@ -449,7 +451,7 @@ export default function PosPage() {
                 <div className="text-sm text-text-muted font-semibold leading-relaxed">
                   Added to Pending Purchases — confirm it there to send to the kitchen.
                 </div>
-                <Button variant="primary" className="w-full mt-5" onClick={closePaymentModal}>
+                <Button variant="primary" className="w-full mt-5" onClick={closeReview}>
                   New order
                 </Button>
               </div>
