@@ -80,7 +80,13 @@ const DEMO_LOGINS = [
   { role: 'Kitchen', pin: '4567' },
 ];
 
-const DEMO_CUSTOMER_TABLE_TOKEN = 'seed-table-1-token';
+// Real table qrTokens are randomly generated (see table.ts), not a fixed
+// human-readable string -- this has to be an actual current row's token,
+// checked via table.list, or Submit order 404s with "invalid table
+// token" for anyone using this demo link. Re-check if tables ever get
+// reseeded/regenerated (an admin "table" row is deleted and recreated,
+// or its QR is rotated) and this starts failing again.
+const DEMO_CUSTOMER_TABLE_TOKEN = 'c9839b730b71c71cc7096054';
 
 function landingPathForRole(role: string): string {
   if (role === 'KITCHEN') return '/kds';
