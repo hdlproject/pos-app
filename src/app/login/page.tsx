@@ -59,15 +59,18 @@ export default function LoginPage() {
           {/* Customers never log in -- they reach /order/[tableToken] by
               scanning a table's QR code. This links straight to a seeded
               demo table so the self-order flow is reachable without one. */}
-          <Link
-            href={`/order/${DEMO_CUSTOMER_TABLE_TOKEN}`}
-            className="mt-2 w-full flex items-center justify-center px-3 py-1.5 rounded-xl border border-border-strong bg-surface text-text-muted-2 hover:bg-surface-input font-bold text-xs transition-colors"
-          >
-            Customer
-          </Link>
-          <p className="text-text-muted text-[10.5px] font-semibold mt-1.5 leading-snug">
-            In reality customers scan their table&apos;s QR code to open this — this button skips straight to a demo table.
-          </p>
+          <div className="mt-5 pt-5 border-t border-border">
+            <p className="text-text-muted text-xs font-bold mb-2.5">Customer demo</p>
+            <Link
+              href={`/order/${DEMO_CUSTOMER_TABLE_TOKEN}`}
+              className="w-full flex items-center justify-center px-3 py-1.5 rounded-xl border border-border-strong bg-surface text-text-muted-2 hover:bg-surface-input font-bold text-xs transition-colors"
+            >
+              Customer
+            </Link>
+            <p className="text-text-muted text-[10.5px] font-semibold mt-1.5 leading-snug">
+              In reality customers scan their table&apos;s QR code to open this — this button skips straight to a demo table.
+            </p>
+          </div>
         </div>
       </div>
     </main>
