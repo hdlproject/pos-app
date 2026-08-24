@@ -104,13 +104,17 @@ export const orderRouter = router({
       return order;
     }),
 
-  // The one staff action for every pending order, whichever way it got
-  // there: a staff charge-first order (createAndCharge) already has its
-  // payment, so this just dispatches. A customer QR order (createByTable)
-  // doesn't -- staff collects payment in person, so confirming here also
-  // charges it (exact total, stock deducted now, same moment payment is
-  // first recorded either way) before dispatching. One button, one mental
-  // model: confirm payment (if needed) and send to kitchen.
+  // The one staff action for every pending order, but it means something
+  // different depending on what the order is:
+  // - Open-table parent: has no items of its own, only reachable once the
+  //   customer finished the session. This is the "Confirm payment" action
+  //   -- charges the sum of every child round's total in one Payment and
+  //   closes the session (PAID). Never dispatches (nothing to dispatch).
+  // - Open-table child (one round): dispatch only, no payment -- the
+  //   parent settles the whole bill once the session ends.
+  // - Ordinary order (staff charge-first or customer QR, no session):
+  //   charges it if unpaid (customer QR orders never pre-pay), then
+  //   dispatches. Unchanged from before parent/child orders existed.
   sendToKitchen: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -118,8 +122,35 @@ export const orderRouter = router({
       if (order.status !== 'OPEN') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is not pending dispatch' });
       }
-      const payment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
 
+      if (order.isOpenTableSession) {
+        if (!order.sessionFinished) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'table has not been finished by the customer yet' });
+        }
+        const children = await ctx.db.order.findMany({ where: { parentOrderId: order.id } });
+        const total = children.reduce((sum, c) => sum + Number(c.total), 0);
+        return ctx.db.$transaction(async (tx) => {
+          await tx.payment.create({
+            data: { orderId: order.id, amount: total, method: 'CASH', receivedById: ctx.user.userId },
+          });
+          return tx.order.update({ where: { id: order.id }, data: { status: 'PAID', total } });
+        });
+      }
+
+      if (order.parentOrderId) {
+        const updated = await ctx.db.$transaction(async (tx) => {
+          await deductStockForOrder(tx, order.id, ctx.user.userId);
+          return tx.order.update({ where: { id: order.id }, data: { status: 'SENT_TO_KITCHEN' } });
+        });
+        try {
+          await publishOrderEvent('order.dispatched', updated);
+        } catch (err) {
+          console.error('publishOrderEvent failed for order.dispatched', err);
+        }
+        return updated;
+      }
+
+      const payment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
       const updated = await ctx.db.$transaction(async (tx) => {
         if (!payment) {
           await tx.payment.create({
@@ -137,24 +168,95 @@ export const orderRouter = router({
       return updated;
     }),
 
-  // Charge-first orders (paid, awaiting manual dispatch confirmation).
+  // Ordinary orders, open-table rounds (children), and finished open-table
+  // sessions (parents, ready for their one closing payment) -- everything
+  // a staff member might need to act on from this one queue. A parent
+  // that isn't finished yet is deliberately excluded: nothing to do with
+  // it until the customer ends the session.
   listPendingDispatch: roleProcedure('ADMIN', 'STAFF').query(({ ctx }) =>
     ctx.db.order.findMany({
-      where: { status: 'OPEN' },
-      include: { items: { include: { menuItem: true } }, table: true, payments: true },
+      where: {
+        status: 'OPEN',
+        OR: [
+          { isOpenTableSession: false, parentOrderId: null },
+          { parentOrderId: { not: null } },
+          { isOpenTableSession: true, sessionFinished: true },
+        ],
+      },
+      include: { items: { include: { menuItem: true } }, table: true, payments: true, children: true },
       orderBy: { createdAt: 'asc' },
     })
   ),
+
+  // Starts an open-table session: a parent order with no items of its own,
+  // anchoring every round the customer submits from here on. Reuses an
+  // already-active session for the table instead of creating a duplicate
+  // (e.g. a reload racing the recovery query).
+  startTableSession: publicProcedure
+    .input(z.object({ tableToken: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const table = await ctx.db.table.findUnique({ where: { qrToken: input.tableToken } });
+      if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
+
+      const existing = await ctx.db.order.findFirst({
+        where: { tableId: table.id, source: 'QR', isOpenTableSession: true, status: 'OPEN' },
+      });
+      if (existing) return existing;
+
+      return ctx.db.order.create({
+        data: {
+          type: 'DINE_IN',
+          tableId: table.id,
+          status: 'OPEN',
+          source: 'QR',
+          isOpenTableSession: true,
+          total: 0,
+        },
+      });
+    }),
+
+  // Customer-initiated: "I'm done ordering, bring the bill." Doesn't charge
+  // anything itself (a customer has no business authorizing their own
+  // charge) -- just flags the session so Pending Purchases swaps that
+  // parent's action from nothing to Confirm payment.
+  finishTableSession: publicProcedure
+    .input(z.object({ tableToken: z.string(), orderId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const order = await ctx.db.order.findUnique({ where: { id: input.orderId }, include: { table: true } });
+      if (!order || !order.isOpenTableSession) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (order.table?.qrToken !== input.tableToken) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'table token mismatch' });
+      }
+      if (order.status !== 'OPEN') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'session is already closed' });
+      }
+      return ctx.db.order.update({ where: { id: order.id }, data: { sessionFinished: true } });
+    }),
 
   // Same charge-first shape as the staff cart's createAndCharge, minus the
   // payment: a customer submitting via QR doesn't pay through this app,
   // staff collects it in person and confirms from Pending Purchases
   // (sendToKitchen), which is what actually dispatches to the kitchen.
+  //
+  // With parentOrderId, this instead creates one round of an open-table
+  // session -- a plain child order (still dispatched + no payment exactly
+  // like above), just linked to the session so its total counts toward
+  // the parent's eventual one-time bill.
   createByTable: publicProcedure
-    .input(z.object({ tableToken: z.string(), items: z.array(orderItemInput).min(1) }))
+    .input(z.object({ tableToken: z.string(), items: z.array(orderItemInput).min(1), parentOrderId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const table = await ctx.db.table.findUnique({ where: { qrToken: input.tableToken } });
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
+
+      if (input.parentOrderId) {
+        const parent = await ctx.db.order.findUnique({ where: { id: input.parentOrderId } });
+        if (!parent || !parent.isOpenTableSession || parent.tableId !== table.id) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table session' });
+        }
+        if (parent.status !== 'OPEN' || parent.sessionFinished) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'table session is closed' });
+        }
+      }
 
       const items = await buildOrderItems(ctx.db, input.items);
       const order = await ctx.db.order.create({
@@ -163,6 +265,7 @@ export const orderRouter = router({
           tableId: table.id,
           status: 'OPEN',
           source: 'QR',
+          parentOrderId: input.parentOrderId,
           total: calcTotal(items),
           items: { create: items },
         },
@@ -173,19 +276,19 @@ export const orderRouter = router({
       return order;
     }),
 
+  // Only for a still-OPEN (not yet confirmed) ordinary order -- adding
+  // more before staff has dispatched/charged it. Open-table rounds never
+  // call this; each round is its own child order via createByTable.
   appendItems: publicProcedure
     .input(z.object({ orderId: z.string(), items: z.array(orderItemInput).min(1), tableToken: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.db.order.findUnique({ where: { id: input.orderId }, include: { table: true } });
       if (!order) throw new TRPCError({ code: 'NOT_FOUND' });
-      if (order.status === 'CANCELLED') {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is closed' });
-      }
-      // A charge-first order (still OPEN, awaiting dispatch) has already
-      // collected a fixed cash amount -- status alone can't tell a paid
-      // OPEN order from an unpaid one, so check payment existence directly.
-      const existingPayment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
-      if (existingPayment) {
+      // status !== OPEN alone covers every "closed" case now (cancelled,
+      // dispatched, paid) -- payment and dispatch always happen together
+      // in the same transaction, so there's no longer a state where an
+      // order is OPEN but already charged.
+      if (order.status !== 'OPEN') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is closed' });
       }
       if (order.table?.qrToken !== input.tableToken) {
@@ -198,17 +301,7 @@ export const orderRouter = router({
         data: { total: { increment: calcTotal(newItems) }, items: { create: newItems } },
         include: { items: true },
       });
-      // Still OPEN (unconfirmed) means not kitchen-relevant yet -- this
-      // branch is effectively unreachable once dispatched anyway, since
-      // sendToKitchen always attaches a payment and the guard above blocks
-      // appending to a paid order, but keep it correct either way.
-      if (updated.status !== 'OPEN') {
-        try {
-          await publishOrderEvent('order.updated', updated);
-        } catch (err) {
-          console.error('publishOrderEvent failed for order.updated', err);
-        }
-      }
+      // Still OPEN (unconfirmed) -- not kitchen-relevant yet, so no publish.
       return updated;
     }),
 
@@ -221,11 +314,25 @@ export const orderRouter = router({
       })
     ),
 
+  // A table can be mid-way through an open-table session or have an
+  // ordinary in-progress order, never meaningfully both -- the session
+  // takes priority since it's the longer-lived context. status: 'OPEN'
+  // alone is right for the session parent (it never leaves OPEN until
+  // PAID closes it out, whether the session is still ongoing or finished
+  // and just awaiting staff's payment confirmation).
   getOpenOrderByTableToken: publicProcedure
     .input(z.object({ tableToken: z.string() }))
     .query(async ({ ctx, input }) => {
       const table = await ctx.db.table.findUnique({ where: { qrToken: input.tableToken } });
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
+
+      const session = await ctx.db.order.findFirst({
+        where: { tableId: table.id, source: 'QR', isOpenTableSession: true, status: 'OPEN' },
+        include: { children: { include: { items: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      });
+      if (session) return { mode: 'OPEN_TABLE' as const, session };
 
       // OPEN included so a reload before staff confirms recovers the same
       // pending order (appendItems) instead of creating a duplicate one.
@@ -233,13 +340,15 @@ export const orderRouter = router({
         where: {
           tableId: table.id,
           source: 'QR',
+          parentOrderId: null,
+          isOpenTableSession: false,
           status: { in: ['OPEN', 'SENT_TO_KITCHEN', 'READY', 'SERVED'] },
         },
         include: { items: true },
         orderBy: { createdAt: 'desc' },
         take: 1,
       });
-      return order ?? null;
+      return order ? { mode: 'ORDINARY' as const, order } : null;
     }),
 
   // OPEN is excluded on purpose: a charge-first order sits at OPEN until
@@ -273,13 +382,16 @@ export const orderRouter = router({
       if (ctx.user.role === 'STAFF' && order.status !== 'OPEN') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'only an admin can cancel an order that has already been dispatched' });
       }
-      // A charge-first order can be paid while still OPEN (stock already
-      // deducted), not just once it reaches PAID -- payment existence, not
-      // status, is what actually determines whether stock needs reverting.
-      const existingPayment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
+      // Whether stock needs reverting depends on whether it was actually
+      // deducted, not on payment existence -- those used to always happen
+      // together, but an open-table child order deducts stock at dispatch
+      // with no payment of its own (the parent settles the bill later), so
+      // payment-existence alone would miss it. StockMovement is the direct
+      // signal either way.
+      const wasDeducted = await ctx.db.stockMovement.findFirst({ where: { refOrderId: order.id, reason: 'SALE' } });
       await ctx.db.$transaction(async (tx) => {
         await tx.order.update({ where: { id: order.id }, data: { status: 'CANCELLED', cancelReason: input.reason } });
-        if (existingPayment) {
+        if (wasDeducted) {
           await revertStockForOrder(tx, order.id, ctx.user.userId);
         }
       });

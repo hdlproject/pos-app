@@ -11,27 +11,47 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 
-// Explicit flat view of the field this page actually reads off the
-// createByTable mutation's result. The real return type flows through
-// Prisma's `order.create({ include: { items: true } })` payload, which
-// hits TS2589 "Type instantiation is excessively deep and possibly
-// infinite" when TypeScript checks the onSuccess callback against it
-// (same class of error as the KDS page's order.listOpen consumption).
-// Annotating the callback param and casting through it sidesteps the
-// deep structural comparison without touching what's fetched/rendered.
+// Explicit flat views of what this page actually reads off these calls.
+// The real return types flow through Prisma's nested include payloads,
+// which hit TS2589 "Type instantiation is excessively deep and possibly
+// infinite" when TypeScript checks them structurally (same class of
+// error as the KDS page's order.listOpen consumption). Annotating params
+// and casting through these sidesteps the deep comparison without
+// touching what's fetched/rendered.
 type CreatedOrder = { id: string };
+type Recovery =
+  | { mode: 'OPEN_TABLE'; session: { id: string; sessionFinished: boolean } }
+  | { mode: 'ORDINARY'; order: { id: string } }
+  | null;
 
 export default function CustomerOrderPage() {
   const { tableToken } = useParams<{ tableToken: string }>();
   const menu = trpc.menu.listAvailable.useQuery();
   const [cart, setCart] = useState<{ menuItemId: string; qty: number }[]>([]);
-  const [orderId, setOrderId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>('All');
   const [cartOpen, setCartOpen] = useState(false);
+
+  // Open Table: one running tab, every submission is its own child order
+  // sent straight to the kitchen (no per-round payment); the customer
+  // settles up once, on the whole tab, when they finish. Ordinary: a
+  // single order, staff confirms payment before it's dispatched -- the
+  // flow this page already had. Nothing renders until one is chosen (or
+  // recovered from an in-progress order/session for this table).
+  const [mode, setMode] = useState<'ORDINARY' | 'OPEN_TABLE' | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionFinished, setSessionFinished] = useState(false);
+
   const openOrder = trpc.order.getOpenOrderByTableToken.useQuery({ tableToken });
+  const startSession = trpc.order.startTableSession.useMutation();
+  const finishSession = trpc.order.finishTableSession.useMutation();
   const createOrder = trpc.order.createByTable.useMutation({
     onSuccess: (order: unknown) => { setOrderId((order as CreatedOrder).id); setCart([]); },
   });
+  // Separate mutation instance from createOrder -- an Open Table round
+  // never sets orderId (that's reserved for the ordinary single-order
+  // flow), it just clears the cart for the next round.
+  const createRound = trpc.order.createByTable.useMutation({ onSuccess: () => setCart([]) });
   const appendItems = trpc.order.appendItems.useMutation({ onSuccess: () => setCart([]) });
   // Ordering doesn't charge anything here -- a staff member confirms
   // payment (collected in person) before it reaches the kitchen. Review
@@ -48,12 +68,18 @@ export default function CustomerOrderPage() {
     return () => clearTimeout(timer);
   }, [placed]);
 
-  // Recover an already-open tab on mount (e.g. after a page reload or
-  // re-scanning the QR code) so a submission appends instead of creating
-  // a duplicate order for the same table.
+  // Recover an already-open tab/session on mount (e.g. after a page reload
+  // or re-scanning the QR code) instead of re-showing the mode choice.
   useEffect(() => {
-    if (!orderId && openOrder.data) {
-      setOrderId(openOrder.data.id);
+    if (mode || !openOrder.data) return;
+    const recovered = openOrder.data as unknown as Recovery;
+    if (recovered?.mode === 'OPEN_TABLE') {
+      setMode('OPEN_TABLE');
+      setSessionId(recovered.session.id);
+      setSessionFinished(recovered.session.sessionFinished);
+    } else if (recovered?.mode === 'ORDINARY') {
+      setMode('ORDINARY');
+      setOrderId(recovered.order.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openOrder.data]);
@@ -76,6 +102,24 @@ export default function CustomerOrderPage() {
     if (!cartHydrated.current) return;
     localStorage.setItem(`order-cart-${tableToken}`, JSON.stringify(cart));
   }, [cart, tableToken]);
+
+  function chooseOpenTable() {
+    startSession.mutate(
+      { tableToken },
+      {
+        onSuccess: (order: unknown) => {
+          setMode('OPEN_TABLE');
+          setSessionId((order as CreatedOrder).id);
+          setSessionFinished(false);
+        },
+      }
+    );
+  }
+
+  function finishTable() {
+    if (!sessionId) return;
+    finishSession.mutate({ tableToken, orderId: sessionId }, { onSuccess: () => setSessionFinished(true) });
+  }
 
   function addToCart(menuItemId: string) {
     setCart((c) => {
@@ -108,7 +152,9 @@ export default function CustomerOrderPage() {
 
   function confirmOrder() {
     if (!cart.length) return;
-    if (orderId) {
+    if (mode === 'OPEN_TABLE' && sessionId) {
+      createRound.mutate({ tableToken, items: cart, parentOrderId: sessionId }, { onSuccess: () => setPlaced(true) });
+    } else if (orderId) {
       appendItems.mutate({ orderId, tableToken, items: cart }, { onSuccess: () => setPlaced(true) });
     } else {
       createOrder.mutate({ tableToken, items: cart }, { onSuccess: () => setPlaced(true) });
@@ -119,6 +165,7 @@ export default function CustomerOrderPage() {
     setReviewOpen(false);
     setPlaced(false);
     createOrder.reset();
+    createRound.reset();
     appendItems.reset();
   }
 
@@ -130,6 +177,44 @@ export default function CustomerOrderPage() {
     return sum + (item ? Number(item.price) * line.qty : 0);
   }, 0);
   const cartCount = cart.reduce((sum, l) => sum + l.qty, 0);
+  const submitting = createOrder.isPending || createRound.isPending || appendItems.isPending;
+
+  if (openOrder.isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-text-muted text-sm font-semibold">Loading…</div>
+      </div>
+    );
+  }
+
+  if (!mode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg px-4">
+        <div className="w-full max-w-xs bg-surface border border-border rounded-2xl p-8 text-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-accent flex items-center justify-center text-white font-display text-3xl leading-none mb-4">
+            K
+          </div>
+          <h1 className="font-display text-2xl text-text mb-1">Kopi &amp; Co</h1>
+          <p className="text-text-muted text-sm font-semibold mb-6">How are you ordering?</p>
+          <div className="flex flex-col gap-2.5">
+            <Button variant="primary" className="w-full" onClick={chooseOpenTable} disabled={startSession.isPending}>
+              Open a Table
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => setMode('ORDINARY')}>
+              One-time Order
+            </Button>
+          </div>
+          <p className="text-text-muted text-[10.5px] font-semibold mt-4 leading-snug">
+            Open a Table keeps your tab running for the whole visit -- order as many rounds as you like, pay once at the
+            end. One-time order is a single order paid up front.
+          </p>
+          {startSession.isError && (
+            <p className="text-warning text-xs font-semibold mt-3">{startSession.error.message}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen md:h-screen overflow-y-auto md:overflow-hidden flex flex-col bg-bg">
@@ -138,10 +223,24 @@ export default function CustomerOrderPage() {
         subtitle="Self-order"
         right={
           <>
-            {orderId && (
+            {mode === 'ORDINARY' && orderId && (
               <span className="text-[11px] font-bold text-text-muted-2 bg-surface-input px-3 py-1.5 rounded-full">
                 Tab open — pay at the end
               </span>
+            )}
+            {mode === 'OPEN_TABLE' && !sessionFinished && (
+              <>
+                <span className="text-[11px] font-bold text-text-muted-2 bg-surface-input px-3 py-1.5 rounded-full">
+                  Table open
+                </span>
+                <button
+                  onClick={finishTable}
+                  disabled={finishSession.isPending}
+                  className="text-xs font-bold text-warning px-3 py-2 rounded-lg hover:bg-surface-input transition-colors disabled:opacity-50"
+                >
+                  Finish table
+                </button>
+              </>
             )}
             <Link
               href="/"
@@ -152,139 +251,154 @@ export default function CustomerOrderPage() {
           </>
         }
       />
-      <div className="flex-1 flex flex-col md:flex-row min-h-0">
-        <main className="flex-1 min-w-0 flex flex-col p-6 overflow-y-auto">
-          <h1 className="font-display text-2xl text-text mb-4">Menu</h1>
 
-          <div className="flex gap-2.5 flex-wrap mb-5">
-            {categories.map((c) => (
-              <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
-                {c}
-              </Chip>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-3 gap-2.5 md:gap-3.5 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
-            {visibleItems.map((item) => (
-              <Card key={item.id} className="flex flex-col gap-2.5">
-                <MenuItemThumbnail
-                  image={item.image}
-                  categoryName={item.category.name}
-                  alt={item.name}
-                  className="w-full h-20 rounded-xl"
-                />
-                <div className="font-bold text-text text-sm">{item.name}</div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-extrabold text-accent-tint text-sm">Rp {Number(item.price).toLocaleString('id-ID')}</div>
-                  <Button variant="dark" size="sm" onClick={() => addToCart(item.id)}>
-                    + Add
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </main>
-
-        {cartOpen && (
-          <div
-            onClick={() => setCartOpen(false)}
-            className="fixed inset-0 z-10 bg-black/40 md:hidden"
-          />
-        )}
-
-        {!cartOpen && cartCount > 0 && (
-          <button
-            onClick={() => setCartOpen(true)}
-            className="fixed bottom-4 right-4 z-30 md:hidden flex items-center gap-2 bg-dark-ui text-white font-extrabold text-sm pl-2 pr-4 py-2 rounded-full shadow-2xl"
-          >
-            <span className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs">{cartCount}</span>
-            View cart
-          </button>
-        )}
-
-        <aside
-          className={`fixed inset-y-0 right-0 z-20 w-[85vw] max-w-[360px] shadow-2xl transition-transform duration-300 ease-out ${
-            cartOpen ? 'translate-x-0' : 'translate-x-full'
-          } md:static md:inset-auto md:z-auto md:w-[360px] md:max-w-none md:shadow-none md:translate-x-0 md:shrink-0 bg-surface border-l border-border flex flex-col`}
-        >
-          <div className="p-4 border-b border-border flex items-center justify-between md:block">
-            <span className="font-extrabold text-text text-sm">Your order</span>
-            <button
-              onClick={() => setCartOpen(false)}
-              aria-label="Close cart"
-              className="p-1.5 rounded-lg bg-surface-input text-text-muted-2 md:hidden"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-2">
-            {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center gap-2 text-center px-8 py-10 text-text-muted">
-                <div className="w-12 h-12 rounded-2xl bg-surface-input flex items-center justify-center text-xl">🧺</div>
-                <div className="font-bold text-text-muted-2">No items yet</div>
-                <div className="text-xs">Tap a menu item to start your order.</div>
-              </div>
-            ) : (
-              cart.map((line) => {
-                const item = items.find((m) => m.id === line.menuItemId);
-                return (
-                  <div key={line.menuItemId} className="border-b border-border">
-                    <SwipeToRemove onRemove={() => removeFromCart(line.menuItemId)}>
-                      <div className="flex items-center gap-2.5 px-2 py-2.5">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-bold text-sm text-text truncate">{item?.name}</div>
-                          <div className="text-xs text-text-muted">Rp {item ? Number(item.price).toLocaleString('id-ID') : ''} each</div>
-                        </div>
-                        <div
-                          className="flex items-center gap-2 bg-surface-input rounded-lg p-0.5 shrink-0"
-                          onPointerDown={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            onClick={() => changeQty(line.menuItemId, -1)}
-                            aria-label={`Decrease ${item?.name ?? 'item'} quantity`}
-                            className="w-6 h-6 rounded-md bg-surface text-accent-tint font-extrabold text-sm flex items-center justify-center shadow-sm"
-                          >
-                            −
-                          </button>
-                          <div className="font-extrabold text-xs text-text w-4 text-center">{line.qty}</div>
-                          <button
-                            onClick={() => changeQty(line.menuItemId, 1)}
-                            aria-label={`Increase ${item?.name ?? 'item'} quantity`}
-                            className="w-6 h-6 rounded-md bg-surface text-accent-tint font-extrabold text-sm flex items-center justify-center shadow-sm"
-                          >
-                            +
-                          </button>
-                        </div>
-                        <div className="w-16 shrink-0 text-right font-extrabold text-sm text-text">
-                          Rp {item ? (Number(item.price) * line.qty).toLocaleString('id-ID') : ''}
-                        </div>
-                      </div>
-                    </SwipeToRemove>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <div className="border-t border-border p-4">
-            <div className="flex justify-between items-baseline pb-2.5 mb-1">
-              <span className="font-extrabold text-text">Total</span>
-              <span className="font-extrabold text-xl text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
+      {mode === 'OPEN_TABLE' && sessionFinished ? (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center max-w-xs">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-success/15 flex items-center justify-center text-2xl text-success mb-3">
+              ✓
             </div>
-            <Button
-              variant="primary"
-              className="w-full mt-2"
-              disabled={!cart.length}
-              onClick={openReview}
-            >
-              {orderId ? 'Add to tab' : 'Submit order'}
-            </Button>
+            <div className="font-display text-xl text-text mb-1.5">Table finished</div>
+            <div className="text-sm text-text-muted font-semibold">
+              A staff member will bring your bill and close out the table shortly.
+            </div>
           </div>
-        </aside>
-      </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col md:flex-row min-h-0">
+          <main className="flex-1 min-w-0 flex flex-col p-6 overflow-y-auto">
+            <h1 className="font-display text-2xl text-text mb-4">Menu</h1>
+
+            <div className="flex gap-2.5 flex-wrap mb-5">
+              {categories.map((c) => (
+                <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
+                  {c}
+                </Chip>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5 md:gap-3.5 md:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
+              {visibleItems.map((item) => (
+                <Card key={item.id} className="flex flex-col gap-2.5">
+                  <MenuItemThumbnail
+                    image={item.image}
+                    categoryName={item.category.name}
+                    alt={item.name}
+                    className="w-full h-20 rounded-xl"
+                  />
+                  <div className="font-bold text-text text-sm">{item.name}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-extrabold text-accent-tint text-sm">Rp {Number(item.price).toLocaleString('id-ID')}</div>
+                    <Button variant="dark" size="sm" onClick={() => addToCart(item.id)}>
+                      + Add
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </main>
+
+          {cartOpen && (
+            <div
+              onClick={() => setCartOpen(false)}
+              className="fixed inset-0 z-10 bg-black/40 md:hidden"
+            />
+          )}
+
+          {!cartOpen && cartCount > 0 && (
+            <button
+              onClick={() => setCartOpen(true)}
+              className="fixed bottom-4 right-4 z-30 md:hidden flex items-center gap-2 bg-dark-ui text-white font-extrabold text-sm pl-2 pr-4 py-2 rounded-full shadow-2xl"
+            >
+              <span className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs">{cartCount}</span>
+              View cart
+            </button>
+          )}
+
+          <aside
+            className={`fixed inset-y-0 right-0 z-20 w-[85vw] max-w-[360px] shadow-2xl transition-transform duration-300 ease-out ${
+              cartOpen ? 'translate-x-0' : 'translate-x-full'
+            } md:static md:inset-auto md:z-auto md:w-[360px] md:max-w-none md:shadow-none md:translate-x-0 md:shrink-0 bg-surface border-l border-border flex flex-col`}
+          >
+            <div className="p-4 border-b border-border flex items-center justify-between md:block">
+              <span className="font-extrabold text-text text-sm">Your order</span>
+              <button
+                onClick={() => setCartOpen(false)}
+                aria-label="Close cart"
+                className="p-1.5 rounded-lg bg-surface-input text-text-muted-2 md:hidden"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center gap-2 text-center px-8 py-10 text-text-muted">
+                  <div className="w-12 h-12 rounded-2xl bg-surface-input flex items-center justify-center text-xl">🧺</div>
+                  <div className="font-bold text-text-muted-2">No items yet</div>
+                  <div className="text-xs">Tap a menu item to start your order.</div>
+                </div>
+              ) : (
+                cart.map((line) => {
+                  const item = items.find((m) => m.id === line.menuItemId);
+                  return (
+                    <div key={line.menuItemId} className="border-b border-border">
+                      <SwipeToRemove onRemove={() => removeFromCart(line.menuItemId)}>
+                        <div className="flex items-center gap-2.5 px-2 py-2.5">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm text-text truncate">{item?.name}</div>
+                            <div className="text-xs text-text-muted">Rp {item ? Number(item.price).toLocaleString('id-ID') : ''} each</div>
+                          </div>
+                          <div
+                            className="flex items-center gap-2 bg-surface-input rounded-lg p-0.5 shrink-0"
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => changeQty(line.menuItemId, -1)}
+                              aria-label={`Decrease ${item?.name ?? 'item'} quantity`}
+                              className="w-6 h-6 rounded-md bg-surface text-accent-tint font-extrabold text-sm flex items-center justify-center shadow-sm"
+                            >
+                              −
+                            </button>
+                            <div className="font-extrabold text-xs text-text w-4 text-center">{line.qty}</div>
+                            <button
+                              onClick={() => changeQty(line.menuItemId, 1)}
+                              aria-label={`Increase ${item?.name ?? 'item'} quantity`}
+                              className="w-6 h-6 rounded-md bg-surface text-accent-tint font-extrabold text-sm flex items-center justify-center shadow-sm"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <div className="w-16 shrink-0 text-right font-extrabold text-sm text-text">
+                            Rp {item ? (Number(item.price) * line.qty).toLocaleString('id-ID') : ''}
+                          </div>
+                        </div>
+                      </SwipeToRemove>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="border-t border-border p-4">
+              <div className="flex justify-between items-baseline pb-2.5 mb-1">
+                <span className="font-extrabold text-text">Total</span>
+                <span className="font-extrabold text-xl text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
+              </div>
+              <Button
+                variant="primary"
+                className="w-full mt-2"
+                disabled={!cart.length}
+                onClick={openReview}
+              >
+                {mode === 'OPEN_TABLE' ? 'Submit Round' : orderId ? 'Add to tab' : 'Submit order'}
+              </Button>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {reviewOpen && (
         <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
@@ -293,7 +407,9 @@ export default function CustomerOrderPage() {
               <div>
                 <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border">
                   <div>
-                    <div className="font-display text-xl text-text">{orderId ? 'Add to Order' : 'Confirm Order'}</div>
+                    <div className="font-display text-xl text-text">
+                      {mode === 'OPEN_TABLE' ? 'Submit Round' : orderId ? 'Add to Order' : 'Confirm Order'}
+                    </div>
                     <div className="text-xs text-text-muted font-semibold mt-0.5">{cartCount} items</div>
                   </div>
                   <button
@@ -329,13 +445,16 @@ export default function CustomerOrderPage() {
                   <Button
                     variant="primary"
                     className="w-full"
-                    disabled={createOrder.isPending || appendItems.isPending}
+                    disabled={submitting}
                     onClick={confirmOrder}
                   >
-                    {orderId ? 'Add to Order' : 'Confirm Order'}
+                    {mode === 'OPEN_TABLE' ? 'Submit Round' : orderId ? 'Add to Order' : 'Confirm Order'}
                   </Button>
                   {createOrder.isError && (
                     <p className="text-warning text-xs font-semibold mt-2 text-center">{createOrder.error.message}</p>
+                  )}
+                  {createRound.isError && (
+                    <p className="text-warning text-xs font-semibold mt-2 text-center">{createRound.error.message}</p>
                   )}
                   {appendItems.isError && (
                     <p className="text-warning text-xs font-semibold mt-2 text-center">{appendItems.error.message}</p>
@@ -363,9 +482,13 @@ export default function CustomerOrderPage() {
                     />
                   </svg>
                 </motion.div>
-                <div className="font-display text-xl text-text">Order placed</div>
+                <div className="font-display text-xl text-text">
+                  {mode === 'OPEN_TABLE' ? 'Round placed' : 'Order placed'}
+                </div>
                 <div className="text-sm text-text-muted font-semibold text-center">
-                  A staff member will confirm your order shortly.
+                  {mode === 'OPEN_TABLE'
+                    ? 'Staff will send it to the kitchen shortly.'
+                    : 'A staff member will confirm your order shortly.'}
                 </div>
               </motion.div>
             )}

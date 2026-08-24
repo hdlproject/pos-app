@@ -139,6 +139,17 @@ model Order {
   total       Decimal     @db.Decimal(10, 2) @default(0)
   createdAt   DateTime    @default(now())
 
+  // Open-table session: a parent order (isOpenTableSession) with no items
+  // of its own, anchoring one or more child orders (one per customer
+  // submission/round). Children get sent to kitchen individually as
+  // they're submitted; payment happens once, on the parent, only after
+  // sessionFinished (customer requested the bill).
+  parentOrderId      String?
+  parent             Order?      @relation("OrderChildren", fields: [parentOrderId], references: [id])
+  children           Order[]     @relation("OrderChildren")
+  isOpenTableSession Boolean     @default(false)
+  sessionFinished    Boolean     @default(false)
+
   items    OrderItem[]
   payments Payment[]
 }
