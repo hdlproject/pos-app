@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'motion/react';
 import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
@@ -32,6 +33,20 @@ export default function CustomerOrderPage() {
     onSuccess: (order: unknown) => { setOrderId((order as CreatedOrder).id); setCart([]); },
   });
   const appendItems = trpc.order.appendItems.useMutation({ onSuccess: () => setCart([]) });
+  // Ordering doesn't charge anything here -- a staff member confirms
+  // payment (collected in person) before it reaches the kitchen. Review
+  // opens the summary modal only; nothing is submitted until Confirm.
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [placed, setPlaced] = useState(false);
+
+  useEffect(() => {
+    if (!placed) return;
+    const timer = setTimeout(() => {
+      setReviewOpen(false);
+      setPlaced(false);
+    }, 1400);
+    return () => clearTimeout(timer);
+  }, [placed]);
 
   // Recover an already-open tab on mount (e.g. after a page reload or
   // re-scanning the QR code) so a submission appends instead of creating
@@ -85,13 +100,26 @@ export default function CustomerOrderPage() {
     });
   }
 
-  function submit() {
+  function openReview() {
+    if (!cart.length) return;
+    setPlaced(false);
+    setReviewOpen(true);
+  }
+
+  function confirmOrder() {
     if (!cart.length) return;
     if (orderId) {
-      appendItems.mutate({ orderId, tableToken, items: cart });
+      appendItems.mutate({ orderId, tableToken, items: cart }, { onSuccess: () => setPlaced(true) });
     } else {
-      createOrder.mutate({ tableToken, items: cart });
+      createOrder.mutate({ tableToken, items: cart }, { onSuccess: () => setPlaced(true) });
     }
+  }
+
+  function closeReview() {
+    setReviewOpen(false);
+    setPlaced(false);
+    createOrder.reset();
+    appendItems.reset();
   }
 
   const items = menu.data ?? [];
@@ -249,17 +277,101 @@ export default function CustomerOrderPage() {
             <Button
               variant="primary"
               className="w-full mt-2"
-              disabled={!cart.length || createOrder.isPending || appendItems.isPending}
-              onClick={submit}
+              disabled={!cart.length}
+              onClick={openReview}
             >
               {orderId ? 'Add to tab' : 'Submit order'}
             </Button>
-            {(createOrder.isSuccess || appendItems.isSuccess) && (
-              <p className="text-success text-xs font-semibold mt-2 text-center">Sent to kitchen!</p>
-            )}
           </div>
         </aside>
       </div>
+
+      {reviewOpen && (
+        <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-[420px] bg-surface rounded-3xl overflow-hidden shadow-2xl">
+            {!placed ? (
+              <div>
+                <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border">
+                  <div>
+                    <div className="font-display text-xl text-text">{orderId ? 'Add to Order' : 'Confirm Order'}</div>
+                    <div className="text-xs text-text-muted font-semibold mt-0.5">{cartCount} items</div>
+                  </div>
+                  <button
+                    onClick={closeReview}
+                    aria-label="Close"
+                    className="w-8 h-8 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center shrink-0"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="p-5">
+                  <div className="flex flex-col gap-1.5 mb-4">
+                    {cart.map((line) => {
+                      const item = items.find((i) => i.id === line.menuItemId);
+                      return (
+                        <div key={line.menuItemId} className="flex justify-between items-baseline text-sm">
+                          <span className="text-text-muted-2 font-semibold">
+                            {line.qty}× {item?.name ?? 'Item'}
+                          </span>
+                          <span className="font-bold text-text">
+                            Rp {item ? (Number(item.price) * line.qty).toLocaleString('id-ID') : ''}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-between items-baseline px-4 py-3.5 bg-surface-input rounded-2xl mb-5">
+                    <span className="text-sm font-bold text-accent-tint">Total</span>
+                    <span className="text-2xl font-extrabold text-accent">Rp {cartTotal.toLocaleString('id-ID')}</span>
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    disabled={createOrder.isPending || appendItems.isPending}
+                    onClick={confirmOrder}
+                  >
+                    {orderId ? 'Add to Order' : 'Confirm Order'}
+                  </Button>
+                  {createOrder.isError && (
+                    <p className="text-warning text-xs font-semibold mt-2 text-center">{createOrder.error.message}</p>
+                  )}
+                  {appendItems.isError && (
+                    <p className="text-warning text-xs font-semibold mt-2 text-center">{appendItems.error.message}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="px-8 py-14 flex flex-col items-center gap-3"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+                  className="w-16 h-16 rounded-full bg-success flex items-center justify-center"
+                >
+                  <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <motion.path
+                      d="M5 13l4 4L19 7"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+                    />
+                  </svg>
+                </motion.div>
+                <div className="font-display text-xl text-text">Order placed</div>
+                <div className="text-sm text-text-muted font-semibold text-center">
+                  A staff member will confirm your order shortly.
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
