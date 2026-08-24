@@ -15,6 +15,7 @@ import { LogoutButton } from '@/components/ui/LogoutButton';
 type PendingOrder = {
   id: string;
   type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
+  source: 'STAFF' | 'QR';
   total: string;
   createdAt: string;
   table: { label: string } | null;
@@ -45,7 +46,7 @@ export default function PendingPurchasesPage() {
     <div className="min-h-screen bg-bg">
       <PageHeader
         title="Pending Purchases"
-        subtitle="Paid, awaiting kitchen dispatch"
+        subtitle="Awaiting confirmation"
         right={
           <>
             <Link
@@ -63,7 +64,7 @@ export default function PendingPurchasesPage() {
           <div className="flex flex-col items-center justify-center gap-2 text-center px-8 py-16 text-text-muted">
             <div className="w-12 h-12 rounded-2xl bg-surface-input flex items-center justify-center text-xl">🧾</div>
             <div className="font-bold text-text-muted-2">Nothing pending</div>
-            <div className="text-xs">Charge-first orders show up here until confirmed.</div>
+            <div className="text-xs">Charge-first and QR self-orders show up here until confirmed.</div>
           </div>
         )}
         {data
@@ -121,9 +122,14 @@ export default function PendingPurchasesPage() {
               )}
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="font-bold text-text text-sm">
+                  <div className="font-bold text-text text-sm flex items-center gap-1.5">
                     {TYPE_LABEL[order.type]}
                     {order.table ? ` · ${order.table.label}` : ''}
+                    {order.source === 'QR' && (
+                      <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-accent-tint/15 text-accent-tint">
+                        QR
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-text-muted mt-0.5">
                     {order.items.map((i) => `${i.qty}× ${i.menuItem.name}`).join(', ')}
@@ -134,7 +140,18 @@ export default function PendingPurchasesPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
-                <div className="font-extrabold text-accent">Rp {Number(order.total).toLocaleString('id-ID')}</div>
+                <div className="flex items-center gap-2">
+                  <div className="font-extrabold text-accent">Rp {Number(order.total).toLocaleString('id-ID')}</div>
+                  {order.payments.length > 0 ? (
+                    <span className="text-[10.5px] font-extrabold uppercase px-2 py-1 rounded-full bg-success/15 text-success">
+                      Paid
+                    </span>
+                  ) : (
+                    <span className="text-[10.5px] font-extrabold uppercase px-2 py-1 rounded-full bg-surface-input text-text-muted-2">
+                      Awaiting payment
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
