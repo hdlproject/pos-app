@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
@@ -108,11 +109,19 @@ export default function CustomerOrderPage() {
         title="Kopi & Co"
         subtitle="Self-order"
         right={
-          orderId ? (
-            <span className="text-[11px] font-bold text-text-muted-2 bg-surface-input px-3 py-1.5 rounded-full">
-              Tab open — pay at the end
-            </span>
-          ) : undefined
+          <>
+            {orderId && (
+              <span className="text-[11px] font-bold text-text-muted-2 bg-surface-input px-3 py-1.5 rounded-full">
+                Tab open — pay at the end
+              </span>
+            )}
+            <Link
+              href="/"
+              className="text-xs font-bold text-text-muted-2 px-3 py-2 rounded-lg hover:bg-surface-input transition-colors"
+            >
+              Home
+            </Link>
+          </>
         }
       />
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
