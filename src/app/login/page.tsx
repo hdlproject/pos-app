@@ -65,6 +65,9 @@ export default function LoginPage() {
           >
             Customer
           </Link>
+          <p className="text-text-muted text-[10.5px] font-semibold mt-1.5 leading-snug">
+            In reality customers scan their table&apos;s QR code to open this — this button skips straight to a demo table.
+          </p>
         </div>
       </div>
     </main>
