@@ -104,9 +104,13 @@ export const orderRouter = router({
       return order;
     }),
 
-  // Confirms a charge-first order (paid while still OPEN) and dispatches it
-  // to the kitchen. Requires an existing payment -- this is the manual
-  // stand-in for what a real payment gateway would confirm automatically.
+  // The one staff action for every pending order, whichever way it got
+  // there: a staff charge-first order (createAndCharge) already has its
+  // payment, so this just dispatches. A customer QR order (createByTable)
+  // doesn't -- staff collects payment in person, so confirming here also
+  // charges it (exact total, stock deducted now, same moment payment is
+  // first recorded either way) before dispatching. One button, one mental
+  // model: confirm payment (if needed) and send to kitchen.
   sendToKitchen: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -115,9 +119,16 @@ export const orderRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is not pending dispatch' });
       }
       const payment = await ctx.db.payment.findFirst({ where: { orderId: order.id } });
-      if (!payment) throw new TRPCError({ code: 'BAD_REQUEST', message: 'order has not been paid yet' });
 
-      const updated = await ctx.db.order.update({ where: { id: order.id }, data: { status: 'SENT_TO_KITCHEN' } });
+      const updated = await ctx.db.$transaction(async (tx) => {
+        if (!payment) {
+          await tx.payment.create({
+            data: { orderId: order.id, amount: order.total, method: 'CASH', receivedById: ctx.user.userId },
+          });
+          await deductStockForOrder(tx, order.id, ctx.user.userId);
+        }
+        return tx.order.update({ where: { id: order.id }, data: { status: 'SENT_TO_KITCHEN' } });
+      });
       try {
         await publishOrderEvent('order.dispatched', updated);
       } catch (err) {
@@ -135,6 +146,10 @@ export const orderRouter = router({
     })
   ),
 
+  // Same charge-first shape as the staff cart's createAndCharge, minus the
+  // payment: a customer submitting via QR doesn't pay through this app,
+  // staff collects it in person and confirms from Pending Purchases
+  // (sendToKitchen), which is what actually dispatches to the kitchen.
   createByTable: publicProcedure
     .input(z.object({ tableToken: z.string(), items: z.array(orderItemInput).min(1) }))
     .mutation(async ({ ctx, input }) => {
@@ -146,18 +161,15 @@ export const orderRouter = router({
         data: {
           type: 'DINE_IN',
           tableId: table.id,
-          status: 'SENT_TO_KITCHEN',
+          status: 'OPEN',
           source: 'QR',
           total: calcTotal(items),
           items: { create: items },
         },
         include: { items: true },
       });
-      try {
-        await publishOrderEvent('order.created', order);
-      } catch (err) {
-        console.error('publishOrderEvent failed for order.created', err);
-      }
+      // Not kitchen-relevant yet -- sendToKitchen publishes the dispatch
+      // event once staff actually confirms it.
       return order;
     }),
 
@@ -186,10 +198,16 @@ export const orderRouter = router({
         data: { total: { increment: calcTotal(newItems) }, items: { create: newItems } },
         include: { items: true },
       });
-      try {
-        await publishOrderEvent('order.updated', updated);
-      } catch (err) {
-        console.error('publishOrderEvent failed for order.updated', err);
+      // Still OPEN (unconfirmed) means not kitchen-relevant yet -- this
+      // branch is effectively unreachable once dispatched anyway, since
+      // sendToKitchen always attaches a payment and the guard above blocks
+      // appending to a paid order, but keep it correct either way.
+      if (updated.status !== 'OPEN') {
+        try {
+          await publishOrderEvent('order.updated', updated);
+        } catch (err) {
+          console.error('publishOrderEvent failed for order.updated', err);
+        }
       }
       return updated;
     }),
@@ -209,11 +227,13 @@ export const orderRouter = router({
       const table = await ctx.db.table.findUnique({ where: { qrToken: input.tableToken } });
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
+      // OPEN included so a reload before staff confirms recovers the same
+      // pending order (appendItems) instead of creating a duplicate one.
       const order = await ctx.db.order.findFirst({
         where: {
           tableId: table.id,
           source: 'QR',
-          status: { in: ['SENT_TO_KITCHEN', 'READY', 'SERVED'] },
+          status: { in: ['OPEN', 'SENT_TO_KITCHEN', 'READY', 'SERVED'] },
         },
         include: { items: true },
         orderBy: { createdAt: 'desc' },
