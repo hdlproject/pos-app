@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { redis } from '@/server/redis';
-import { checkAndSetCooldown } from '@/server/ai/cooldown';
+import { checkAndSetCooldown, clearCooldown } from '@/server/ai/cooldown';
 
 describe('checkAndSetCooldown', () => {
   beforeEach(async () => {
@@ -19,5 +19,11 @@ describe('checkAndSetCooldown', () => {
   it('tracks cooldowns independently per table token', async () => {
     await checkAndSetCooldown('table-a');
     await expect(checkAndSetCooldown('table-b')).resolves.toBe(true);
+  });
+
+  it('releases the cooldown so a subsequent request is allowed again', async () => {
+    await checkAndSetCooldown('table-x');
+    await clearCooldown('table-x');
+    await expect(checkAndSetCooldown('table-x')).resolves.toBe(true);
   });
 });

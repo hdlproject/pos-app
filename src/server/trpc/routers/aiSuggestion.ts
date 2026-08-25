@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { TASTE_OPTIONS, AROMA_OPTIONS, TEXTURE_OPTIONS } from '../../../lib/suggestionOptions';
-import { checkAndSetCooldown } from '../../ai/cooldown';
+import { checkAndSetCooldown, clearCooldown } from '../../ai/cooldown';
 import { buildSuggestionMessages, parseSuggestionResponse, SuggestionParseError } from '../../ai/suggestion';
 import { fetchChatCompletion } from '../../ai/openaiClient';
 
@@ -45,6 +45,7 @@ export const aiSuggestionRouter = router({
     })) as unknown as SuggestionMenuRow[];
 
     if (items.length === 0) {
+      await clearCooldown(input.tableToken);
       return { suggestions: [] };
     }
 
@@ -59,6 +60,7 @@ export const aiSuggestionRouter = router({
       raw = await fetchChatCompletion(messages);
     } catch (err) {
       console.error('OpenAI suggestion call failed', err);
+      await clearCooldown(input.tableToken);
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Couldn't get suggestions, try again." });
     }
 
@@ -68,6 +70,7 @@ export const aiSuggestionRouter = router({
     } catch (err) {
       if (err instanceof SuggestionParseError) {
         console.error('OpenAI suggestion response malformed', err);
+        await clearCooldown(input.tableToken);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Couldn't get suggestions, try again." });
       }
       throw err;

@@ -71,7 +71,7 @@ export default function SuggestionChat({
       <button
         onClick={() => setOpen(true)}
         aria-label="Get menu suggestions"
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-30 flex items-center gap-2 bg-accent text-white font-extrabold text-sm px-4 py-2.5 rounded-full shadow-2xl"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-[25rem] z-30 flex items-center gap-2 bg-accent text-white font-extrabold text-sm px-4 py-2.5 rounded-full shadow-2xl"
       >
         ✨ Suggest for me
       </button>

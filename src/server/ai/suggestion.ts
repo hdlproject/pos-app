@@ -61,6 +61,7 @@ export function parseSuggestionResponse(raw: string, menuItems: SuggestionMenuIt
   }
 
   const validIds = new Set(menuItems.map((m) => m.id));
+  const seenIds = new Set<string>();
   const results: SuggestionResult[] = [];
   for (const entry of (parsed as { suggestions: unknown[] }).suggestions) {
     if (
@@ -71,6 +72,8 @@ export function parseSuggestionResponse(raw: string, menuItems: SuggestionMenuIt
       validIds.has((entry as { menuItemId: string }).menuItemId)
     ) {
       const e = entry as { menuItemId: string; reason: string };
+      if (seenIds.has(e.menuItemId)) continue;
+      seenIds.add(e.menuItemId);
       results.push({ menuItemId: e.menuItemId, reason: e.reason });
     }
   }

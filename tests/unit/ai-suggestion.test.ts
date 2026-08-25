@@ -54,10 +54,27 @@ describe('parseSuggestionResponse', () => {
   });
 
   it('caps results at 5 even if the model returns more', () => {
-    const many = Array.from({ length: 8 }, (_, i) => ({ menuItemId: 'm1', reason: `reason ${i}` }));
+    const bigMenu: SuggestionMenuItem[] = Array.from({ length: 8 }, (_, i) => ({
+      id: `m${i + 1}`,
+      name: `Item ${i + 1}`,
+      category: 'Coffee',
+      price: 10000,
+    }));
+    const many = bigMenu.map((m, i) => ({ menuItemId: m.id, reason: `reason ${i}` }));
     const raw = JSON.stringify({ suggestions: many });
-    const result = parseSuggestionResponse(raw, menu);
+    const result = parseSuggestionResponse(raw, bigMenu);
     expect(result).toHaveLength(5);
+  });
+
+  it('dedupes repeated menuItemId values, keeping only one entry per id', () => {
+    const raw = JSON.stringify({
+      suggestions: [
+        { menuItemId: 'm1', reason: 'First mention' },
+        { menuItemId: 'm1', reason: 'Duplicate mention' },
+      ],
+    });
+    const result = parseSuggestionResponse(raw, menu);
+    expect(result).toEqual([{ menuItemId: 'm1', reason: 'First mention' }]);
   });
 
   it('throws SuggestionParseError on invalid JSON', () => {

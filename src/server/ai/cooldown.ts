@@ -7,3 +7,7 @@ export async function checkAndSetCooldown(tableToken: string): Promise<boolean> 
   const result = await redis.set(key, '1', 'EX', COOLDOWN_SECONDS, 'NX');
   return result === 'OK';
 }
+
+export async function clearCooldown(tableToken: string): Promise<void> {
+  await redis.del(`ai-suggest-cooldown:${tableToken}`);
+}
