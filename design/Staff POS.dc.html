@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Manrope', system-ui, sans-serif; color: #2a241d; background: #f3ede3; -webkit-font-smoothing: antialiased; }
+  a { color: #c65d3b; text-decoration: none; }
+  a:hover { color: #a94a2c; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d9cdbb; border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#f3ede3;">
+
+  <!-- Top bar -->
+  <header style="display:flex;align-items:center;gap:16px;padding:14px 22px;background:#fffdf9;border-bottom:1px solid #e9e0d2;position:sticky;top:0;z-index:20;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:40px;height:40px;border-radius:11px;background:#c65d3b;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Serif Display',serif;font-size:22px;line-height:1;">K</div>
+      <div style="line-height:1.1;">
+        <div style="font-family:'DM Serif Display',serif;font-size:19px;color:#2a241d;">Kopi &amp; Co</div>
+        <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#a9997f;font-weight:600;">Point of Sale</div>
+      </div>
+    </div>
+
+    <div style="flex:1;max-width:420px;margin:0 8px;position:relative;">
+      <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#b3a48b;font-size:15px;">⌕</span>
+      <input value="{{ searchValue }}" onInput="{{ onSearch }}" placeholder="Search menu…" style="width:100%;padding:11px 14px 11px 36px;border:1px solid #e6dccb;border-radius:11px;background:#faf6ef;font-family:'Manrope',sans-serif;font-size:14px;color:#2a241d;outline:none;" />
+    </div>
+
+    <div style="display:flex;align-items:center;gap:14px;margin-left:auto;">
+      <button onClick="{{ onOpenInsights }}" style="display:flex;align-items:center;gap:7px;padding:9px 14px;border:1px solid #e0d3c8;background:#fff;border-radius:11px;font-family:'Manrope',sans-serif;font-weight:600;font-size:13px;color:#8a5a3c;cursor:pointer;">
+        <span style="color:#c65d3b;">✦</span> Ask AI
+      </button>
+      <div style="display:flex;align-items:center;gap:10px;padding:5px 12px 5px 6px;background:#f6efe4;border-radius:30px;">
+        <div style="width:32px;height:32px;border-radius:50%;background:#dccab2;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#6b5637;">RA</div>
+        <div style="line-height:1.15;">
+          <div style="font-size:13px;font-weight:700;">Rina A.</div>
+          <div style="font-size:11px;color:#a9997f;font-weight:600;">Cashier</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div style="flex:1;display:flex;align-items:stretch;gap:0;min-height:0;">
+
+    <!-- Menu area -->
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column;padding:20px 22px 24px;overflow-y:auto;max-height:calc(100vh - 71px);">
+
+      <!-- Category chips -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+        <sc-for list="{{ categories }}" as="cat" hint-placeholder-count="6">
+          <button onClick="{{ cat.onClick }}" style="{{ cat.style }}">
+            <span>{{ cat.name }}</span>
+            <span style="{{ cat.countStyle }}">{{ cat.count }}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;">
+        <h2 style="margin:0;font-size:16px;font-weight:800;color:#2a241d;">{{ activeCategoryName }}</h2>
+        <span style="font-size:13px;color:#a9997f;font-weight:600;">{{ resultCountLabel }}</span>
+      </div>
+
+      <!-- Item grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;">
+        <sc-for list="{{ items }}" as="it" hint-placeholder-count="9">
+          <div style="position:relative;background:#fffdf9;border:1px solid #ece2d3;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s,transform .15s;box-shadow:0 1px 0 rgba(120,90,50,.03);">
+            <div style="{{ it.thumbStyle }}">
+              <span style="position:absolute;left:8px;bottom:8px;font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.04em;color:rgba(90,70,45,.55);background:rgba(255,253,249,.7);padding:2px 6px;border-radius:5px;">item photo</span>
+              <sc-if value="{{ it.badge }}" hint-placeholder-val="{{ true }}">
+                <span style="{{ it.badgeStyle }}">{{ it.badge }}</span>
+              </sc-if>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;line-height:1.25;color:#2a241d;">{{ it.name }}</div>
+              <div style="font-size:12px;color:#a9997f;margin-top:3px;line-height:1.35;">{{ it.desc }}</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div style="font-size:14px;font-weight:800;color:#8a5a3c;">{{ it.priceFmt }}</div>
+              <button onClick="{{ it.onAdd }}" style="{{ it.addStyle }}">{{ it.addLabel }}</button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </main>
+
+    <!-- Order panel -->
+    <aside style="width:388px;flex-shrink:0;background:#fffdf9;border-left:1px solid #e9e0d2;display:flex;flex-direction:column;max-height:calc(100vh - 71px);">
+
+      <!-- Order type -->
+      <div style="padding:16px 18px 14px;border-bottom:1px solid #f0e8db;">
+        <div style="display:flex;gap:6px;background:#f3ede3;padding:4px;border-radius:12px;">
+          <sc-for list="{{ orderTypes }}" as="ot" hint-placeholder-count="3">
+            <button onClick="{{ ot.onClick }}" style="{{ ot.style }}">{{ ot.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+          <sc-if value="{{ isDineIn }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:1;display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;font-weight:700;color:#a9997f;letter-spacing:.02em;">Table</span>
+              <select value="{{ tableValue }}" onChange="{{ onTable }}" style="flex:1;padding:9px 10px;border:1px solid #e6dccb;border-radius:10px;background:#faf6ef;font-family:'Manrope',sans-serif;font-size:13px;font-weight:600;color:#2a241d;outline:none;">
+                <option value="walk-in">Walk-in (no table)</option>
+                <option value="T1">Table 1</option>
+                <option value="T2">Table 2</option>
+                <option value="T3">Table 3</option>
+                <option value="T5">Table 5</option>
+                <option value="T8">Table 8</option>
+              </select>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isNotDineIn }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:1;display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;font-weight:700;color:#a9997f;letter-spacing:.02em;">Customer</span>
+              <input value="{{ custValue }}" onInput="{{ onCust }}" placeholder="Name / phone" style="flex:1;padding:9px 10px;border:1px solid #e6dccb;border-radius:10px;background:#faf6ef;font-family:'Manrope',sans-serif;font-size:13px;font-weight:600;color:#2a241d;outline:none;" />
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <!-- Cart lines -->
+      <div style="flex:1;overflow-y:auto;padding:6px 10px;min-height:120px;">
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="height:100%;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:30px;color:#bcae95;">
+            <div style="width:52px;height:52px;border-radius:15px;background:#f4ece0;display:flex;align-items:center;justify-content:center;font-size:22px;">🧺</div>
+            <div style="font-weight:700;color:#a9997f;">No items yet</div>
+            <div style="font-size:12.5px;line-height:1.4;max-width:200px;">Tap a menu item to start building the order.</div>
+          </div>
+        </sc-if>
+        <sc-for list="{{ cartLines }}" as="ln" hint-placeholder-count="0">
+          <div style="display:flex;gap:10px;padding:11px 8px;border-bottom:1px solid #f4ece0;align-items:flex-start;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;font-weight:700;line-height:1.25;color:#2a241d;">{{ ln.name }}</div>
+              <div style="font-size:12px;color:#a9997f;margin-top:2px;">{{ ln.priceFmt }} each</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;background:#f5eee2;border-radius:9px;padding:3px;">
+              <button onClick="{{ ln.onDec }}" style="width:26px;height:26px;border:none;background:#fff;border-radius:7px;font-size:16px;font-weight:700;color:#8a5a3c;cursor:pointer;line-height:1;box-shadow:0 1px 2px rgba(120,90,50,.08);">−</button>
+              <span style="min-width:18px;text-align:center;font-size:13px;font-weight:800;">{{ ln.qty }}</span>
+              <button onClick="{{ ln.onInc }}" style="width:26px;height:26px;border:none;background:#fff;border-radius:7px;font-size:16px;font-weight:700;color:#8a5a3c;cursor:pointer;line-height:1;box-shadow:0 1px 2px rgba(120,90,50,.08);">+</button>
+            </div>
+            <div style="width:78px;text-align:right;font-size:13.5px;font-weight:800;color:#2a241d;">{{ ln.lineFmt }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- Totals + actions -->
+      <div style="border-top:1px solid #f0e8db;padding:16px 18px 18px;background:#fffdf9;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#a9997f;font-weight:600;margin-bottom:6px;">
+          <span>Subtotal</span><span style="color:#5c5140;">{{ subtotalFmt }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#a9997f;font-weight:600;margin-bottom:6px;">
+          <span>Tax (PB1 10%)</span><span style="color:#5c5140;">{{ taxFmt }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding-top:10px;margin-top:6px;border-top:1px dashed #e4d8c6;">
+          <span style="font-size:15px;font-weight:800;">Total</span>
+          <span style="font-size:22px;font-weight:800;color:#c65d3b;font-family:'Manrope',sans-serif;">{{ totalFmt }}</span>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button onClick="{{ onClear }}" style="{{ clearStyle }}">Clear</button>
+          <button onClick="{{ onSendKitchen }}" style="{{ sendStyle }}">Send to Kitchen</button>
+        </div>
+        <button onClick="{{ onPay }}" style="{{ payStyle }}">
+          <span>Charge · Cash</span>
+          <span>{{ totalFmt }}</span>
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Payment modal -->
+  <sc-if value="{{ showPayment }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:60;background:rgba(42,34,26,.42);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px;">
+      <div style="width:100%;max-width:420px;background:#fffdf9;border-radius:22px;overflow:hidden;box-shadow:0 24px 60px rgba(50,34,18,.3);">
+        <sc-if value="{{ notPaid }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <div style="padding:20px 22px 14px;border-bottom:1px solid #f0e8db;display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-family:'DM Serif Display',serif;font-size:20px;">Cash Payment</div>
+                <div style="font-size:12px;color:#a9997f;font-weight:600;margin-top:2px;">{{ orderSummaryLabel }}</div>
+              </div>
+              <button onClick="{{ onClosePayment }}" style="width:34px;height:34px;border:none;background:#f4ece0;border-radius:10px;font-size:17px;color:#8a5a3c;cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:20px 22px;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px;background:#f6efe4;border-radius:14px;margin-bottom:16px;">
+                <span style="font-size:14px;font-weight:700;color:#8a5a3c;">Amount due</span>
+                <span style="font-size:24px;font-weight:800;color:#c65d3b;">{{ totalFmt }}</span>
+              </div>
+
+              <label style="font-size:12px;font-weight:700;color:#a9997f;letter-spacing:.02em;">Amount tendered</label>
+              <div style="position:relative;margin-top:7px;">
+                <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-weight:800;color:#b3a48b;font-size:16px;">Rp</span>
+                <input value="{{ tenderedValue }}" onInput="{{ onTendered }}" inputmode="numeric" placeholder="0" style="width:100%;padding:14px 14px 14px 44px;border:1.5px solid #e6dccb;border-radius:13px;background:#faf6ef;font-family:'Manrope',sans-serif;font-size:20px;font-weight:800;color:#2a241d;outline:none;" />
+              </div>
+
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+                <sc-for list="{{ quickCash }}" as="q" hint-placeholder-count="4">
+                  <button onClick="{{ q.onClick }}" style="flex:1;min-width:calc(33% - 6px);padding:11px 8px;border:1px solid #e6dccb;background:#fff;border-radius:11px;font-family:'Manrope',sans-serif;font-weight:700;font-size:13px;color:#5c5140;cursor:pointer;">{{ q.label }}</button>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:18px;padding-top:14px;border-top:1px dashed #e4d8c6;">
+                <span style="font-size:15px;font-weight:800;">Change</span>
+                <span style="{{ changeStyle }}">{{ changeFmt }}</span>
+              </div>
+
+              <button onClick="{{ onConfirmPay }}" style="{{ confirmStyle }}">Confirm payment</button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ paid }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:38px 30px 32px;text-align:center;">
+            <div style="width:66px;height:66px;margin:0 auto 16px;border-radius:50%;background:#e6f2ea;display:flex;align-items:center;justify-content:center;font-size:32px;color:#0e8a6a;">✓</div>
+            <div style="font-family:'DM Serif Display',serif;font-size:23px;margin-bottom:6px;">Payment received</div>
+            <div style="font-size:13.5px;color:#a9997f;font-weight:600;line-height:1.5;">Order marked <b style="color:#5c5140;">paid</b> · stock deducted per recipe.<br/>Change due: <b style="color:#c65d3b;">{{ changeFmt }}</b></div>
+            <button onClick="{{ onNewOrder }}" style="margin-top:22px;width:100%;padding:14px;border:none;background:#c65d3b;color:#fff;border-radius:13px;font-family:'Manrope',sans-serif;font-weight:800;font-size:15px;cursor:pointer;">New order</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- AI insights drawer -->
+  <sc-if value="{{ showInsights }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onCloseInsights }}" style="position:fixed;inset:0;z-index:55;background:rgba(42,34,26,.35);display:flex;justify-content:flex-end;">
+      <div onClick="{{ stop }}" style="width:380px;max-width:90vw;height:100%;background:#fffdf9;box-shadow:-14px 0 40px rgba(50,34,18,.2);display:flex;flex-direction:column;">
+        <div style="padding:18px 20px;border-bottom:1px solid #f0e8db;display:flex;align-items:center;gap:10px;">
+          <span style="color:#c65d3b;font-size:18px;">✦</span>
+          <div style="flex:1;font-family:'DM Serif Display',serif;font-size:19px;">AI Menu Assistant</div>
+          <button onClick="{{ onCloseInsights }}" style="width:32px;height:32px;border:none;background:#f4ece0;border-radius:9px;font-size:15px;color:#8a5a3c;cursor:pointer;">✕</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px;">
+          <div style="align-self:flex-end;max-width:85%;background:#c65d3b;color:#fff;padding:11px 14px;border-radius:15px 15px 4px 15px;font-size:13.5px;line-height:1.5;">Is the Beef Rendang Rice spicy? Customer at T5 asked.</div>
+          <div style="align-self:flex-start;max-width:90%;background:#f5eee2;padding:12px 14px;border-radius:15px 15px 15px 4px;font-size:13.5px;line-height:1.55;color:#3a3226;">Mildly spicy — slow-cooked beef in coconut &amp; chili paste, more rich than hot. Comes with steamed rice &amp; sambal on the side (guests can skip the sambal). Contains coconut; no nuts. Popular pairing: <b>Teh Tarik</b> to balance the richness.</div>
+          <div style="align-self:flex-start;background:#eef4ef;border:1px solid #dce7dd;padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.5;color:#3f5a48;">
+            <b>✦ Inventory note:</b> Beef stock at <b>18%</b> — 4 portions left. Flag Admin before promoting.
+          </div>
+        </div>
+        <div style="padding:14px 18px;border-top:1px solid #f0e8db;">
+          <div style="display:flex;gap:8px;align-items:center;background:#faf6ef;border:1px solid #e6dccb;border-radius:13px;padding:8px 8px 8px 14px;">
+            <input placeholder="Ask about an item…" style="flex:1;border:none;background:transparent;font-family:'Manrope',sans-serif;font-size:13.5px;color:#2a241d;outline:none;" />
+            <button style="width:34px;height:34px;border:none;background:#c65d3b;color:#fff;border-radius:9px;font-size:15px;cursor:pointer;">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:820}}">
+class Component extends DCLogic {
+  state = {
+    orderType: 'dine_in',
+    table: 'T5',
+    cust: '',
+    category: 'All',
+    search: '',
+    cart: { c2: 2, f4: 1, t1: 1 },
+    showPayment: false,
+    tendered: '',
+    paid: false,
+    showInsights: false,
+  };
+
+  menu() {
+    return [
+      { id: 'c1', name: 'Espresso', cat: 'Coffee', price: 18000, desc: 'Double shot, dark & bold' },
+      { id: 'c2', name: 'Kopi Susu Gula Aren', cat: 'Coffee', price: 25000, desc: 'Palm-sugar milk coffee', badge: 'Popular' },
+      { id: 'c3', name: 'Cappuccino', cat: 'Coffee', price: 28000, desc: 'Espresso, steamed milk foam' },
+      { id: 'c4', name: 'Caffè Latte', cat: 'Coffee', price: 30000, desc: 'Smooth, milky, mild' },
+      { id: 'c5', name: 'Americano', cat: 'Coffee', price: 22000, desc: 'Espresso + hot water' },
+      { id: 'c6', name: 'Cold Brew', cat: 'Coffee', price: 32000, desc: '18-hour slow steep' },
+      { id: 't1', name: 'Teh Tarik', cat: 'Tea', price: 20000, desc: 'Pulled milk tea, frothy', badge: 'Popular' },
+      { id: 't2', name: 'Matcha Latte', cat: 'Tea', price: 33000, desc: 'Ceremonial-grade matcha' },
+      { id: 't3', name: 'Lemon Tea', cat: 'Tea', price: 18000, desc: 'Iced, fresh lemon' },
+      { id: 't4', name: 'Chamomile', cat: 'Tea', price: 22000, desc: 'Caffeine-free herbal' },
+      { id: 'f1', name: 'Nasi Goreng Spesial', cat: 'Food', price: 45000, desc: 'Fried rice, egg, satay' },
+      { id: 'f2', name: 'Mie Ayam', cat: 'Food', price: 38000, desc: 'Chicken noodle, savory' },
+      { id: 'f3', name: 'Chicken Katsu Rice', cat: 'Food', price: 52000, desc: 'Crispy cutlet, katsu sauce' },
+      { id: 'f4', name: 'Beef Rendang Rice', cat: 'Food', price: 58000, desc: 'Slow-cooked, coconut & chili', badge: 'Low stock' },
+      { id: 'f5', name: 'Caesar Salad', cat: 'Food', price: 42000, desc: 'Romaine, parmesan, crouton' },
+      { id: 'f6', name: 'Club Sandwich', cat: 'Food', price: 40000, desc: 'Triple-stack, fries' },
+      { id: 'p1', name: 'Butter Croissant', cat: 'Pastry', price: 24000, desc: 'Flaky, all-butter' },
+      { id: 'p2', name: 'Pain au Chocolat', cat: 'Pastry', price: 27000, desc: 'Dark chocolate batons' },
+      { id: 'p3', name: 'Cinnamon Roll', cat: 'Pastry', price: 26000, desc: 'Warm, cream-cheese glaze' },
+      { id: 'p4', name: 'Cheesecake Slice', cat: 'Pastry', price: 35000, desc: 'New York style' },
+      { id: 's1', name: 'French Fries', cat: 'Snacks', price: 25000, desc: 'Sea salt, crisp' },
+      { id: 's2', name: 'Onion Rings', cat: 'Snacks', price: 27000, desc: 'Beer-battered' },
+      { id: 's3', name: 'Chicken Wings', cat: 'Snacks', price: 42000, desc: 'Sweet-soy glaze, 6 pc' },
+    ];
+  }
+
+  catTints() {
+    return {
+      Coffee: ['#efe3d6', '#e4d3c0'],
+      Tea: ['#e4ece1', '#d3e0cf'],
+      Food: ['#f0e2cf', '#e6d2b6'],
+      Pastry: ['#f2e6dc', '#ead4c2'],
+      Snacks: ['#eee0d6', '#e2ccbe'],
+    };
+  }
+
+  fmt(n) {
+    return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+  }
+
+  parseNum(s) {
+    const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  addItem(id) {
+    this.setState(s => ({ cart: { ...s.cart, [id]: (s.cart[id] || 0) + 1 } }));
+  }
+  incItem(id) { this.addItem(id); }
+  decItem(id) {
+    this.setState(s => {
+      const c = { ...s.cart };
+      c[id] = (c[id] || 0) - 1;
+      if (c[id] <= 0) delete c[id];
+      return { cart: c };
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const menu = this.menu();
+    const tints = this.catTints();
+    const cats = ['All', 'Coffee', 'Tea', 'Food', 'Pastry', 'Snacks'];
+
+    const countFor = (c) => c === 'All' ? menu.length : menu.filter(m => m.cat === c).length;
+
+    const categories = cats.map(c => {
+      const active = s.category === c;
+      return {
+        name: c,
+        count: countFor(c),
+        onClick: () => this.setState({ category: c }),
+        style: `display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:11px;border:1px solid ${active ? '#c65d3b' : '#e6dccb'};background:${active ? '#c65d3b' : '#fffdf9'};color:${active ? '#fff' : '#5c5140'};font-family:'Manrope',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all .12s;`,
+        countStyle: `font-size:11px;font-weight:800;padding:1px 7px;border-radius:20px;background:${active ? 'rgba(255,255,255,.22)' : '#f4ece0'};color:${active ? '#fff' : '#a9997f'};`,
+      };
+    });
+
+    const q = s.search.trim().toLowerCase();
+    const filtered = menu.filter(m =>
+      (s.category === 'All' || m.cat === s.category) &&
+      (q === '' || m.name.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q))
+    );
+
+    const items = filtered.map(m => {
+      const [a, b] = tints[m.cat];
+      const qty = s.cart[m.id] || 0;
+      let badgeStyle = '';
+      if (m.badge === 'Popular') badgeStyle = 'position:absolute;right:8px;top:8px;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:20px;background:#fbeede;color:#c07a2c;';
+      if (m.badge === 'Low stock') badgeStyle = 'position:absolute;right:8px;top:8px;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:20px;background:#f7e2dc;color:#c0492c;';
+      return {
+        ...m,
+        priceFmt: this.fmt(m.price),
+        thumbStyle: `position:relative;height:88px;border-radius:11px;background:repeating-linear-gradient(135deg, ${a}, ${a} 7px, ${b} 7px, ${b} 14px);`,
+        badgeStyle,
+        onAdd: () => this.addItem(m.id),
+        addLabel: qty > 0 ? ('In cart · ' + qty) : '+ Add',
+        addStyle: qty > 0
+          ? "padding:8px 12px;border-radius:10px;border:1px solid #d8b6a6;background:#f7ece6;color:#a94a2c;font-family:'Manrope',sans-serif;font-weight:800;font-size:12.5px;cursor:pointer;"
+          : "padding:8px 13px;border-radius:10px;border:none;background:#2a241d;color:#fff;font-family:'Manrope',sans-serif;font-weight:800;font-size:12.5px;cursor:pointer;",
+      };
+    });
+
+    const cartLines = Object.entries(s.cart).map(([id, qty]) => {
+      const m = menu.find(x => x.id === id);
+      if (!m) return null;
+      return {
+        id, qty,
+        name: m.name,
+        priceFmt: this.fmt(m.price),
+        lineFmt: this.fmt(m.price * qty),
+        onInc: () => this.incItem(id),
+        onDec: () => this.decItem(id),
+      };
+    }).filter(Boolean);
+
+    const subtotal = cartLines.reduce((t, l) => {
+      const m = menu.find(x => x.id === l.id);
+      return t + m.price * l.qty;
+    }, 0);
+    const tax = subtotal * 0.10;
+    const total = subtotal + tax;
+    const isEmpty = cartLines.length === 0;
+
+    const orderTypes = [
+      { key: 'dine_in', label: 'Dine-in' },
+      { key: 'takeaway', label: 'Takeaway' },
+      { key: 'delivery', label: 'Delivery' },
+    ].map(o => {
+      const active = s.orderType === o.key;
+      return {
+        label: o.label,
+        onClick: () => this.setState({ orderType: o.key }),
+        style: `flex:1;padding:10px 8px;border:none;border-radius:9px;background:${active ? '#fffdf9' : 'transparent'};color:${active ? '#c65d3b' : '#8a7c66'};font-family:'Manrope',sans-serif;font-weight:800;font-size:13px;cursor:pointer;box-shadow:${active ? '0 1px 3px rgba(120,90,50,.14)' : 'none'};transition:all .12s;`,
+      };
+    });
+
+    const tenderedNum = this.parseNum(s.tendered);
+    const change = tenderedNum - total;
+    const enoughCash = tenderedNum >= total && total > 0;
+
+    const quickCash = [50000, 100000, 150000, 200000].map(v => ({
+      label: this.fmt(v),
+      onClick: () => this.setState({ tendered: String(v) }),
+    }));
+
+    const btnBase = "flex:1;padding:13px;border-radius:12px;font-family:'Manrope',sans-serif;font-weight:800;font-size:14px;cursor:pointer;";
+
+    return {
+      searchValue: s.search,
+      onSearch: (e) => this.setState({ search: e.target.value }),
+
+      categories,
+      activeCategoryName: s.category === 'All' ? 'All items' : s.category,
+      resultCountLabel: items.length + (items.length === 1 ? ' item' : ' items'),
+      items,
+
+      orderTypes,
+      isDineIn: s.orderType === 'dine_in',
+      isNotDineIn: s.orderType !== 'dine_in',
+      tableValue: s.table,
+      onTable: (e) => this.setState({ table: e.target.value }),
+      custValue: s.cust,
+      onCust: (e) => this.setState({ cust: e.target.value }),
+
+      cartLines,
+      isEmpty,
+      subtotalFmt: this.fmt(subtotal),
+      taxFmt: this.fmt(tax),
+      totalFmt: this.fmt(total),
+
+      onClear: () => this.setState({ cart: {} }),
+      clearStyle: btnBase + `border:1px solid #e6dccb;background:#fff;color:#8a7c66;max-width:96px;${isEmpty ? 'opacity:.5;pointer-events:none;' : ''}`,
+      onSendKitchen: () => {},
+      sendStyle: btnBase + `border:1px solid #d8b6a6;background:#fff;color:#a94a2c;${isEmpty ? 'opacity:.5;pointer-events:none;' : ''}`,
+      onPay: () => { if (!isEmpty) this.setState({ showPayment: true, paid: false, tendered: '' }); },
+      payStyle: `width:100%;margin-top:10px;padding:15px;border-radius:13px;border:none;background:${isEmpty ? '#e2c9bd' : '#c65d3b'};color:#fff;font-family:'Manrope',sans-serif;font-weight:800;font-size:15px;cursor:${isEmpty ? 'default' : 'pointer'};display:flex;align-items:center;justify-content:space-between;${isEmpty ? 'pointer-events:none;' : ''}`,
+
+      showPayment: s.showPayment,
+      notPaid: !s.paid,
+      paid: s.paid,
+      orderSummaryLabel: (s.orderType === 'dine_in' ? ('Dine-in · ' + (s.table === 'walk-in' ? 'Walk-in' : s.table.replace('T', 'Table '))) : (s.orderType === 'takeaway' ? 'Takeaway' : 'Delivery')) + ' · ' + cartLines.reduce((t, l) => t + l.qty, 0) + ' items',
+      onClosePayment: () => this.setState({ showPayment: false }),
+      tenderedValue: s.tendered,
+      onTendered: (e) => this.setState({ tendered: e.target.value }),
+      quickCash,
+      changeFmt: enoughCash ? this.fmt(change) : (tenderedNum > 0 ? '— short ' + this.fmt(total - tenderedNum) : this.fmt(0)),
+      changeStyle: `font-size:20px;font-weight:800;color:${enoughCash ? '#0e8a6a' : '#c0492c'};`,
+      onConfirmPay: () => { if (enoughCash) this.setState({ paid: true }); },
+      confirmStyle: `width:100%;margin-top:20px;padding:15px;border-radius:13px;border:none;background:${enoughCash ? '#0e8a6a' : '#d9cdbb'};color:#fff;font-family:'Manrope',sans-serif;font-weight:800;font-size:15px;cursor:${enoughCash ? 'pointer' : 'default'};${enoughCash ? '' : 'pointer-events:none;'}`,
+      onNewOrder: () => this.setState({ showPayment: false, paid: false, cart: {}, tendered: '' }),
+
+      showInsights: s.showInsights,
+      onOpenInsights: () => this.setState({ showInsights: true }),
+      onCloseInsights: () => this.setState({ showInsights: false }),
+      stop: (e) => e.stopPropagation(),
+    };
+  }
+}
+</script>
+</body>
+</html>

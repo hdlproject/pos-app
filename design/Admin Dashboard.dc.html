@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Manrope', system-ui, sans-serif; color: #2a241d; background: #f3ede3; -webkit-font-smoothing: antialiased; }
+  a { color: #c65d3b; text-decoration: none; }
+  a:hover { color: #a94a2c; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d9cdbb; border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;background:#f3ede3;">
+
+  <!-- Sidebar -->
+  <aside style="width:230px;flex-shrink:0;background:#fffdf9;border-right:1px solid #e9e0d2;display:flex;flex-direction:column;padding:18px 14px;position:sticky;top:0;height:100vh;">
+    <div style="display:flex;align-items:center;gap:11px;padding:4px 8px 20px;">
+      <div style="width:38px;height:38px;border-radius:11px;background:#c65d3b;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Serif Display',serif;font-size:21px;line-height:1;">K</div>
+      <div style="line-height:1.15;">
+        <div style="font-family:'DM Serif Display',serif;font-size:17px;">Kopi &amp; Co</div>
+        <div style="font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:#a9997f;font-weight:700;">Admin</div>
+      </div>
+    </div>
+    <nav style="display:flex;flex-direction:column;gap:3px;">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="6">
+        <button onClick="{{ n.onClick }}" style="{{ n.style }}">
+          <span style="width:20px;text-align:center;">{{ n.icon }}</span>
+          <span>{{ n.label }}</span>
+          <sc-if value="{{ n.alert }}" hint-placeholder-val="{{ false }}">
+            <span style="margin-left:auto;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:20px;background:#f7e2dc;color:#c0492c;">{{ n.alert }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </nav>
+    <div style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px;background:#f6efe4;border-radius:12px;">
+      <div style="width:34px;height:34px;border-radius:50%;background:#dccab2;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#6b5637;">BW</div>
+      <div style="line-height:1.15;">
+        <div style="font-size:13px;font-weight:700;">Budi W.</div>
+        <div style="font-size:11px;color:#a9997f;font-weight:600;">Admin</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+    <header style="display:flex;align-items:center;gap:16px;padding:18px 26px;background:#fffdf9;border-bottom:1px solid #e9e0d2;position:sticky;top:0;z-index:10;">
+      <div>
+        <h1 style="margin:0;font-family:'DM Serif Display',serif;font-size:24px;">{{ pageTitle }}</h1>
+        <div style="font-size:12.5px;color:#a9997f;font-weight:600;margin-top:2px;">{{ pageSub }}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-left:auto;background:#f3ede3;padding:4px;border-radius:11px;">
+        <sc-for list="{{ ranges }}" as="r" hint-placeholder-count="4">
+          <button onClick="{{ r.onClick }}" style="{{ r.style }}">{{ r.label }}</button>
+        </sc-for>
+      </div>
+    </header>
+
+    <main style="flex:1;padding:22px 26px 34px;overflow-y:auto;">
+
+      <!-- KPI cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px;margin-bottom:20px;">
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+          <div style="background:#fffdf9;border:1px solid #ece2d3;border-radius:16px;padding:18px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:12.5px;font-weight:700;color:#a9997f;letter-spacing:.02em;">{{ k.label }}</span>
+              <span style="{{ k.iconStyle }}">{{ k.icon }}</span>
+            </div>
+            <div style="font-size:27px;font-weight:800;color:#2a241d;margin-top:10px;letter-spacing:-.01em;">{{ k.value }}</div>
+            <div style="{{ k.deltaStyle }}">{{ k.delta }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- AI insight banner -->
+      <div style="background:linear-gradient(100deg,#fbf1e6,#fff7ee);border:1px solid #ecdcc8;border-radius:18px;padding:18px 20px;margin-bottom:22px;display:flex;gap:16px;align-items:flex-start;">
+        <div style="width:40px;height:40px;flex-shrink:0;border-radius:12px;background:#c65d3b;display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px;">✦</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:5px;">
+            <span style="font-weight:800;font-size:14.5px;color:#8a5a3c;">AI Report Analysis</span>
+            <span style="font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:20px;background:#f1e2d2;color:#a9835b;">Auto-generated</span>
+          </div>
+          <p style="margin:0;font-size:13.5px;line-height:1.6;color:#5c5140;">Revenue is up <b style="color:#0e8a6a;">14% vs last week</b>, driven by afternoon coffee sales (2–5 PM is your peak). <b>Beef Rendang</b> is your top-margin seller but stock covers only <b style="color:#c0492c;">~4 more portions</b> — reorder beef today to avoid a weekend stockout. Pastry waste is trending up; consider baking 15% fewer croissants on weekdays.</p>
+          <div style="display:flex;gap:9px;margin-top:12px;flex-wrap:wrap;">
+            <button style="padding:8px 14px;border:none;background:#c65d3b;color:#fff;border-radius:10px;font-family:'Manrope',sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;">Draft reorder list</button>
+            <button style="padding:8px 14px;border:1px solid #e0d3c8;background:#fff;color:#8a5a3c;border-radius:10px;font-family:'Manrope',sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;">Ask a follow-up</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-column: chart + best sellers -->
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px;margin-bottom:22px;">
+        <div style="background:#fffdf9;border:1px solid #ece2d3;border-radius:18px;padding:20px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;">
+            <h3 style="margin:0;font-size:15px;font-weight:800;">Sales by hour</h3>
+            <span style="font-size:12px;color:#a9997f;font-weight:600;">Today · {{ todayTotal }}</span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:8px;height:180px;padding-top:8px;">
+            <sc-for list="{{ bars }}" as="b" hint-placeholder-count="10">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end;">
+                <div style="{{ b.barStyle }}" title="{{ b.amount }}"></div>
+                <span style="font-size:10px;font-weight:700;color:#b3a48b;">{{ b.hour }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#fffdf9;border:1px solid #ece2d3;border-radius:18px;padding:20px;">
+          <h3 style="margin:0 0 14px;font-size:15px;font-weight:800;">Best sellers</h3>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <sc-for list="{{ bestSellers }}" as="bs" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="width:22px;font-size:13px;font-weight:800;color:#c65d3b;">{{ bs.rank }}</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;">
+                    <span style="font-size:13px;font-weight:700;color:#2a241d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ bs.name }}</span>
+                    <span style="font-size:12.5px;font-weight:800;color:#8a5a3c;">{{ bs.qty }}</span>
+                  </div>
+                  <div style="height:7px;border-radius:5px;background:#f1e7d8;overflow:hidden;">
+                    <div style="{{ bs.barStyle }}"></div>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory -->
+      <div style="background:#fffdf9;border:1px solid #ece2d3;border-radius:18px;padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <h3 style="margin:0;font-size:15px;font-weight:800;">Ingredient inventory</h3>
+            <span style="font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px;background:#f7e2dc;color:#c0492c;">{{ lowCount }} low stock</span>
+          </div>
+          <span style="font-size:12px;color:#a9997f;font-weight:600;">Auto-deducted per recipe on payment</span>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1.3fr 1fr 1fr;gap:8px;padding:0 6px 10px;border-bottom:1px solid #eee3d3;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#b3a48b;">
+          <span>Ingredient</span><span>Stock level</span><span style="text-align:right;">On hand</span><span style="text-align:right;">Status</span>
+        </div>
+        <sc-for list="{{ inventory }}" as="ing" hint-placeholder-count="7">
+          <div style="display:grid;grid-template-columns:2fr 1.3fr 1fr 1fr;gap:8px;align-items:center;padding:12px 6px;border-bottom:1px solid #f4ece0;">
+            <div style="display:flex;flex-direction:column;">
+              <span style="font-size:13.5px;font-weight:700;color:#2a241d;">{{ ing.name }}</span>
+              <span style="font-size:11.5px;color:#a9997f;font-weight:600;">used in {{ ing.usedIn }}</span>
+            </div>
+            <div style="height:8px;border-radius:5px;background:#f1e7d8;overflow:hidden;">
+              <div style="{{ ing.barStyle }}"></div>
+            </div>
+            <span style="text-align:right;font-size:13px;font-weight:700;color:#5c5140;">{{ ing.onHand }}</span>
+            <span style="text-align:right;"><span style="{{ ing.pillStyle }}">{{ ing.status }}</span></span>
+          </div>
+        </sc-for>
+      </div>
+
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1240,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { section: 'Overview', range: 'Today' };
+
+  fmt(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+  fmtShort(n) {
+    if (n >= 1000000) return 'Rp ' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return 'Rp ' + Math.round(n / 1000) + 'K';
+    return 'Rp ' + n;
+  }
+
+  renderVals() {
+    const s = this.state;
+
+    const nav = [
+      { key: 'Overview', icon: '◫', label: 'Overview' },
+      { key: 'Sales', icon: '↗', label: 'Daily sales' },
+      { key: 'Best', icon: '★', label: 'Best sellers' },
+      { key: 'Inventory', icon: '▤', label: 'Inventory', alert: '3' },
+      { key: 'Shifts', icon: '◷', label: 'Shift summary' },
+      { key: 'Menu', icon: '✦', label: 'AI menu tools' },
+    ].map(n => {
+      const active = s.section === n.key;
+      return {
+        icon: n.icon, label: n.label, alert: n.alert || false,
+        onClick: () => this.setState({ section: n.key }),
+        style: `display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;border:none;border-radius:11px;background:${active ? '#f6efe4' : 'transparent'};color:${active ? '#c65d3b' : '#6b5f4d'};font-family:'Manrope',sans-serif;font-weight:${active ? 800 : 600};font-size:13.5px;cursor:pointer;text-align:left;transition:all .12s;`,
+      };
+    });
+
+    const ranges = ['Today', 'Week', 'Month', 'Custom'].map(r => {
+      const active = s.range === r;
+      return {
+        label: r,
+        onClick: () => this.setState({ range: r }),
+        style: `padding:8px 15px;border:none;border-radius:8px;background:${active ? '#fffdf9' : 'transparent'};color:${active ? '#c65d3b' : '#8a7c66'};font-family:'Manrope',sans-serif;font-weight:800;font-size:12.5px;cursor:pointer;box-shadow:${active ? '0 1px 3px rgba(120,90,50,.14)' : 'none'};transition:all .12s;`,
+      };
+    });
+
+    const kpis = [
+      { label: 'Revenue', value: this.fmt(4285000), icon: '↗', delta: '+14% vs last week', up: true },
+      { label: 'Orders', value: '132', icon: '🧾', delta: '+9 vs yesterday', up: true },
+      { label: 'Avg order value', value: this.fmt(32500), icon: '⌀', delta: '+3.2%', up: true },
+      { label: 'Cash collected', value: this.fmt(4285000), icon: '₵', delta: 'Reconciled at close', up: null },
+    ].map(k => ({
+      label: k.label, value: k.value, icon: k.icon, delta: k.delta,
+      iconStyle: 'width:30px;height:30px;border-radius:9px;background:#f6efe4;display:flex;align-items:center;justify-content:center;font-size:14px;color:#c65d3b;',
+      deltaStyle: `font-size:12px;font-weight:700;margin-top:6px;color:${k.up === true ? '#0e8a6a' : (k.up === false ? '#c0492c' : '#a9997f')};`,
+    }));
+
+    const hourly = [
+      { h: '8a', v: 180 }, { h: '9a', v: 320 }, { h: '10a', v: 410 }, { h: '11a', v: 380 },
+      { h: '12p', v: 520 }, { h: '1p', v: 470 }, { h: '2p', v: 610 }, { h: '3p', v: 680 },
+      { h: '4p', v: 640 }, { h: '5p', v: 430 },
+    ];
+    const maxV = Math.max(...hourly.map(h => h.v));
+    const bars = hourly.map(h => {
+      const pct = (h.v / maxV) * 100;
+      const peak = h.v === maxV;
+      return {
+        hour: h.h,
+        amount: this.fmtShort(h.v * 1000),
+        barStyle: `width:100%;max-width:30px;height:${pct}%;border-radius:6px 6px 3px 3px;background:${peak ? '#c65d3b' : '#e6c3a8'};transition:height .3s;`,
+      };
+    });
+
+    const best = [
+      { name: 'Kopi Susu Gula Aren', q: 48 },
+      { name: 'Teh Tarik', q: 41 },
+      { name: 'Nasi Goreng Spesial', q: 33 },
+      { name: 'Butter Croissant', q: 29 },
+      { name: 'Beef Rendang Rice', q: 24 },
+    ];
+    const maxQ = best[0].q;
+    const bestSellers = best.map((b, i) => ({
+      rank: '#' + (i + 1),
+      name: b.name,
+      qty: b.q + ' sold',
+      barStyle: `height:100%;width:${(b.q / maxQ) * 100}%;border-radius:5px;background:${i === 0 ? '#c65d3b' : '#e0a86a'};`,
+    }));
+
+    const inv = [
+      { name: 'Arabica beans', used: 'all espresso drinks', pct: 62, onHand: '6.2 kg' },
+      { name: 'Fresh milk', used: 'lattes, cappuccino', pct: 44, onHand: '18 L' },
+      { name: 'Palm sugar (gula aren)', used: 'Kopi Susu', pct: 71, onHand: '4.3 kg' },
+      { name: 'Beef (rendang cut)', used: 'Beef Rendang Rice', pct: 18, onHand: '1.1 kg' },
+      { name: 'Chicken breast', used: 'Katsu, Mie Ayam', pct: 12, onHand: '0.8 kg' },
+      { name: 'Croissant dough', used: 'pastries', pct: 8, onHand: '9 pcs' },
+      { name: 'Eggs', used: 'Nasi Goreng, pastry', pct: 55, onHand: '3.5 trays' },
+    ];
+    const lowThreshold = 20;
+    const lowCount = inv.filter(i => i.pct < lowThreshold).length;
+    const inventory = inv.map(i => {
+      const low = i.pct < lowThreshold;
+      const warn = i.pct >= lowThreshold && i.pct < 35;
+      const color = low ? '#c0492c' : (warn ? '#d98a2b' : '#0e8a6a');
+      const status = low ? 'Low' : (warn ? 'Watch' : 'OK');
+      const pillBg = low ? '#f7e2dc' : (warn ? '#faeeda' : '#e6f2ea');
+      return {
+        name: i.name, usedIn: i.used, onHand: i.onHand, status,
+        barStyle: `height:100%;width:${Math.max(i.pct, 4)}%;border-radius:5px;background:${color};`,
+        pillStyle: `font-size:11px;font-weight:800;padding:2px 10px;border-radius:20px;background:${pillBg};color:${color};`,
+      };
+    });
+
+    const subMap = {
+      Overview: 'Snapshot of today across sales, menu and stock',
+      Sales: 'Revenue, orders and average value',
+      Best: 'Top items by quantity and revenue',
+      Inventory: 'Ingredient stock, usage and low-stock flags',
+      Shifts: 'Per-staff orders, cash and reconciliation',
+      Menu: 'Generate, explain and price menu items with AI',
+    };
+
+    return {
+      nav, ranges,
+      pageTitle: s.section === 'Overview' ? 'Overview' : nav.find(n => n.label)?.label || s.section,
+      pageSub: subMap[s.section] || subMap.Overview,
+      kpis,
+      todayTotal: this.fmt(4285000),
+      bars,
+      bestSellers,
+      inventory,
+      lowCount,
+    };
+  }
+}
+</script>
+</body>
+</html>

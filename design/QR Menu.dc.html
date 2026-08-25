@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Manrope', system-ui, sans-serif; color: #2a241d; background: #ded2c0; -webkit-font-smoothing: antialiased; }
+  a { color: #c65d3b; text-decoration: none; }
+  a:hover { color: #a94a2c; }
+  ::-webkit-scrollbar { width: 0; }
+  #qr-scroll::-webkit-scrollbar { width: 6px; }
+  #qr-scroll::-webkit-scrollbar-thumb { background: #d9cdbb; border-radius: 6px; }
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:22px 16px;background:radial-gradient(120% 60% at 50% 0%, #e7dccb, #d3c6b3);">
+
+  <!-- Phone frame -->
+  <div style="width:100%;max-width:412px;background:#fbf6ee;border-radius:34px;overflow:hidden;box-shadow:0 26px 60px rgba(60,40,18,.28), 0 0 0 1px rgba(120,90,50,.08);position:relative;display:flex;flex-direction:column;height:844px;max-height:calc(100vh - 44px);">
+
+    <!-- Scrollable content -->
+    <div id="qr-scroll" style="flex:1;overflow-y:auto;">
+
+      <!-- Hero header -->
+      <div style="position:relative;padding:20px 20px 22px;background:linear-gradient(160deg,#c65d3b,#a94a2c);color:#fff;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:11px;">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:22px;">K</div>
+            <div style="line-height:1.15;">
+              <div style="font-family:'DM Serif Display',serif;font-size:19px;">Kopi &amp; Co</div>
+              <div style="font-size:11px;font-weight:700;opacity:.85;letter-spacing:.02em;">Self-order · scan to start</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.8;">Your table</div>
+            <div style="font-size:20px;font-weight:800;">T5</div>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);border-radius:12px;padding:10px 12px;">
+          <span style="opacity:.9;">⌕</span>
+          <input value="{{ searchValue }}" onInput="{{ onSearch }}" placeholder="Search the menu…" style="flex:1;border:none;background:transparent;color:#fff;font-family:'Manrope',sans-serif;font-size:14px;outline:none;" />
+        </div>
+      </div>
+
+      <!-- AI helper strip -->
+      <button onClick="{{ onOpenAI }}" style="width:calc(100% - 32px);margin:14px 16px 4px;display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid #ecdcc8;background:linear-gradient(100deg,#fbf1e6,#fff7ee);border-radius:15px;cursor:pointer;text-align:left;font-family:'Manrope',sans-serif;">
+        <span style="width:34px;height:34px;flex-shrink:0;border-radius:10px;background:#c65d3b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;">✦</span>
+        <span style="flex:1;">
+          <span style="display:block;font-size:13.5px;font-weight:800;color:#8a5a3c;">Not sure what to order?</span>
+          <span style="display:block;font-size:12px;color:#a9835b;font-weight:600;margin-top:1px;">Ask about ingredients, spice, allergens</span>
+        </span>
+        <span style="color:#c65d3b;font-size:18px;">›</span>
+      </button>
+
+      <!-- Category tabs -->
+      <div style="position:sticky;top:0;z-index:5;background:#fbf6ee;padding:12px 0 8px;">
+        <div style="display:flex;gap:8px;overflow-x:auto;padding:0 16px;">
+          <sc-for list="{{ categories }}" as="cat" hint-placeholder-count="5">
+            <button onClick="{{ cat.onClick }}" style="{{ cat.style }}">{{ cat.name }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- Item list -->
+      <div style="padding:6px 16px 20px;display:flex;flex-direction:column;gap:12px;">
+        <sc-for list="{{ items }}" as="it" hint-placeholder-count="6">
+          <div style="display:flex;gap:13px;background:#fffdf9;border:1px solid #ece2d3;border-radius:17px;padding:12px;">
+            <div style="{{ it.thumbStyle }}">
+              <span style="font-family:ui-monospace,Menlo,monospace;font-size:8.5px;color:rgba(90,70,45,.5);background:rgba(255,253,249,.7);padding:2px 5px;border-radius:5px;">photo</span>
+            </div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+              <div style="display:flex;align-items:flex-start;gap:6px;justify-content:space-between;">
+                <span style="font-size:14.5px;font-weight:800;line-height:1.2;color:#2a241d;">{{ it.name }}</span>
+                <sc-if value="{{ it.badge }}" hint-placeholder-val="{{ false }}">
+                  <span style="{{ it.badgeStyle }}">{{ it.badge }}</span>
+                </sc-if>
+              </div>
+              <span style="font-size:12px;color:#a9997f;font-weight:600;line-height:1.4;margin-top:3px;">{{ it.desc }}</span>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:9px;">
+                <span style="font-size:14px;font-weight:800;color:#8a5a3c;">{{ it.priceFmt }}</span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button onClick="{{ it.onExplain }}" style="width:32px;height:32px;border:1px solid #e6dccb;background:#fff;border-radius:9px;color:#c65d3b;font-size:13px;font-weight:800;cursor:pointer;">✦</button>
+                  <sc-if value="{{ it.inCart }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;align-items:center;gap:8px;background:#f5eee2;border-radius:9px;padding:3px;">
+                      <button onClick="{{ it.onDec }}" style="width:28px;height:28px;border:none;background:#fff;border-radius:7px;font-size:16px;font-weight:700;color:#8a5a3c;cursor:pointer;line-height:1;box-shadow:0 1px 2px rgba(120,90,50,.1);">−</button>
+                      <span style="min-width:16px;text-align:center;font-size:14px;font-weight:800;">{{ it.qty }}</span>
+                      <button onClick="{{ it.onInc }}" style="width:28px;height:28px;border:none;background:#c65d3b;border-radius:7px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;line-height:1;">+</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ it.notInCart }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ it.onInc }}" style="padding:8px 16px;border:none;background:#2a241d;color:#fff;border-radius:9px;font-family:'Manrope',sans-serif;font-weight:800;font-size:13px;cursor:pointer;">Add</button>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="height:120px;"></div>
+    </div>
+
+    <!-- Open-tab / cart bar -->
+    <sc-if value="{{ hasCart }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 16px 18px;background:linear-gradient(180deg,rgba(251,246,238,0),#fbf6ee 30%);">
+        <div style="background:#2a241d;border-radius:18px;padding:6px;display:flex;align-items:center;gap:10px;box-shadow:0 12px 30px rgba(42,34,26,.28);">
+          <div style="display:flex;align-items:center;gap:12px;padding:8px 6px 8px 14px;flex:1;">
+            <span style="width:34px;height:34px;border-radius:10px;background:#c65d3b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;">{{ cartCount }}</span>
+            <div style="line-height:1.15;">
+              <div style="font-size:11px;font-weight:700;color:#b5a48c;">Open tab · T5</div>
+              <div style="font-size:16px;font-weight:800;color:#fff;">{{ cartTotalFmt }}</div>
+            </div>
+          </div>
+          <button onClick="{{ onSubmit }}" style="padding:14px 20px;border:none;background:#c65d3b;color:#fff;border-radius:14px;font-family:'Manrope',sans-serif;font-weight:800;font-size:14.5px;cursor:pointer;">{{ submitLabel }} ›</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- Empty-cart request-bill bar (after items sent) -->
+    <sc-if value="{{ showBillBar }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 16px 18px;background:linear-gradient(180deg,rgba(251,246,238,0),#fbf6ee 30%);">
+        <button onClick="{{ onRequestBill }}" style="width:100%;padding:15px;border:1px solid #d8b6a6;background:#fff;color:#a94a2c;border-radius:16px;font-family:'Manrope',sans-serif;font-weight:800;font-size:14.5px;cursor:pointer;">Request bill · pay at counter</button>
+      </div>
+    </sc-if>
+
+    <!-- AI explain sheet -->
+    <sc-if value="{{ showAI }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ onCloseAI }}" style="position:absolute;inset:0;z-index:40;background:rgba(42,34,26,.4);display:flex;align-items:flex-end;">
+        <div onClick="{{ stop }}" style="width:100%;background:#fbf6ee;border-radius:24px 24px 0 0;max-height:82%;display:flex;flex-direction:column;overflow:hidden;">
+          <div style="padding:16px 20px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f0e8db;">
+            <span style="color:#c65d3b;font-size:18px;">✦</span>
+            <span style="flex:1;font-family:'DM Serif Display',serif;font-size:18px;">{{ aiTitle }}</span>
+            <button onClick="{{ onCloseAI }}" style="width:32px;height:32px;border:none;background:#f4ece0;border-radius:9px;font-size:15px;color:#8a5a3c;cursor:pointer;">✕</button>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px;">
+            <div style="background:#f5eee2;padding:13px 15px;border-radius:14px;font-size:13.5px;line-height:1.6;color:#3a3226;">{{ aiBody }}</div>
+            <div style="font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#b3a48b;margin-top:4px;">You might also like</div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <sc-for list="{{ aiSuggest }}" as="sg" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ece2d3;border-radius:13px;background:#fffdf9;">
+                  <span style="flex:1;">
+                    <span style="display:block;font-size:13.5px;font-weight:800;color:#2a241d;">{{ sg.name }}</span>
+                    <span style="display:block;font-size:12px;color:#a9997f;font-weight:600;">{{ sg.why }}</span>
+                  </span>
+                  <span style="font-size:13px;font-weight:800;color:#8a5a3c;">{{ sg.priceFmt }}</span>
+                  <button onClick="{{ sg.onAdd }}" style="padding:8px 14px;border:none;background:#2a241d;color:#fff;border-radius:9px;font-family:'Manrope',sans-serif;font-weight:800;font-size:12.5px;cursor:pointer;">Add</button>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+              <sc-for list="{{ aiChips }}" as="c" hint-placeholder-count="3">
+                <button style="padding:8px 13px;border:1px solid #e6dccb;background:#fff;border-radius:20px;font-family:'Manrope',sans-serif;font-weight:700;font-size:12px;color:#8a5a3c;cursor:pointer;">{{ c }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- Sent confirmation toast -->
+    <sc-if value="{{ showSent }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:16px;right:16px;bottom:22px;z-index:45;background:#0e8a6a;color:#fff;border-radius:15px;padding:14px 16px;display:flex;align-items:center;gap:11px;box-shadow:0 12px 30px rgba(14,138,106,.35);">
+        <span style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:15px;">✓</span>
+        <span style="font-size:13.5px;font-weight:700;line-height:1.4;">Sent to kitchen! Your tab stays open — add more anytime.</span>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:880}}">
+class Component extends DCLogic {
+  state = {
+    category: 'All',
+    search: '',
+    cart: { c2: 1 },
+    showAI: false,
+    aiItem: null,
+    showSent: false,
+    tabHasSent: false,
+  };
+
+  menu() {
+    return [
+      { id: 'c1', name: 'Espresso', cat: 'Coffee', price: 18000, desc: 'Double shot, dark & bold' },
+      { id: 'c2', name: 'Kopi Susu Gula Aren', cat: 'Coffee', price: 25000, desc: 'Palm-sugar milk coffee, our signature', badge: 'Popular' },
+      { id: 'c3', name: 'Cappuccino', cat: 'Coffee', price: 28000, desc: 'Espresso with steamed milk foam' },
+      { id: 'c6', name: 'Cold Brew', cat: 'Coffee', price: 32000, desc: '18-hour slow steep, smooth & low-acid' },
+      { id: 't1', name: 'Teh Tarik', cat: 'Tea', price: 20000, desc: 'Pulled milk tea, frothy & sweet', badge: 'Popular' },
+      { id: 't2', name: 'Matcha Latte', cat: 'Tea', price: 33000, desc: 'Ceremonial-grade matcha, lightly sweet' },
+      { id: 'f1', name: 'Nasi Goreng Spesial', cat: 'Food', price: 45000, desc: 'Fried rice with egg, chicken satay & prawn crackers' },
+      { id: 'f3', name: 'Chicken Katsu Rice', cat: 'Food', price: 52000, desc: 'Crispy panko cutlet, rice, katsu sauce' },
+      { id: 'f4', name: 'Beef Rendang Rice', cat: 'Food', price: 58000, desc: 'Slow-cooked beef in coconut & chili', badge: 'Chef’s pick' },
+      { id: 'p1', name: 'Butter Croissant', cat: 'Pastry', price: 24000, desc: 'Flaky, all-butter, baked this morning' },
+      { id: 'p3', name: 'Cinnamon Roll', cat: 'Pastry', price: 26000, desc: 'Warm, cream-cheese glaze' },
+      { id: 's3', name: 'Chicken Wings', cat: 'Snacks', price: 42000, desc: 'Sweet-soy glaze, 6 pieces' },
+    ];
+  }
+
+  tints() {
+    return {
+      Coffee: ['#efe3d6', '#e4d3c0'], Tea: ['#e4ece1', '#d3e0cf'],
+      Food: ['#f0e2cf', '#e6d2b6'], Pastry: ['#f2e6dc', '#ead4c2'], Snacks: ['#eee0d6', '#e2ccbe'],
+    };
+  }
+
+  fmt(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+
+  aiFor(id) {
+    const map = {
+      f4: 'Mildly spicy — slow-cooked beef in coconut milk and chili paste, more rich than hot. Served with steamed rice and sambal on the side (easy to skip). Contains coconut; no nuts.',
+      c2: 'Our signature: espresso, fresh milk and gula aren (palm sugar) — sweet, caramelly, medium strength. Great iced. Contains dairy.',
+      f1: 'Wok-fried rice with egg, chicken, and prawn crackers, seasoned with sweet soy. Moderately savory, not spicy. Contains egg and shellfish (crackers).',
+    };
+    return map[id] || 'Freshly made to order. Ask our staff about any allergen or spice-level adjustments — most dishes can be tweaked.';
+  }
+
+  inc(id) { this.setState(s => ({ cart: { ...s.cart, [id]: (s.cart[id] || 0) + 1 } })); }
+  dec(id) {
+    this.setState(s => {
+      const c = { ...s.cart }; c[id] = (c[id] || 0) - 1;
+      if (c[id] <= 0) delete c[id];
+      return { cart: c };
+    });
+  }
+
+  submit() {
+    this.setState({ cart: {}, showSent: true, tabHasSent: true });
+    clearTimeout(this._toast);
+    this._toast = setTimeout(() => this.setState({ showSent: false }), 2600);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const menu = this.menu();
+    const tints = this.tints();
+    const cats = ['All', 'Coffee', 'Tea', 'Food', 'Pastry', 'Snacks'];
+
+    const categories = cats.map(c => {
+      const active = s.category === c;
+      return {
+        name: c,
+        onClick: () => this.setState({ category: c }),
+        style: `flex-shrink:0;padding:9px 16px;border-radius:20px;border:1px solid ${active ? '#c65d3b' : '#e6dccb'};background:${active ? '#c65d3b' : '#fff'};color:${active ? '#fff' : '#6b5f4d'};font-family:'Manrope',sans-serif;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;`,
+      };
+    });
+
+    const q = s.search.trim().toLowerCase();
+    const filtered = menu.filter(m =>
+      (s.category === 'All' || m.cat === s.category) &&
+      (q === '' || m.name.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q))
+    );
+
+    const items = filtered.map(m => {
+      const [a, b] = tints[m.cat];
+      const qty = s.cart[m.id] || 0;
+      let badgeStyle = 'flex-shrink:0;font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:20px;';
+      if (m.badge === 'Popular') badgeStyle += 'background:#fbeede;color:#c07a2c;';
+      else badgeStyle += 'background:#f3e6dd;color:#a94a2c;';
+      return {
+        ...m,
+        priceFmt: this.fmt(m.price),
+        thumbStyle: `width:74px;height:74px;flex-shrink:0;border-radius:12px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;background:repeating-linear-gradient(135deg, ${a}, ${a} 6px, ${b} 6px, ${b} 12px);`,
+        badge: m.badge || false,
+        badgeStyle,
+        qty,
+        inCart: qty > 0,
+        notInCart: qty === 0,
+        onInc: () => this.inc(m.id),
+        onDec: () => this.dec(m.id),
+        onExplain: () => this.setState({ showAI: true, aiItem: m.id }),
+      };
+    });
+
+    const cartCount = Object.values(s.cart).reduce((t, q) => t + q, 0);
+    const cartTotal = Object.entries(s.cart).reduce((t, [id, q]) => {
+      const m = menu.find(x => x.id === id); return t + (m ? m.price * q : 0);
+    }, 0);
+
+    const aiM = menu.find(m => m.id === s.aiItem);
+    const suggIds = s.aiItem === 'f4' ? ['t1', 'c6'] : (s.aiItem === 'c2' ? ['p1', 'p3'] : ['c2', 't1']);
+    const suggWhy = { t1: 'Balances rich, spiced food', c6: 'Refreshing, low-acid contrast', p1: 'Buttery pair for coffee', p3: 'Sweet finish', c2: 'Our most-loved drink' };
+    const aiSuggest = suggIds.map(id => {
+      const m = menu.find(x => x.id === id);
+      return { name: m.name, why: suggWhy[id] || 'Popular choice', priceFmt: this.fmt(m.price), onAdd: () => this.inc(id) };
+    });
+
+    return {
+      searchValue: s.search,
+      onSearch: (e) => this.setState({ search: e.target.value }),
+      categories,
+      items,
+
+      hasCart: cartCount > 0,
+      cartCount,
+      cartTotalFmt: this.fmt(cartTotal),
+      submitLabel: s.tabHasSent ? 'Add to order' : 'Send to kitchen',
+      onSubmit: () => this.submit(),
+
+      showBillBar: cartCount === 0 && s.tabHasSent && !s.showSent,
+      onRequestBill: () => {},
+
+      showAI: s.showAI,
+      onOpenAI: () => this.setState({ showAI: true, aiItem: 'c2' }),
+      onCloseAI: () => this.setState({ showAI: false }),
+      aiTitle: aiM ? aiM.name : 'Menu assistant',
+      aiBody: this.aiFor(s.aiItem),
+      aiSuggest,
+      aiChips: ['Vegetarian options?', 'What’s not spicy?', 'Best seller?'],
+      stop: (e) => e.stopPropagation(),
+
+      showSent: s.showSent,
+    };
+  }
+}
+</script>
+</body>
+</html>
