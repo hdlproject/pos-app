@@ -198,7 +198,7 @@ export default function SuggestionChat({
                         active={page.type === c}
                         onClick={() => updatePage(page.id, { type: page.type === c ? null : c })}
                       >
-                        {page.type === c ? '◉' : '◯'} {c}
+                        {c}
                       </Chip>
                     ))}
                   </div>
@@ -216,7 +216,7 @@ export default function SuggestionChat({
                       active={page.taste.includes(o)}
                       onClick={() => updatePage(page.id, { taste: toggleValue(page.taste, o) })}
                     >
-                      {page.taste.includes(o) ? '☑' : '☐'} {o}
+                      {o}
                     </Chip>
                   ))}
                 </div>
@@ -233,7 +233,7 @@ export default function SuggestionChat({
                       active={page.aroma.includes(o)}
                       onClick={() => updatePage(page.id, { aroma: toggleValue(page.aroma, o) })}
                     >
-                      {page.aroma.includes(o) ? '☑' : '☐'} {o}
+                      {o}
                     </Chip>
                   ))}
                 </div>
@@ -250,7 +250,7 @@ export default function SuggestionChat({
                       active={page.texture.includes(o)}
                       onClick={() => updatePage(page.id, { texture: toggleValue(page.texture, o) })}
                     >
-                      {page.texture.includes(o) ? '☑' : '☐'} {o}
+                      {o}
                     </Chip>
                   ))}
                 </div>
