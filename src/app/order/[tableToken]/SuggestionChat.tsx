@@ -18,11 +18,13 @@ type Suggestion = {
   reason: string;
 };
 
-// Each "page" is one self-contained suggestion request/response, scoped to
-// exactly one type -- suggestions are generated separately per type rather
-// than one mixed call spanning several. "Add new" appends a page (a fresh
-// request for a different type) instead of mutating the current one, so
-// earlier results stay browsable via Prev/Next.
+// Each "page" is one self-contained form, scoped to exactly one type --
+// suggestions are generated separately per type rather than one mixed call
+// spanning several. "Add new" appends a page (a fresh form for a different
+// type) instead of mutating the current one, so earlier results stay
+// browsable via Prev/Next. Every page is sent to the AI together in one
+// bulk request (see bulkSubmit) rather than each page having its own
+// independent submit.
 type PageState = {
   id: string;
   type: string | null;
@@ -31,7 +33,6 @@ type PageState = {
   texture: (typeof TEXTURE_OPTIONS)[number][];
   notes: string;
   suggestions: Suggestion[] | null;
-  errorMessage: string | null;
   addedIds: string[];
   unavailableIds: string[];
 };
@@ -49,7 +50,6 @@ function makePage(): PageState {
     texture: [],
     notes: '',
     suggestions: null,
-    errorMessage: null,
     addedIds: [],
     unavailableIds: [],
   };
@@ -69,34 +69,47 @@ export default function SuggestionChat({
   const [open, setOpen] = useState(false);
   const [pages, setPages] = useState<PageState[]>(() => [makePage()]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const suggest = trpc.aiSuggestion.getSuggestion.useMutation();
   const page = pages[activeIndex];
+  const incompleteCount = pages.filter((p) => !p.type).length;
 
   function updatePage(id: string, patch: Partial<PageState>) {
     setPages((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
-  function submit() {
-    if (!page.type) return;
-    const pageId = page.id;
-    updatePage(pageId, { suggestions: null, errorMessage: null, addedIds: [], unavailableIds: [] });
+  // Every page/form is sent to the AI at once, not one after another --
+  // and every page has to have a type picked first, since a request with
+  // nothing to search by can't be submitted as part of the batch.
+  function bulkSubmit() {
+    if (incompleteCount > 0 || pages.length === 0) return;
+    setBulkError(null);
+    const ids = pages.map((p) => p.id);
+    setPages((ps) => ps.map((p) => ({ ...p, suggestions: null, addedIds: [], unavailableIds: [] })));
     suggest.mutate(
       {
         tableToken,
-        taste: page.taste,
-        aroma: page.aroma,
-        texture: page.texture,
-        type: [page.type],
-        notes: page.notes.trim() || undefined,
+        requests: pages.map((p) => ({
+          type: p.type as string,
+          taste: p.taste,
+          aroma: p.aroma,
+          texture: p.texture,
+          notes: p.notes.trim() || undefined,
+        })),
       },
       {
         onSuccess: (data) => {
-          const result = (data as unknown as { suggestions: Suggestion[] }).suggestions;
-          updatePage(pageId, { suggestions: result });
+          const results = (data as unknown as { results: { type: string; suggestions: Suggestion[] }[] }).results;
+          setPages((ps) =>
+            ps.map((p) => {
+              const idx = ids.indexOf(p.id);
+              return idx === -1 ? p : { ...p, suggestions: results[idx]?.suggestions ?? [] };
+            })
+          );
         },
         onError: (err) => {
-          updatePage(pageId, { errorMessage: err.message });
+          setBulkError(err.message);
         },
       }
     );
@@ -122,6 +135,7 @@ export default function SuggestionChat({
     setOpen(false);
     setPages([makePage()]);
     setActiveIndex(0);
+    setBulkError(null);
     suggest.reset();
   }
 
@@ -185,16 +199,6 @@ export default function SuggestionChat({
                 >
                   ›
                 </button>
-                {activeIndex > 0 && (
-                  <button
-                    onClick={removeCurrentPage}
-                    disabled={suggest.isPending}
-                    aria-label="Remove this suggestion"
-                    className="ml-2 text-xs font-bold text-warning px-2.5 py-1.5 rounded-lg hover:bg-surface-input transition-colors disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                )}
               </div>
             )}
 
@@ -203,7 +207,7 @@ export default function SuggestionChat({
               initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="p-5 overflow-y-auto flex flex-col gap-4"
+              className="p-5 overflow-y-auto flex-1 flex flex-col gap-4"
             >
               {categories.length > 0 && (
                 <div>
@@ -286,19 +290,25 @@ export default function SuggestionChat({
                 />
               </div>
 
-              <Button variant="outline" className="w-full" disabled={suggest.isPending} onClick={addNewPage}>
-                + Add new
-              </Button>
-
-              <Button variant="primary" className="w-full" disabled={!page.type || suggest.isPending} onClick={submit}>
-                {suggest.isPending ? 'Thinking…' : 'Get suggestions'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  disabled={suggest.isPending || !page.type}
+                  onClick={addNewPage}
+                >
+                  + Add new
+                </Button>
+                {activeIndex > 0 && (
+                  <Button variant="warning" className="flex-1" disabled={suggest.isPending} onClick={removeCurrentPage}>
+                    Remove
+                  </Button>
+                )}
+              </div>
               {!page.type && (
-                <p className="text-text-muted text-xs font-semibold text-center -mt-2">Pick a type to get suggestions.</p>
-              )}
-
-              {page.errorMessage && (
-                <p className="text-warning text-xs font-semibold text-center">{page.errorMessage}</p>
+                <p className="text-text-muted text-xs font-semibold text-center -mt-2">
+                  Pick a type on this page before adding another.
+                </p>
               )}
 
               {page.suggestions && page.suggestions.length > 0 && (
@@ -342,6 +352,24 @@ export default function SuggestionChat({
                 </p>
               )}
             </motion.div>
+
+            <div className="p-5 pt-4 border-t border-border shrink-0 flex flex-col gap-2">
+              {incompleteCount > 0 && (
+                <p className="text-text-muted text-xs font-semibold text-center">
+                  {incompleteCount} of {pages.length} {pages.length === 1 ? 'page still needs' : 'pages still need'} a
+                  type picked before getting suggestions.
+                </p>
+              )}
+              {bulkError && <p className="text-warning text-xs font-semibold text-center">{bulkError}</p>}
+              <Button
+                variant="primary"
+                className="w-full"
+                disabled={incompleteCount > 0 || suggest.isPending}
+                onClick={bulkSubmit}
+              >
+                {suggest.isPending ? 'Thinking…' : pages.length > 1 ? `Get suggestions for all ${pages.length}` : 'Get suggestions'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -35,20 +35,22 @@ describe('aiSuggestion router', () => {
     const anon = appRouter.createCaller({ db, user: null });
     const result = await anon.aiSuggestion.getSuggestion({
       tableToken: table.qrToken,
-      taste: ['Sweet'],
-      aroma: [],
-      texture: ['Creamy'],
-      type: ['Coffee'],
+      requests: [{ type: 'Coffee', taste: ['Sweet'], aroma: [], texture: ['Creamy'] }],
     });
 
-    expect(result.suggestions).toEqual([
+    expect(result.results).toEqual([
       {
-        menuItemId: item.id,
-        name: 'Latte',
-        price: '28000',
-        image: null,
-        categoryName: 'Coffee',
-        reason: 'Sweet and creamy',
+        type: 'Coffee',
+        suggestions: [
+          {
+            menuItemId: item.id,
+            name: 'Latte',
+            price: '28000',
+            image: null,
+            categoryName: 'Coffee',
+            reason: 'Sweet and creamy',
+          },
+        ],
       },
     ]);
     // the unavailable "Hidden" item must never reach the prompt
@@ -56,21 +58,63 @@ describe('aiSuggestion router', () => {
     expect(promptText).not.toContain('Hidden');
   });
 
-  it('rejects an invalid table token', async () => {
+  it('sends every request in the batch together and preserves result order', async () => {
+    const table = await db.table.create({ data: { label: 'T-bulk', qrToken: 'tok-bulk' } });
+    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
+    const latte = await db.menuItem.create({
+      data: { name: 'Latte', price: 28000, categoryId: category.id, available: true },
+    });
+    const tea = await db.menuItem.create({
+      data: { name: 'Chamomile', price: 17000, categoryId: category.id, available: true },
+    });
+    mockedFetch
+      .mockResolvedValueOnce(JSON.stringify({ suggestions: [{ menuItemId: latte.id, reason: 'Bold' }] }))
+      .mockResolvedValueOnce(JSON.stringify({ suggestions: [{ menuItemId: tea.id, reason: 'Soothing' }] }));
+
+    const anon = appRouter.createCaller({ db, user: null });
+    const result = await anon.aiSuggestion.getSuggestion({
+      tableToken: table.qrToken,
+      requests: [
+        { type: 'Coffee', taste: [], aroma: [], texture: [] },
+        { type: 'Tea', taste: [], aroma: [], texture: [] },
+      ],
+    });
+
+    // one OpenAI call per request, dispatched together (not gated behind
+    // each other resolving first) -- Promise.all, not sequential awaits.
+    expect(mockedFetch).toHaveBeenCalledTimes(2);
+    expect(result.results).toEqual([
+      { type: 'Coffee', suggestions: [expect.objectContaining({ menuItemId: latte.id })] },
+      { type: 'Tea', suggestions: [expect.objectContaining({ menuItemId: tea.id })] },
+    ]);
+  });
+
+  it('rejects an empty requests array', async () => {
+    const table = await db.table.create({ data: { label: 'T-empty', qrToken: 'tok-empty' } });
     const anon = appRouter.createCaller({ db, user: null });
     await expect(
-      anon.aiSuggestion.getSuggestion({ tableToken: 'not-a-real-token', taste: [], aroma: [], texture: [], type: [] })
+      anon.aiSuggestion.getSuggestion({ tableToken: table.qrToken, requests: [] })
     ).rejects.toThrow();
   });
 
-  it('enforces the per-table cooldown on a second immediate request', async () => {
+  it('rejects an invalid table token', async () => {
+    const anon = appRouter.createCaller({ db, user: null });
+    await expect(
+      anon.aiSuggestion.getSuggestion({
+        tableToken: 'not-a-real-token',
+        requests: [{ type: 'Coffee', taste: [], aroma: [], texture: [] }],
+      })
+    ).rejects.toThrow();
+  });
+
+  it('enforces the per-table cooldown on a second immediate request, even across a whole batch', async () => {
     const table = await db.table.create({ data: { label: 'T2', qrToken: 'tok-2' } });
     const category = await db.category.create({ data: { name: 'Tea', sortOrder: 1 } });
     await db.menuItem.create({ data: { name: 'Chamomile', price: 17000, categoryId: category.id, available: true } });
     mockedFetch.mockResolvedValue(JSON.stringify({ suggestions: [] }));
 
     const anon = appRouter.createCaller({ db, user: null });
-    const input = { tableToken: table.qrToken, taste: [], aroma: [], texture: [], type: [] };
+    const input = { tableToken: table.qrToken, requests: [{ type: 'Tea', taste: [], aroma: [], texture: [] }] };
     await anon.aiSuggestion.getSuggestion(input);
     await expect(anon.aiSuggestion.getSuggestion(input)).rejects.toThrow();
   });
@@ -80,16 +124,13 @@ describe('aiSuggestion router', () => {
     const anon = appRouter.createCaller({ db, user: null });
     const result = await anon.aiSuggestion.getSuggestion({
       tableToken: table.qrToken,
-      taste: [],
-      aroma: [],
-      texture: [],
-      type: [],
+      requests: [{ type: 'Coffee', taste: [], aroma: [], texture: [] }],
     });
-    expect(result.suggestions).toEqual([]);
+    expect(result.results).toEqual([{ type: 'Coffee', suggestions: [] }]);
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 
-  it('surfaces a clear error when the AI call fails', async () => {
+  it('surfaces a clear error when any request in the batch fails', async () => {
     const table = await db.table.create({ data: { label: 'T4', qrToken: 'tok-4' } });
     const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
     await db.menuItem.create({ data: { name: 'Latte', price: 28000, categoryId: category.id, available: true } });
@@ -97,7 +138,10 @@ describe('aiSuggestion router', () => {
 
     const anon = appRouter.createCaller({ db, user: null });
     await expect(
-      anon.aiSuggestion.getSuggestion({ tableToken: table.qrToken, taste: [], aroma: [], texture: [], type: [] })
+      anon.aiSuggestion.getSuggestion({
+        tableToken: table.qrToken,
+        requests: [{ type: 'Coffee', taste: [], aroma: [], texture: [] }],
+      })
     ).rejects.toThrow(/couldn.t get suggestions/i);
   });
 });

@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from 'react';
 
-type ButtonVariant = 'primary' | 'dark' | 'outline' | 'success';
+type ButtonVariant = 'primary' | 'dark' | 'outline' | 'success' | 'warning';
 type ButtonSize = 'md' | 'sm';
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -8,6 +8,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   dark: 'bg-dark-ui text-white hover:bg-dark-ui/90 disabled:bg-dark-ui/40',
   outline: 'bg-surface text-text-muted-2 border border-border-strong hover:bg-surface-input disabled:opacity-50',
   success: 'bg-success text-white hover:bg-success/90 disabled:bg-success/40',
+  warning: 'bg-warning text-white hover:bg-warning/90 disabled:bg-warning/40',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
