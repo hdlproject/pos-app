@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -23,6 +23,7 @@ type Recovery = { mode: 'OPEN_TABLE'; session: { id: string; sessionFinished: bo
 
 export default function CustomerOrderPage() {
   const { tableToken } = useParams<{ tableToken: string }>();
+  const router = useRouter();
   const menu = trpc.menu.listAvailable.useQuery();
   const [cart, setCart] = useState<{ menuItemId: string; qty: number }[]>([]);
   const [category, setCategory] = useState<string>('All');
@@ -49,14 +50,21 @@ export default function CustomerOrderPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [placed, setPlaced] = useState(false);
 
+  // A one-time order is done the moment it's placed -- no more menu
+  // browsing after, straight back to login. An Open Table round just
+  // closes its own modal, since the tab stays open for more rounds.
   useEffect(() => {
     if (!placed) return;
     const timer = setTimeout(() => {
+      if (mode === 'ORDINARY') {
+        router.push('/login');
+        return;
+      }
       setReviewOpen(false);
       setPlaced(false);
     }, 1400);
     return () => clearTimeout(timer);
-  }, [placed]);
+  }, [placed, mode, router]);
 
   // Recover an already-open tab/session on mount (e.g. after a page reload
   // or re-scanning the QR code) instead of re-showing the mode choice.
@@ -238,9 +246,12 @@ export default function CustomerOrderPage() {
               ✓
             </div>
             <div className="font-display text-xl text-text mb-1.5">Table finished</div>
-            <div className="text-sm text-text-muted font-semibold">
+            <div className="text-sm text-text-muted font-semibold mb-5">
               A staff member will bring your bill and close out the table shortly.
             </div>
+            <Button variant="primary" className="w-full" onClick={() => router.push('/login')}>
+              Done
+            </Button>
           </div>
         </div>
       ) : (
