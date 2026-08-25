@@ -127,8 +127,12 @@ export const orderRouter = router({
         if (!order.sessionFinished) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'table has not been finished by the customer yet' });
         }
+        // Only round actually sent to the kitchen are billable -- a round
+        // still sitting undispatched was never cooked, and a cancelled
+        // round was voided outright, so neither belongs in the total.
         const children = await ctx.db.order.findMany({ where: { parentOrderId: order.id } });
-        const total = children.reduce((sum, c) => sum + Number(c.total), 0);
+        const processed = children.filter((c) => c.status !== 'OPEN' && c.status !== 'CANCELLED');
+        const total = processed.reduce((sum, c) => sum + Number(c.total), 0);
         return ctx.db.$transaction(async (tx) => {
           await tx.payment.create({
             data: { orderId: order.id, amount: total, method: 'CASH', receivedById: ctx.user.userId },

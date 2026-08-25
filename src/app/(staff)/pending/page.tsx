@@ -24,7 +24,7 @@ type PendingOrder = {
   table: { label: string } | null;
   items: { id: string; qty: number; menuItem: { name: string } }[];
   payments: { id: string; amount: string }[];
-  children: { id: string; total: string }[];
+  children: { id: string; total: string; status: string }[];
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -36,8 +36,9 @@ const TYPE_LABEL: Record<string, string> = {
 // One row per open-table session, holding only the rounds still waiting
 // to be dispatched (listPendingDispatch only returns OPEN orders, so
 // every round here is by definition undispatched). parent.children still
-// carries every round -- dispatched or not -- which is what the bill
-// total is summed from.
+// carries every round regardless of status -- the bill only sums the ones
+// actually sent to the kitchen (see order.sendToKitchen, which computes
+// the same way server-side).
 type Group = { parent: PendingOrder; pendingRounds: PendingOrder[] };
 type Entry = { sortKey: number } & ({ kind: 'group' } & Group | { kind: 'standalone'; order: PendingOrder });
 
@@ -304,8 +305,12 @@ function GroupCard({
   onDispatch: (id: string) => void;
   onCancel: (id: string) => void;
 }) {
-  const billTotal = parent.children.reduce((sum, c) => sum + Number(c.total), 0);
-  const dispatchedRoundCount = parent.children.length - pendingRounds.length;
+  // Only rounds actually sent to the kitchen are billable or worth
+  // protecting from a table-wide cancel -- an undispatched round was
+  // never cooked, and a cancelled one was voided outright.
+  const processedRounds = parent.children.filter((c) => c.status !== 'OPEN' && c.status !== 'CANCELLED');
+  const billTotal = processedRounds.reduce((sum, c) => sum + Number(c.total), 0);
+  const hasDispatchedRound = processedRounds.length > 0;
   const canConfirmPayment = parent.sessionFinished && pendingRounds.length === 0;
 
   return (
@@ -327,7 +332,7 @@ function GroupCard({
           </div>
           <div className="text-xs text-text-muted mt-0.5">
             {parent.children.length} round{parent.children.length === 1 ? '' : 's'}
-            {dispatchedRoundCount > 0 && ` · ${dispatchedRoundCount} sent to kitchen`}
+            {processedRounds.length > 0 && ` · ${processedRounds.length} sent to kitchen`}
           </div>
         </div>
         <span className="shrink-0 text-[10.5px] font-extrabold uppercase px-2 py-1 rounded-full bg-surface-input text-text-muted-2">
@@ -387,8 +392,9 @@ function GroupCard({
           <Button
             variant="outline"
             size="sm"
-            disabled={cancelPending}
+            disabled={cancelPending || hasDispatchedRound}
             onClick={() => onCancel(parent.id)}
+            title={hasDispatchedRound ? 'A round has already been sent to the kitchen -- cancel it individually instead' : undefined}
           >
             Cancel table
           </Button>
