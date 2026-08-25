@@ -10,6 +10,7 @@ import { Chip } from '@/components/ui/Chip';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { MenuItemThumbnail } from '@/components/ui/MenuItemThumbnail';
 import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
+import SuggestionChat from './SuggestionChat';
 
 // Explicit flat views of what this page actually reads off these calls.
 // The real return types flow through Prisma's nested include payloads,
@@ -588,6 +589,13 @@ export default function CustomerOrderPage() {
           </div>
         </div>
       )}
+
+      <SuggestionChat
+        tableToken={tableToken}
+        categories={categories.filter((c) => c !== 'All')}
+        availableMenuItemIds={items.map((i) => i.id)}
+        onAddToCart={addToCart}
+      />
     </div>
   );
 }
