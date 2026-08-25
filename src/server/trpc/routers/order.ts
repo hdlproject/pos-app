@@ -199,7 +199,7 @@ export const orderRouter = router({
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
       const existing = await ctx.db.order.findFirst({
-        where: { tableId: table.id, source: 'QR', isOpenTableSession: true, status: 'OPEN' },
+        where: { tableId: table.id, source: 'QR', isOpenTableSession: true, status: 'OPEN', sessionFinished: false },
       });
       if (existing) return existing;
 
@@ -314,14 +314,16 @@ export const orderRouter = router({
       })
     ),
 
-  // Only an open-table session is ever recovered here -- it's a real
-  // ongoing tab, meant to survive a reload/re-scan. A one-time (ordinary)
-  // order is deliberately fire-and-forget: once placed, it's done from
-  // the customer's side, so leaving and coming back always starts fresh
-  // at the mode choice rather than resuming or silently appending to it.
-  // status: 'OPEN' alone is right for the session parent (it never leaves
-  // OPEN until PAID closes it out, whether the session is still ongoing
-  // or finished and just awaiting staff's payment confirmation).
+  // Only a still-active open-table session is ever recovered here -- it's
+  // a real ongoing tab, meant to survive a reload/re-scan. A one-time
+  // (ordinary) order is deliberately fire-and-forget: once placed, it's
+  // done from the customer's side, so leaving and coming back always
+  // starts fresh at the mode choice rather than resuming or silently
+  // appending to it. A *finished* session is fire-and-forget too, the
+  // moment the customer hits Done -- it lingers server-side, OPEN, purely
+  // so staff can still confirm payment on it (see listPendingDispatch),
+  // but the customer is done with it and must get the fresh mode choice
+  // on their next visit, same as an ordinary order.
   getOpenOrderByTableToken: publicProcedure
     .input(z.object({ tableToken: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -329,7 +331,7 @@ export const orderRouter = router({
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
       const session = await ctx.db.order.findFirst({
-        where: { tableId: table.id, source: 'QR', isOpenTableSession: true, status: 'OPEN' },
+        where: { tableId: table.id, source: 'QR', isOpenTableSession: true, status: 'OPEN', sessionFinished: false },
         include: { children: { include: { items: true } } },
         orderBy: { createdAt: 'desc' },
         take: 1,
