@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
@@ -154,45 +155,42 @@ export default function SuggestionChat({
               </button>
             </div>
 
-            <div className="flex items-center justify-between gap-2 px-5 pt-4 shrink-0">
-              <div className="flex items-center gap-2">
-                {pages.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
-                      disabled={activeIndex === 0}
-                      aria-label="Previous suggestion"
-                      className="w-7 h-7 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center disabled:opacity-30"
-                    >
-                      ‹
-                    </button>
-                    <span className="text-xs font-extrabold text-text-muted-2">
-                      {activeIndex + 1} / {pages.length}
-                    </span>
-                    <button
-                      onClick={() => setActiveIndex((i) => Math.min(pages.length - 1, i + 1))}
-                      disabled={activeIndex === pages.length - 1}
-                      aria-label="Next suggestion"
-                      className="w-7 h-7 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center disabled:opacity-30"
-                    >
-                      ›
-                    </button>
-                  </>
-                )}
+            {pages.length > 1 && (
+              <div className="flex items-center justify-center gap-2 px-5 pt-4 shrink-0">
+                <button
+                  onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
+                  disabled={activeIndex === 0}
+                  aria-label="Previous suggestion"
+                  className="w-7 h-7 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center disabled:opacity-30"
+                >
+                  ‹
+                </button>
+                <span className="text-xs font-extrabold text-text-muted-2">
+                  {activeIndex + 1} / {pages.length}
+                </span>
+                <button
+                  onClick={() => setActiveIndex((i) => Math.min(pages.length - 1, i + 1))}
+                  disabled={activeIndex === pages.length - 1}
+                  aria-label="Next suggestion"
+                  className="w-7 h-7 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center disabled:opacity-30"
+                >
+                  ›
+                </button>
               </div>
-              <button
-                onClick={addNewPage}
-                disabled={suggest.isPending}
-                className="text-xs font-bold text-accent-tint px-3 py-1.5 rounded-lg hover:bg-surface-input transition-colors disabled:opacity-50"
-              >
-                + Add new
-              </button>
-            </div>
+            )}
 
-            <div className="p-5 overflow-y-auto flex flex-col gap-4">
+            <motion.div
+              key={page.id}
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="p-5 overflow-y-auto flex flex-col gap-4"
+            >
               {categories.length > 0 && (
                 <div>
-                  <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">Type</div>
+                  <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+                    Type <span className="normal-case font-semibold text-text-muted">· pick one</span>
+                  </div>
                   <div className="flex gap-2 flex-wrap">
                     {categories.map((c) => (
                       <Chip
@@ -200,7 +198,7 @@ export default function SuggestionChat({
                         active={page.type === c}
                         onClick={() => updatePage(page.id, { type: page.type === c ? null : c })}
                       >
-                        {c}
+                        {page.type === c ? '◉' : '◯'} {c}
                       </Chip>
                     ))}
                   </div>
@@ -208,7 +206,9 @@ export default function SuggestionChat({
               )}
 
               <div>
-                <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">Taste</div>
+                <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+                  Taste <span className="normal-case font-semibold text-text-muted">· pick any</span>
+                </div>
                 <div className="flex gap-2 flex-wrap">
                   {TASTE_OPTIONS.map((o) => (
                     <Chip
@@ -216,14 +216,16 @@ export default function SuggestionChat({
                       active={page.taste.includes(o)}
                       onClick={() => updatePage(page.id, { taste: toggleValue(page.taste, o) })}
                     >
-                      {o}
+                      {page.taste.includes(o) ? '☑' : '☐'} {o}
                     </Chip>
                   ))}
                 </div>
               </div>
 
               <div>
-                <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">Aroma</div>
+                <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+                  Aroma <span className="normal-case font-semibold text-text-muted">· pick any</span>
+                </div>
                 <div className="flex gap-2 flex-wrap">
                   {AROMA_OPTIONS.map((o) => (
                     <Chip
@@ -231,14 +233,16 @@ export default function SuggestionChat({
                       active={page.aroma.includes(o)}
                       onClick={() => updatePage(page.id, { aroma: toggleValue(page.aroma, o) })}
                     >
-                      {o}
+                      {page.aroma.includes(o) ? '☑' : '☐'} {o}
                     </Chip>
                   ))}
                 </div>
               </div>
 
               <div>
-                <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">Texture</div>
+                <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+                  Texture <span className="normal-case font-semibold text-text-muted">· pick any</span>
+                </div>
                 <div className="flex gap-2 flex-wrap">
                   {TEXTURE_OPTIONS.map((o) => (
                     <Chip
@@ -246,7 +250,7 @@ export default function SuggestionChat({
                       active={page.texture.includes(o)}
                       onClick={() => updatePage(page.id, { texture: toggleValue(page.texture, o) })}
                     >
-                      {o}
+                      {page.texture.includes(o) ? '☑' : '☐'} {o}
                     </Chip>
                   ))}
                 </div>
@@ -262,6 +266,10 @@ export default function SuggestionChat({
                   className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 />
               </div>
+
+              <Button variant="outline" className="w-full" disabled={suggest.isPending} onClick={addNewPage}>
+                + Add new
+              </Button>
 
               <Button variant="primary" className="w-full" disabled={!page.type || suggest.isPending} onClick={submit}>
                 {suggest.isPending ? 'Thinking…' : 'Get suggestions'}
@@ -314,7 +322,7 @@ export default function SuggestionChat({
                   Nothing available to suggest right now.
                 </p>
               )}
-            </div>
+            </motion.div>
           </div>
         </div>
       )}
