@@ -109,6 +109,15 @@ export default function SuggestionChat({
     setActiveIndex(newIndex);
   }
 
+  // Only pages after the first can be removed -- the first page is the
+  // panel's base form, not an "addition" there's anything to cancel.
+  function removeCurrentPage() {
+    if (activeIndex === 0) return;
+    const idToRemove = page.id;
+    setPages((ps) => ps.filter((p) => p.id !== idToRemove));
+    setActiveIndex((i) => i - 1);
+  }
+
   function closePanel() {
     setOpen(false);
     setPages([makePage()]);
@@ -176,6 +185,16 @@ export default function SuggestionChat({
                 >
                   ›
                 </button>
+                {activeIndex > 0 && (
+                  <button
+                    onClick={removeCurrentPage}
+                    disabled={suggest.isPending}
+                    aria-label="Remove this suggestion"
+                    className="ml-2 text-xs font-bold text-warning px-2.5 py-1.5 rounded-lg hover:bg-surface-input transition-colors disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             )}
 
