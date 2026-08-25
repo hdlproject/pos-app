@@ -127,11 +127,18 @@ export const orderRouter = router({
         if (!order.sessionFinished) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'table has not been finished by the customer yet' });
         }
-        // Only round actually sent to the kitchen are billable -- a round
+        // Only rounds actually sent to the kitchen are billable -- a round
         // still sitting undispatched was never cooked, and a cancelled
-        // round was voided outright, so neither belongs in the total.
+        // round was voided outright, so neither belongs in the total. A
+        // still-OPEN round has to be resolved (dispatched or cancelled)
+        // first, or paying now strands it forever: still undispatched,
+        // parentless in every sense that matters, and invisible on this
+        // same queue since it's excluded once the parent isn't OPEN.
         const children = await ctx.db.order.findMany({ where: { parentOrderId: order.id } });
-        const processed = children.filter((c) => c.status !== 'OPEN' && c.status !== 'CANCELLED');
+        if (children.some((c) => c.status === 'OPEN')) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'every round must be sent to the kitchen or cancelled before confirming payment' });
+        }
+        const processed = children.filter((c) => c.status !== 'CANCELLED');
         const total = processed.reduce((sum, c) => sum + Number(c.total), 0);
         return ctx.db.$transaction(async (tx) => {
           await tx.payment.create({
