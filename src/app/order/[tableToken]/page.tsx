@@ -49,6 +49,10 @@ export default function CustomerOrderPage() {
   // opens the summary modal only; nothing is submitted until Confirm.
   const [reviewOpen, setReviewOpen] = useState(false);
   const [placed, setPlaced] = useState(false);
+  // Finishing the table is also a one-shot from the customer's side --
+  // same success-then-redirect treatment as placing a one-time order,
+  // instead of a dead-end full-screen page.
+  const [finishedOpen, setFinishedOpen] = useState(false);
 
   // A one-time order is done the moment it's placed -- no more menu
   // browsing after, straight back to login. An Open Table round just
@@ -65,6 +69,12 @@ export default function CustomerOrderPage() {
     }, 1400);
     return () => clearTimeout(timer);
   }, [placed, mode, router]);
+
+  useEffect(() => {
+    if (!finishedOpen) return;
+    const timer = setTimeout(() => router.push('/login'), 1400);
+    return () => clearTimeout(timer);
+  }, [finishedOpen, router]);
 
   // Recover an already-open tab/session on mount (e.g. after a page reload
   // or re-scanning the QR code) instead of re-showing the mode choice.
@@ -113,7 +123,10 @@ export default function CustomerOrderPage() {
 
   function finishTable() {
     if (!sessionId) return;
-    finishSession.mutate({ tableToken, orderId: sessionId }, { onSuccess: () => setSessionFinished(true) });
+    finishSession.mutate(
+      { tableToken, orderId: sessionId },
+      { onSuccess: () => { setSessionFinished(true); setFinishedOpen(true); } }
+    );
   }
 
   function addToCart(menuItemId: string) {
@@ -239,23 +252,7 @@ export default function CustomerOrderPage() {
         }
       />
 
-      {mode === 'OPEN_TABLE' && sessionFinished ? (
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="text-center max-w-xs">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-success/15 flex items-center justify-center text-2xl text-success mb-3">
-              ✓
-            </div>
-            <div className="font-display text-xl text-text mb-1.5">Table finished</div>
-            <div className="text-sm text-text-muted font-semibold mb-5">
-              A staff member will bring your bill and close out the table shortly.
-            </div>
-            <Button variant="primary" className="w-full" onClick={() => router.push('/login')}>
-              Done
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col md:flex-row min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0">
           <main className="flex-1 min-w-0 flex flex-col p-6 overflow-y-auto">
             <h1 className="font-display text-2xl text-text mb-4">Menu</h1>
 
@@ -388,7 +385,6 @@ export default function CustomerOrderPage() {
             </div>
           </aside>
         </div>
-      )}
 
       {reviewOpen && (
         <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
@@ -479,6 +475,38 @@ export default function CustomerOrderPage() {
                 </div>
               </motion.div>
             )}
+          </div>
+        </div>
+      )}
+
+      {finishedOpen && (
+        <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-[420px] bg-surface rounded-3xl overflow-hidden shadow-2xl">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="px-8 py-14 flex flex-col items-center gap-3"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+                className="w-16 h-16 rounded-full bg-success flex items-center justify-center"
+              >
+                <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <motion.path
+                    d="M5 13l4 4L19 7"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+                  />
+                </svg>
+              </motion.div>
+              <div className="font-display text-xl text-text">Table finished</div>
+              <div className="text-sm text-text-muted font-semibold text-center">
+                A staff member will bring your bill and close out the table shortly.
+              </div>
+            </motion.div>
           </div>
         </div>
       )}
