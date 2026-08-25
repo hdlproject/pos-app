@@ -173,6 +173,9 @@ export const orderRouter = router({
   // a staff member might need to act on from this one queue. A parent
   // that isn't finished yet is deliberately excluded: nothing to do with
   // it until the customer ends the session.
+  // The parent row is included whenever it has at least one round -- not
+  // only once finished -- so the client can group an in-progress table's
+  // rounds under it too, not just a closed-out bill awaiting payment.
   listPendingDispatch: roleProcedure('ADMIN', 'STAFF').query(({ ctx }) =>
     ctx.db.order.findMany({
       where: {
@@ -180,7 +183,7 @@ export const orderRouter = router({
         OR: [
           { isOpenTableSession: false, parentOrderId: null },
           { parentOrderId: { not: null } },
-          { isOpenTableSession: true, sessionFinished: true },
+          { isOpenTableSession: true, children: { some: {} } },
         ],
       },
       include: { items: { include: { menuItem: true } }, table: true, payments: true, children: true },
