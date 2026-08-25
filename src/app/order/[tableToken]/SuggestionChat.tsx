@@ -82,7 +82,17 @@ export default function SuggestionChat({
             <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border shrink-0">
               <div className="font-display text-xl text-text">What are you in the mood for?</div>
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  setTaste([]);
+                  setAroma([]);
+                  setTexture([]);
+                  setType([]);
+                  setNotes('');
+                  setAddedIds([]);
+                  setUnavailableIds([]);
+                  suggest.reset();
+                }}
                 aria-label="Close"
                 className="w-8 h-8 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center shrink-0"
               >
