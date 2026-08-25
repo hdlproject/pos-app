@@ -19,10 +19,7 @@ import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 // and casting through these sidesteps the deep comparison without
 // touching what's fetched/rendered.
 type CreatedOrder = { id: string };
-type Recovery =
-  | { mode: 'OPEN_TABLE'; session: { id: string; sessionFinished: boolean } }
-  | { mode: 'ORDINARY'; order: { id: string } }
-  | null;
+type Recovery = { mode: 'OPEN_TABLE'; session: { id: string; sessionFinished: boolean } } | null;
 
 export default function CustomerOrderPage() {
   const { tableToken } = useParams<{ tableToken: string }>();
@@ -38,21 +35,14 @@ export default function CustomerOrderPage() {
   // flow this page already had. Nothing renders until one is chosen (or
   // recovered from an in-progress order/session for this table).
   const [mode, setMode] = useState<'ORDINARY' | 'OPEN_TABLE' | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionFinished, setSessionFinished] = useState(false);
 
   const openOrder = trpc.order.getOpenOrderByTableToken.useQuery({ tableToken });
   const startSession = trpc.order.startTableSession.useMutation();
   const finishSession = trpc.order.finishTableSession.useMutation();
-  const createOrder = trpc.order.createByTable.useMutation({
-    onSuccess: (order: unknown) => { setOrderId((order as CreatedOrder).id); setCart([]); },
-  });
-  // Separate mutation instance from createOrder -- an Open Table round
-  // never sets orderId (that's reserved for the ordinary single-order
-  // flow), it just clears the cart for the next round.
+  const createOrder = trpc.order.createByTable.useMutation({ onSuccess: () => setCart([]) });
   const createRound = trpc.order.createByTable.useMutation({ onSuccess: () => setCart([]) });
-  const appendItems = trpc.order.appendItems.useMutation({ onSuccess: () => setCart([]) });
   // Ordering doesn't charge anything here -- a staff member confirms
   // payment (collected in person) before it reaches the kitchen. Review
   // opens the summary modal only; nothing is submitted until Confirm.
@@ -77,9 +67,6 @@ export default function CustomerOrderPage() {
       setMode('OPEN_TABLE');
       setSessionId(recovered.session.id);
       setSessionFinished(recovered.session.sessionFinished);
-    } else if (recovered?.mode === 'ORDINARY') {
-      setMode('ORDINARY');
-      setOrderId(recovered.order.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openOrder.data]);
@@ -154,8 +141,6 @@ export default function CustomerOrderPage() {
     if (!cart.length) return;
     if (mode === 'OPEN_TABLE' && sessionId) {
       createRound.mutate({ tableToken, items: cart, parentOrderId: sessionId }, { onSuccess: () => setPlaced(true) });
-    } else if (orderId) {
-      appendItems.mutate({ orderId, tableToken, items: cart }, { onSuccess: () => setPlaced(true) });
     } else {
       createOrder.mutate({ tableToken, items: cart }, { onSuccess: () => setPlaced(true) });
     }
@@ -166,7 +151,6 @@ export default function CustomerOrderPage() {
     setPlaced(false);
     createOrder.reset();
     createRound.reset();
-    appendItems.reset();
   }
 
   const items = menu.data ?? [];
@@ -177,7 +161,7 @@ export default function CustomerOrderPage() {
     return sum + (item ? Number(item.price) * line.qty : 0);
   }, 0);
   const cartCount = cart.reduce((sum, l) => sum + l.qty, 0);
-  const submitting = createOrder.isPending || createRound.isPending || appendItems.isPending;
+  const submitting = createOrder.isPending || createRound.isPending;
 
   if (openOrder.isLoading) {
     return (
@@ -223,11 +207,6 @@ export default function CustomerOrderPage() {
         subtitle="Self-order"
         right={
           <>
-            {mode === 'ORDINARY' && orderId && (
-              <span className="text-[11px] font-bold text-text-muted-2 bg-surface-input px-3 py-1.5 rounded-full">
-                Tab open — pay at the end
-              </span>
-            )}
             {mode === 'OPEN_TABLE' && !sessionFinished && (
               <>
                 <span className="text-[11px] font-bold text-text-muted-2 bg-surface-input px-3 py-1.5 rounded-full">
@@ -393,7 +372,7 @@ export default function CustomerOrderPage() {
                 disabled={!cart.length}
                 onClick={openReview}
               >
-                {mode === 'OPEN_TABLE' ? 'Submit Round' : orderId ? 'Add to tab' : 'Submit order'}
+                {mode === 'OPEN_TABLE' ? 'Submit Round' : 'Submit order'}
               </Button>
             </div>
           </aside>
@@ -408,7 +387,7 @@ export default function CustomerOrderPage() {
                 <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border">
                   <div>
                     <div className="font-display text-xl text-text">
-                      {mode === 'OPEN_TABLE' ? 'Submit Round' : orderId ? 'Add to Order' : 'Confirm Order'}
+                      {mode === 'OPEN_TABLE' ? 'Submit Round' : 'Confirm Order'}
                     </div>
                     <div className="text-xs text-text-muted font-semibold mt-0.5">{cartCount} items</div>
                   </div>
@@ -448,16 +427,13 @@ export default function CustomerOrderPage() {
                     disabled={submitting}
                     onClick={confirmOrder}
                   >
-                    {mode === 'OPEN_TABLE' ? 'Submit Round' : orderId ? 'Add to Order' : 'Confirm Order'}
+                    {mode === 'OPEN_TABLE' ? 'Submit Round' : 'Confirm Order'}
                   </Button>
                   {createOrder.isError && (
                     <p className="text-warning text-xs font-semibold mt-2 text-center">{createOrder.error.message}</p>
                   )}
                   {createRound.isError && (
                     <p className="text-warning text-xs font-semibold mt-2 text-center">{createRound.error.message}</p>
-                  )}
-                  {appendItems.isError && (
-                    <p className="text-warning text-xs font-semibold mt-2 text-center">{appendItems.error.message}</p>
                   )}
                 </div>
               </div>

@@ -314,12 +314,14 @@ export const orderRouter = router({
       })
     ),
 
-  // A table can be mid-way through an open-table session or have an
-  // ordinary in-progress order, never meaningfully both -- the session
-  // takes priority since it's the longer-lived context. status: 'OPEN'
-  // alone is right for the session parent (it never leaves OPEN until
-  // PAID closes it out, whether the session is still ongoing or finished
-  // and just awaiting staff's payment confirmation).
+  // Only an open-table session is ever recovered here -- it's a real
+  // ongoing tab, meant to survive a reload/re-scan. A one-time (ordinary)
+  // order is deliberately fire-and-forget: once placed, it's done from
+  // the customer's side, so leaving and coming back always starts fresh
+  // at the mode choice rather than resuming or silently appending to it.
+  // status: 'OPEN' alone is right for the session parent (it never leaves
+  // OPEN until PAID closes it out, whether the session is still ongoing
+  // or finished and just awaiting staff's payment confirmation).
   getOpenOrderByTableToken: publicProcedure
     .input(z.object({ tableToken: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -332,23 +334,7 @@ export const orderRouter = router({
         orderBy: { createdAt: 'desc' },
         take: 1,
       });
-      if (session) return { mode: 'OPEN_TABLE' as const, session };
-
-      // OPEN included so a reload before staff confirms recovers the same
-      // pending order (appendItems) instead of creating a duplicate one.
-      const order = await ctx.db.order.findFirst({
-        where: {
-          tableId: table.id,
-          source: 'QR',
-          parentOrderId: null,
-          isOpenTableSession: false,
-          status: { in: ['OPEN', 'SENT_TO_KITCHEN', 'READY', 'SERVED'] },
-        },
-        include: { items: true },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      });
-      return order ? { mode: 'ORDINARY' as const, order } : null;
+      return session ? { mode: 'OPEN_TABLE' as const, session } : null;
     }),
 
   // OPEN is excluded on purpose: a charge-first order sits at OPEN until
