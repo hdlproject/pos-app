@@ -385,21 +385,45 @@ export const orderRouter = router({
       if (ctx.user.role === 'STAFF' && order.status !== 'OPEN') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'only an admin can cancel an order that has already been dispatched' });
       }
+
+      // Cancelling a parent takes every still-live round with it -- there's
+      // no such thing as a bill for a session that no longer exists. Each
+      // round is cancelled individually (its own stock revert, its own
+      // dispatch event) rather than left dangling under a cancelled parent.
+      const children = order.isOpenTableSession
+        ? await ctx.db.order.findMany({ where: { parentOrderId: order.id, status: { not: 'CANCELLED' } } })
+        : [];
+      if (ctx.user.role === 'STAFF' && children.some((c) => c.status !== 'OPEN')) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'only an admin can cancel a table with rounds already dispatched' });
+      }
+      const ordersToCancel = [order, ...children];
+
       // Whether stock needs reverting depends on whether it was actually
       // deducted, not on payment existence -- those used to always happen
       // together, but an open-table child order deducts stock at dispatch
       // with no payment of its own (the parent settles the bill later), so
       // payment-existence alone would miss it. StockMovement is the direct
       // signal either way.
-      const wasDeducted = await ctx.db.stockMovement.findFirst({ where: { refOrderId: order.id, reason: 'SALE' } });
+      const deductedIds = new Set(
+        (
+          await ctx.db.stockMovement.findMany({
+            where: { refOrderId: { in: ordersToCancel.map((o) => o.id) }, reason: 'SALE' },
+            select: { refOrderId: true },
+          })
+        ).map((m) => m.refOrderId)
+      );
       await ctx.db.$transaction(async (tx) => {
-        await tx.order.update({ where: { id: order.id }, data: { status: 'CANCELLED', cancelReason: input.reason } });
-        if (wasDeducted) {
-          await revertStockForOrder(tx, order.id, ctx.user.userId);
+        for (const o of ordersToCancel) {
+          await tx.order.update({ where: { id: o.id }, data: { status: 'CANCELLED', cancelReason: input.reason } });
+          if (deductedIds.has(o.id)) {
+            await revertStockForOrder(tx, o.id, ctx.user.userId);
+          }
         }
       });
       try {
-        await publishOrderEvent('order.cancelled', { orderId: order.id, reason: input.reason });
+        for (const o of ordersToCancel) {
+          await publishOrderEvent('order.cancelled', { orderId: o.id, reason: input.reason });
+        }
       } catch (err) {
         console.error('publishOrderEvent failed for order.cancelled', err);
       }
