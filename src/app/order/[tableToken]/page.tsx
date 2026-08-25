@@ -19,7 +19,13 @@ import { SwipeToRemove } from '@/components/ui/SwipeToRemove';
 // and casting through these sidesteps the deep comparison without
 // touching what's fetched/rendered.
 type CreatedOrder = { id: string };
-type Recovery = { mode: 'OPEN_TABLE'; session: { id: string; sessionFinished: boolean } } | null;
+type SessionRound = {
+  id: string;
+  total: string;
+  createdAt: string;
+  items: { id: string; qty: number; menuItem: { name: string } }[];
+};
+type Recovery = { mode: 'OPEN_TABLE'; session: { id: string; sessionFinished: boolean; children: SessionRound[] } } | null;
 
 export default function CustomerOrderPage() {
   const { tableToken } = useParams<{ tableToken: string }>();
@@ -43,7 +49,11 @@ export default function CustomerOrderPage() {
   const startSession = trpc.order.startTableSession.useMutation();
   const finishSession = trpc.order.finishTableSession.useMutation();
   const createOrder = trpc.order.createByTable.useMutation({ onSuccess: () => setCart([]) });
-  const createRound = trpc.order.createByTable.useMutation({ onSuccess: () => setCart([]) });
+  // Refetch after each round so "My Order" reflects it immediately --
+  // getOpenOrderByTableToken is the only source for the round list.
+  const createRound = trpc.order.createByTable.useMutation({
+    onSuccess: () => { setCart([]); openOrder.refetch(); },
+  });
   // Ordering doesn't charge anything here -- a staff member confirms
   // payment (collected in person) before it reaches the kitchen. Review
   // opens the summary modal only; nothing is submitted until Confirm.
@@ -53,6 +63,9 @@ export default function CustomerOrderPage() {
   // same success-then-redirect treatment as placing a one-time order,
   // instead of a dead-end full-screen page.
   const [finishedOpen, setFinishedOpen] = useState(false);
+  // Rounds already submitted this session -- so a customer mid-tab can
+  // check what they've ordered so far, not just what's currently in cart.
+  const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
 
   // A one-time order is done the moment it's placed -- no more menu
   // browsing after, straight back to login. An Open Table round just
@@ -116,6 +129,7 @@ export default function CustomerOrderPage() {
           setMode('OPEN_TABLE');
           setSessionId((order as CreatedOrder).id);
           setSessionFinished(false);
+          openOrder.refetch();
         },
       }
     );
@@ -183,6 +197,8 @@ export default function CustomerOrderPage() {
   }, 0);
   const cartCount = cart.reduce((sum, l) => sum + l.qty, 0);
   const submitting = createOrder.isPending || createRound.isPending;
+  const rounds = mode === 'OPEN_TABLE' ? (openOrder.data as unknown as Recovery)?.session.children ?? [] : [];
+  const roundsTotal = rounds.reduce((sum, r) => sum + Number(r.total), 0);
 
   if (openOrder.isLoading) {
     return (
@@ -233,6 +249,12 @@ export default function CustomerOrderPage() {
                 <span className="text-[11px] font-bold text-text-muted-2 bg-surface-input px-3 py-1.5 rounded-full">
                   Table open
                 </span>
+                <button
+                  onClick={() => setOrderSummaryOpen(true)}
+                  className="text-xs font-bold text-text-muted-2 px-3 py-2 rounded-lg hover:bg-surface-input transition-colors"
+                >
+                  My Order{rounds.length > 0 ? ` (${rounds.length})` : ''}
+                </button>
                 <button
                   onClick={finishTable}
                   disabled={finishSession.isPending}
@@ -475,6 +497,62 @@ export default function CustomerOrderPage() {
                 </div>
               </motion.div>
             )}
+          </div>
+        </div>
+      )}
+
+      {orderSummaryOpen && (
+        <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-[420px] bg-surface rounded-3xl overflow-hidden shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border shrink-0">
+              <div>
+                <div className="font-display text-xl text-text">My Order</div>
+                <div className="text-xs text-text-muted font-semibold mt-0.5">
+                  {rounds.length} round{rounds.length === 1 ? '' : 's'} so far
+                </div>
+              </div>
+              <button
+                onClick={() => setOrderSummaryOpen(false)}
+                aria-label="Close"
+                className="w-8 h-8 rounded-lg bg-surface-input text-accent-tint flex items-center justify-center shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto">
+              {rounds.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 text-center py-10 text-text-muted">
+                  <div className="w-12 h-12 rounded-2xl bg-surface-input flex items-center justify-center text-xl">🧺</div>
+                  <div className="text-xs">No rounds submitted yet.</div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3 mb-4">
+                  {rounds.map((round, i) => (
+                    <div key={round.id} className="bg-surface-input rounded-xl px-3.5 py-3">
+                      <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                        <span className="text-xs font-extrabold text-text-muted-2">Round {i + 1}</span>
+                        <span className="text-xs font-bold text-text">
+                          Rp {Number(round.total).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        {round.items.map((line) => (
+                          <div key={line.id} className="text-xs text-text-muted-2 font-semibold">
+                            {line.qty}× {line.menuItem.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="border-t border-border p-5 shrink-0">
+              <div className="flex justify-between items-baseline">
+                <span className="font-extrabold text-text">Total so far</span>
+                <span className="font-extrabold text-xl text-accent">Rp {roundsTotal.toLocaleString('id-ID')}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}

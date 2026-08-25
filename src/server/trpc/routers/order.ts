@@ -347,7 +347,7 @@ export const orderRouter = router({
 
       const session = await ctx.db.order.findFirst({
         where: { tableId: table.id, source: 'QR', isOpenTableSession: true, status: 'OPEN', sessionFinished: false },
-        include: { children: { include: { items: true } } },
+        include: { children: { include: { items: { include: { menuItem: true } } }, orderBy: { createdAt: 'asc' } } },
         orderBy: { createdAt: 'desc' },
         take: 1,
       });
