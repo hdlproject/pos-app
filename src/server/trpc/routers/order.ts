@@ -218,17 +218,29 @@ export const orderRouter = router({
   // Customer-initiated: "I'm done ordering, bring the bill." Doesn't charge
   // anything itself (a customer has no business authorizing their own
   // charge) -- just flags the session so Pending Purchases swaps that
-  // parent's action from nothing to Confirm payment.
+  // parent's action from nothing to Confirm payment. A session nobody ever
+  // ordered a round on has nothing to bill -- cancel it outright instead
+  // of flagging it finished, so it never shows up asking staff to confirm
+  // a Rp 0 payment.
   finishTableSession: publicProcedure
     .input(z.object({ tableToken: z.string(), orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const order = await ctx.db.order.findUnique({ where: { id: input.orderId }, include: { table: true } });
+      const order = await ctx.db.order.findUnique({
+        where: { id: input.orderId },
+        include: { table: true, _count: { select: { children: true } } },
+      });
       if (!order || !order.isOpenTableSession) throw new TRPCError({ code: 'NOT_FOUND' });
       if (order.table?.qrToken !== input.tableToken) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'table token mismatch' });
       }
       if (order.status !== 'OPEN') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'session is already closed' });
+      }
+      if (order._count.children === 0) {
+        return ctx.db.order.update({
+          where: { id: order.id },
+          data: { status: 'CANCELLED', cancelReason: 'table finished with no orders placed' },
+        });
       }
       return ctx.db.order.update({ where: { id: order.id }, data: { sessionFinished: true } });
     }),
