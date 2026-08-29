@@ -41,6 +41,13 @@ function toggleValue<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
+// A page is complete once every category has at least one option chosen --
+// Type (if there's anything to pick from), Taste, Aroma, and Texture.
+// Notes is a free-text extra, not a category, so it never gates this.
+function isPageComplete(p: PageState, hasCategories: boolean): boolean {
+  return (!hasCategories || p.type !== null) && p.taste.length > 0 && p.aroma.length > 0 && p.texture.length > 0;
+}
+
 function makePage(): PageState {
   return {
     id: crypto.randomUUID(),
@@ -73,15 +80,16 @@ export default function SuggestionChat({
 
   const suggest = trpc.aiSuggestion.getSuggestion.useMutation();
   const page = pages[activeIndex];
-  const incompleteCount = pages.filter((p) => !p.type).length;
+  const hasCategories = categories.length > 0;
+  const incompleteCount = pages.filter((p) => !isPageComplete(p, hasCategories)).length;
 
   function updatePage(id: string, patch: Partial<PageState>) {
     setPages((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
   // Every page/form is sent to the AI at once, not one after another --
-  // and every page has to have a type picked first, since a request with
-  // nothing to search by can't be submitted as part of the batch.
+  // and every page has to be complete (an option picked in every category)
+  // first, since a thin request can't be submitted as part of the batch.
   function bulkSubmit() {
     if (incompleteCount > 0 || pages.length === 0) return;
     setBulkError(null);
@@ -294,7 +302,7 @@ export default function SuggestionChat({
                 <Button
                   variant="outline"
                   className="flex-1"
-                  disabled={suggest.isPending || !page.type}
+                  disabled={suggest.isPending || !isPageComplete(page, hasCategories)}
                   onClick={addNewPage}
                 >
                   + Add new
@@ -305,9 +313,9 @@ export default function SuggestionChat({
                   </Button>
                 )}
               </div>
-              {!page.type && (
+              {!isPageComplete(page, hasCategories) && (
                 <p className="text-text-muted text-xs font-semibold text-center -mt-2">
-                  Pick a type on this page before adding another.
+                  Pick at least one option from every category on this page before adding another.
                 </p>
               )}
 
@@ -356,8 +364,8 @@ export default function SuggestionChat({
             <div className="p-5 pt-4 border-t border-border shrink-0 flex flex-col gap-2">
               {incompleteCount > 0 && (
                 <p className="text-text-muted text-xs font-semibold text-center">
-                  {incompleteCount} of {pages.length} {pages.length === 1 ? 'page still needs' : 'pages still need'} a
-                  type picked before getting suggestions.
+                  {incompleteCount} of {pages.length} {pages.length === 1 ? 'page still needs' : 'pages still need'} at
+                  least one option picked from every category before getting suggestions.
                 </p>
               )}
               {bulkError && <p className="text-warning text-xs font-semibold text-center">{bulkError}</p>}
