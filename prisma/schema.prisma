@@ -97,6 +97,8 @@ model MenuItem {
   category         Category @relation(fields: [categoryId], references: [id])
   available        Boolean  @default(true)
   outOfStockReason String?
+  description      String?
+  instructions     String?
   image            String?
   modifiers        Json?
 
