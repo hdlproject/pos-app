@@ -51,4 +51,20 @@ describe('fetchChatCompletion', () => {
     }) as Response) as unknown as typeof fetch;
     await expect(fetchChatCompletion([{ role: 'system', content: 'sys' }])).rejects.toThrow();
   });
+
+  it('honors a maxTokens override instead of the default 400', async () => {
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      expect(body.max_tokens).toBe(1000);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: '{}' } }] }),
+      } as Response;
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await fetchChatCompletion([{ role: 'system', content: 'sys' }], { maxTokens: 1000 });
+    expect(fetchMock).toHaveBeenCalled();
+  });
 });

@@ -118,6 +118,72 @@ describe('parseMenuSuggestionResponse', () => {
     );
   });
 
+  it('de-duplicates repeated ingredients that resolve to the same existing ingredient by exact name', () => {
+    const raw = JSON.stringify({
+      name: 'Dish',
+      price: 10000,
+      category: 'Food',
+      description: 'd',
+      instructions: 'i',
+      ingredients: [
+        { name: 'Rice', unit: 'g', qtyPerUnit: 100 },
+        { name: 'Rice', unit: 'g', qtyPerUnit: 200 },
+      ],
+      reasoning: 'r',
+    });
+    const result = parseMenuSuggestionResponse(raw, ingredients);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.draft.ingredients).toEqual([
+        { name: 'Rice', unit: 'g', qtyPerUnit: 100, existingIngredientId: 'i1' },
+      ]);
+    }
+  });
+
+  it('de-duplicates repeated ingredients that resolve to the same existing ingredient by case-different name', () => {
+    const raw = JSON.stringify({
+      name: 'Dish',
+      price: 10000,
+      category: 'Food',
+      description: 'd',
+      instructions: 'i',
+      ingredients: [
+        { name: 'Rice', unit: 'g', qtyPerUnit: 100 },
+        { name: 'rice', unit: 'g', qtyPerUnit: 200 },
+      ],
+      reasoning: 'r',
+    });
+    const result = parseMenuSuggestionResponse(raw, ingredients);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.draft.ingredients).toEqual([
+        { name: 'Rice', unit: 'g', qtyPerUnit: 100, existingIngredientId: 'i1' },
+      ]);
+    }
+  });
+
+  it('de-duplicates repeated unmatched ingredients that share a normalized name', () => {
+    const raw = JSON.stringify({
+      name: 'Dish',
+      price: 10000,
+      category: 'Food',
+      description: 'd',
+      instructions: 'i',
+      ingredients: [
+        { name: 'Truffle Oil', unit: 'ml', qtyPerUnit: 10 },
+        { name: 'truffle oil', unit: 'ml', qtyPerUnit: 20 },
+      ],
+      reasoning: 'r',
+    });
+    const result = parseMenuSuggestionResponse(raw, ingredients);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.draft.ingredients).toEqual([
+        { name: 'Truffle Oil', unit: 'ml', qtyPerUnit: 10, existingIngredientId: null },
+      ]);
+    }
+  });
+
   it('throws MenuSuggestionParseError on a malformed ingredient entry', () => {
     const raw = JSON.stringify({
       name: 'Dish',

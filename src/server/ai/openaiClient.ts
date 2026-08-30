@@ -1,6 +1,9 @@
 import type { SuggestionMessage } from './suggestion';
 
-export async function fetchChatCompletion(messages: SuggestionMessage[]): Promise<string> {
+export async function fetchChatCompletion(
+  messages: SuggestionMessage[],
+  options?: { maxTokens?: number }
+): Promise<string> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -12,7 +15,7 @@ export async function fetchChatCompletion(messages: SuggestionMessage[]): Promis
       messages,
       response_format: { type: 'json_object' },
       temperature: 0.7,
-      max_tokens: 400,
+      max_tokens: options?.maxTokens ?? 400,
     }),
     signal: AbortSignal.timeout(20_000),
   });

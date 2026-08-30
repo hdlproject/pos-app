@@ -86,7 +86,7 @@ export const aiMenuSuggestionRouter = router({
 
       let raw: string;
       try {
-        raw = await fetchChatCompletion(messages);
+        raw = await fetchChatCompletion(messages, { maxTokens: 1000 });
       } catch (err) {
         console.error('OpenAI menu suggestion call failed', err);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Couldn't get a suggestion, try again." });
@@ -139,10 +139,11 @@ export const aiMenuSuggestionRouter = router({
             recipes: { create: recipeInputs },
           },
         });
+
+        await recomputeAvailabilityForMenuItem(tx, created.id);
         return created.id;
       });
 
-      await recomputeAvailabilityForMenuItem(ctx.db, menuItemId);
       return ctx.db.menuItem.findUniqueOrThrow({ where: { id: menuItemId }, include: { category: true } });
     }),
 });

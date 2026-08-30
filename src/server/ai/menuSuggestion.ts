@@ -116,6 +116,7 @@ export function parseMenuSuggestionResponse(raw: string, knownIngredients: Stock
 
   const byName = new Map(knownIngredients.map((i) => [normalizeName(i.name), i]));
   const ingredients: MenuSuggestionIngredientDraft[] = [];
+  const seenIngredientKeys = new Set<string>();
   for (const entry of p.ingredients) {
     if (
       typeof entry !== 'object' ||
@@ -129,11 +130,15 @@ export function parseMenuSuggestionResponse(raw: string, knownIngredients: Stock
     }
     const e = entry as { name: string; unit: string; qtyPerUnit: number };
     const known = byName.get(normalizeName(e.name));
-    ingredients.push(
-      known
-        ? { name: known.name, unit: known.unit, qtyPerUnit: e.qtyPerUnit, existingIngredientId: known.id }
-        : { name: e.name.trim(), unit: e.unit.trim(), qtyPerUnit: e.qtyPerUnit, existingIngredientId: null }
-    );
+    const draft: MenuSuggestionIngredientDraft = known
+      ? { name: known.name, unit: known.unit, qtyPerUnit: e.qtyPerUnit, existingIngredientId: known.id }
+      : { name: e.name.trim(), unit: e.unit.trim(), qtyPerUnit: e.qtyPerUnit, existingIngredientId: null };
+
+    const dedupKey = draft.existingIngredientId ?? normalizeName(draft.name);
+    if (seenIngredientKeys.has(dedupKey)) continue;
+    seenIngredientKeys.add(dedupKey);
+
+    ingredients.push(draft);
   }
 
   return {
