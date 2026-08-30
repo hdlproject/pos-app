@@ -37,7 +37,7 @@ describe('buildSuggestionMessages', () => {
 
 describe('parseSuggestionResponse', () => {
   it('parses valid suggestions matching real menu items', () => {
-    const raw = JSON.stringify({ suggestions: [{ menuItemId: 'm1', reason: 'Sweet and creamy' }] });
+    const raw = JSON.stringify({ suggestions: [{ menuItemId: 'm1', name: 'Latte', reason: 'Sweet and creamy' }] });
     const result = parseSuggestionResponse(raw, menu);
     expect(result).toEqual([{ menuItemId: 'm1', reason: 'Sweet and creamy' }]);
   });
@@ -45,12 +45,31 @@ describe('parseSuggestionResponse', () => {
   it('drops suggestions with an id not present in the menu', () => {
     const raw = JSON.stringify({
       suggestions: [
-        { menuItemId: 'm1', reason: 'Real item' },
-        { menuItemId: 'does-not-exist', reason: 'Hallucinated' },
+        { menuItemId: 'm1', name: 'Latte', reason: 'Real item' },
+        { menuItemId: 'does-not-exist', name: 'Ghost', reason: 'Hallucinated' },
       ],
     });
     const result = parseSuggestionResponse(raw, menu);
     expect(result).toEqual([{ menuItemId: 'm1', reason: 'Real item' }]);
+  });
+
+  // The exact bug this guards against: the model returns a real
+  // menuItemId, but the name/reason it attaches describes a different
+  // item entirely -- e.g. id points at "Chicken Katsu Rice" while the
+  // reason reads "Pain au chocolat is sweet and has a creamy texture".
+  // The id alone being valid isn't enough; id and name have to agree.
+  it('drops a suggestion whose name does not match the real name for that menuItemId', () => {
+    const raw = JSON.stringify({
+      suggestions: [{ menuItemId: 'm1', name: 'Chamomile', reason: 'Soothing herbal tea' }],
+    });
+    const result = parseSuggestionResponse(raw, menu);
+    expect(result).toEqual([]);
+  });
+
+  it('matches name case- and whitespace-insensitively', () => {
+    const raw = JSON.stringify({ suggestions: [{ menuItemId: 'm1', name: '  latte  ', reason: 'Classic' }] });
+    const result = parseSuggestionResponse(raw, menu);
+    expect(result).toEqual([{ menuItemId: 'm1', reason: 'Classic' }]);
   });
 
   it('caps results at 5 even if the model returns more', () => {
@@ -60,7 +79,7 @@ describe('parseSuggestionResponse', () => {
       category: 'Coffee',
       price: 10000,
     }));
-    const many = bigMenu.map((m, i) => ({ menuItemId: m.id, reason: `reason ${i}` }));
+    const many = bigMenu.map((m, i) => ({ menuItemId: m.id, name: m.name, reason: `reason ${i}` }));
     const raw = JSON.stringify({ suggestions: many });
     const result = parseSuggestionResponse(raw, bigMenu);
     expect(result).toHaveLength(5);
@@ -69,12 +88,18 @@ describe('parseSuggestionResponse', () => {
   it('dedupes repeated menuItemId values, keeping only one entry per id', () => {
     const raw = JSON.stringify({
       suggestions: [
-        { menuItemId: 'm1', reason: 'First mention' },
-        { menuItemId: 'm1', reason: 'Duplicate mention' },
+        { menuItemId: 'm1', name: 'Latte', reason: 'First mention' },
+        { menuItemId: 'm1', name: 'Latte', reason: 'Duplicate mention' },
       ],
     });
     const result = parseSuggestionResponse(raw, menu);
     expect(result).toEqual([{ menuItemId: 'm1', reason: 'First mention' }]);
+  });
+
+  it('drops an entry missing the name field', () => {
+    const raw = JSON.stringify({ suggestions: [{ menuItemId: 'm1', reason: 'No name given' }] });
+    const result = parseSuggestionResponse(raw, menu);
+    expect(result).toEqual([]);
   });
 
   it('throws SuggestionParseError on invalid JSON', () => {

@@ -29,7 +29,7 @@ describe('aiSuggestion router', () => {
       data: { name: 'Hidden', price: 10000, categoryId: category.id, available: false },
     });
     mockedFetch.mockResolvedValue(
-      JSON.stringify({ suggestions: [{ menuItemId: item.id, reason: 'Sweet and creamy' }] })
+      JSON.stringify({ suggestions: [{ menuItemId: item.id, name: 'Latte', reason: 'Sweet and creamy' }] })
     );
 
     const anon = appRouter.createCaller({ db, user: null });
@@ -68,8 +68,10 @@ describe('aiSuggestion router', () => {
       data: { name: 'Chamomile', price: 17000, categoryId: category.id, available: true },
     });
     mockedFetch
-      .mockResolvedValueOnce(JSON.stringify({ suggestions: [{ menuItemId: latte.id, reason: 'Bold' }] }))
-      .mockResolvedValueOnce(JSON.stringify({ suggestions: [{ menuItemId: tea.id, reason: 'Soothing' }] }));
+      .mockResolvedValueOnce(JSON.stringify({ suggestions: [{ menuItemId: latte.id, name: 'Latte', reason: 'Bold' }] }))
+      .mockResolvedValueOnce(
+        JSON.stringify({ suggestions: [{ menuItemId: tea.id, name: 'Chamomile', reason: 'Soothing' }] })
+      );
 
     const anon = appRouter.createCaller({ db, user: null });
     const result = await anon.aiSuggestion.getSuggestion({
