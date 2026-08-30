@@ -10,6 +10,7 @@ import { Popover } from '@/components/ui/Popover';
 import { DataTable } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
 import { normalizeForSearch } from '@/lib/normalizeForSearch';
+import AiMenuSuggestionPanel from './AiMenuSuggestionPanel';
 
 const PAGE_SIZE = 10;
 
@@ -198,6 +199,7 @@ export default function AdminMenuPage() {
   });
 
   const [recipeItemId, setRecipeItemId] = useState<string | null>(null);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -299,6 +301,11 @@ export default function AdminMenuPage() {
               </svg>
             </button>
           </div>
+          {!showNewItemForm && (
+            <Button variant="outline" onClick={() => setShowAiPanel(true)}>
+              ✨ Suggest new item
+            </Button>
+          )}
           {!showNewItemForm && (
             <Button variant="primary" onClick={() => setShowNewItemForm(true)}>
               + New Item
@@ -655,6 +662,8 @@ export default function AdminMenuPage() {
           onClose={() => setRecipeItemId(null)}
         />
       )}
+
+      {showAiPanel && <AiMenuSuggestionPanel onClose={() => setShowAiPanel(false)} />}
     </div>
   );
 }
