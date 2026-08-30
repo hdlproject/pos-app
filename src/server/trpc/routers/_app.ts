@@ -9,6 +9,7 @@ import { paymentRouter } from './payment';
 import { reportRouter } from './report';
 import { stockBatchRouter } from './stockBatch';
 import { aiSuggestionRouter } from './aiSuggestion';
+import { aiMenuSuggestionRouter } from './aiMenuSuggestion';
 
 export const appRouter = router({
   auth: authRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   report: reportRouter,
   stockBatch: stockBatchRouter,
   aiSuggestion: aiSuggestionRouter,
+  aiMenuSuggestion: aiMenuSuggestionRouter,
 });
 
 export type AppRouter = typeof appRouter;
