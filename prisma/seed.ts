@@ -25,6 +25,9 @@ async function main() {
       { name: 'Food', sortOrder: 3 },
       { name: 'Pastry', sortOrder: 4 },
       { name: 'Snacks', sortOrder: 5 },
+      { name: 'Steak', sortOrder: 6 },
+      { name: 'Italian', sortOrder: 7 },
+      { name: 'Korean', sortOrder: 8 },
     ],
   });
   const categoryId = (name: string) => categories.find((c) => c.name === name)!.id;
@@ -56,6 +59,29 @@ async function main() {
       { name: 'Potato', unit: 'g', stockQty: 4500 },
       { name: 'Onion Rings (frozen, bulk)', unit: 'g', stockQty: 3750 },
       { name: 'Chicken Wings', unit: 'g', stockQty: 6250 },
+      // Steak
+      { name: 'Ribeye Cut', unit: 'g', stockQty: 5000 },
+      { name: 'Sirloin Cut', unit: 'g', stockQty: 4400 },
+      { name: 'Tenderloin Cut', unit: 'g', stockQty: 4000 },
+      { name: 'T-Bone Cut', unit: 'g', stockQty: 6000 },
+      { name: 'Wagyu Striploin Cut', unit: 'g', stockQty: 2000 },
+      { name: 'Butter', unit: 'g', stockQty: 3000 },
+      // Italian
+      { name: 'Spaghetti', unit: 'g', stockQty: 3600 },
+      { name: 'Fettuccine', unit: 'g', stockQty: 3600 },
+      { name: 'Pizza Dough', unit: 'pcs', stockQty: 40 },
+      { name: 'Mozzarella Cheese', unit: 'g', stockQty: 2000 },
+      { name: 'Tomato Sauce', unit: 'ml', stockQty: 3000 },
+      { name: 'Lasagna Sheets', unit: 'g', stockQty: 1500 },
+      { name: 'Arborio Rice', unit: 'g', stockQty: 1800 },
+      { name: 'Mushroom', unit: 'g', stockQty: 1500 },
+      { name: 'Breadcrumbs', unit: 'g', stockQty: 1000 },
+      // Korean
+      { name: 'Gochujang', unit: 'g', stockQty: 1200 },
+      { name: 'Kimchi', unit: 'g', stockQty: 1500 },
+      { name: 'Rice Cake (Tteok)', unit: 'g', stockQty: 2000 },
+      { name: 'Glass Noodles (Dangmyeon)', unit: 'g', stockQty: 1500 },
+      { name: 'Sesame Oil', unit: 'ml', stockQty: 1000 },
     ],
   });
   const ingredientId = (name: string) => ingredients.find((i) => i.name === name)!.id;
@@ -85,6 +111,26 @@ async function main() {
       { name: 'French Fries', price: 18000, categoryId: categoryId('Snacks'), available: true },
       { name: 'Onion Rings', price: 20000, categoryId: categoryId('Snacks'), available: true },
       { name: 'Chicken Wings', price: 28000, categoryId: categoryId('Snacks'), available: true },
+      // Steak
+      { name: 'Sirloin Steak', price: 145000, categoryId: categoryId('Steak'), available: true },
+      { name: 'T-Bone Steak', price: 165000, categoryId: categoryId('Steak'), available: true },
+      { name: 'Tenderloin Steak', price: 175000, categoryId: categoryId('Steak'), available: true },
+      { name: 'Ribeye Steak', price: 185000, categoryId: categoryId('Steak'), available: true },
+      { name: 'Wagyu Striploin', price: 285000, categoryId: categoryId('Steak'), available: true },
+      // Italian
+      { name: 'Spaghetti Carbonara', price: 48000, categoryId: categoryId('Italian'), available: true },
+      { name: 'Fettuccine Alfredo', price: 46000, categoryId: categoryId('Italian'), available: true },
+      { name: 'Margherita Pizza', price: 52000, categoryId: categoryId('Italian'), available: true },
+      { name: 'Lasagna al Forno', price: 55000, categoryId: categoryId('Italian'), available: true },
+      { name: 'Chicken Parmigiana', price: 58000, categoryId: categoryId('Italian'), available: true },
+      { name: 'Risotto ai Funghi', price: 50000, categoryId: categoryId('Italian'), available: true },
+      // Korean
+      { name: 'Bibimbap', price: 42000, categoryId: categoryId('Korean'), available: true },
+      { name: 'Bulgogi Beef', price: 55000, categoryId: categoryId('Korean'), available: true },
+      { name: 'Korean Fried Chicken', price: 45000, categoryId: categoryId('Korean'), available: true },
+      { name: 'Kimchi Fried Rice', price: 38000, categoryId: categoryId('Korean'), available: true },
+      { name: 'Tteokbokki', price: 32000, categoryId: categoryId('Korean'), available: true },
+      { name: 'Japchae', price: 36000, categoryId: categoryId('Korean'), available: true },
     ],
   });
   const itemId = (name: string) => items.find((i) => i.name === name)!.id;
@@ -150,6 +196,79 @@ async function main() {
       { menuItemId: itemId('French Fries'), ingredientId: ingredientId('Potato'), qtyPerUnit: 180 },
       { menuItemId: itemId('Onion Rings'), ingredientId: ingredientId('Onion Rings (frozen, bulk)'), qtyPerUnit: 150 },
       { menuItemId: itemId('Chicken Wings'), ingredientId: ingredientId('Chicken Wings'), qtyPerUnit: 250 },
+
+      // Steak
+      { menuItemId: itemId('Sirloin Steak'), ingredientId: ingredientId('Sirloin Cut'), qtyPerUnit: 220 },
+      { menuItemId: itemId('Sirloin Steak'), ingredientId: ingredientId('Butter'), qtyPerUnit: 15 },
+
+      { menuItemId: itemId('T-Bone Steak'), ingredientId: ingredientId('T-Bone Cut'), qtyPerUnit: 300 },
+      { menuItemId: itemId('T-Bone Steak'), ingredientId: ingredientId('Butter'), qtyPerUnit: 20 },
+
+      { menuItemId: itemId('Tenderloin Steak'), ingredientId: ingredientId('Tenderloin Cut'), qtyPerUnit: 200 },
+      { menuItemId: itemId('Tenderloin Steak'), ingredientId: ingredientId('Butter'), qtyPerUnit: 15 },
+
+      { menuItemId: itemId('Ribeye Steak'), ingredientId: ingredientId('Ribeye Cut'), qtyPerUnit: 250 },
+      { menuItemId: itemId('Ribeye Steak'), ingredientId: ingredientId('Butter'), qtyPerUnit: 20 },
+
+      { menuItemId: itemId('Wagyu Striploin'), ingredientId: ingredientId('Wagyu Striploin Cut'), qtyPerUnit: 200 },
+      { menuItemId: itemId('Wagyu Striploin'), ingredientId: ingredientId('Butter'), qtyPerUnit: 25 },
+
+      // Italian
+      { menuItemId: itemId('Spaghetti Carbonara'), ingredientId: ingredientId('Spaghetti'), qtyPerUnit: 180 },
+      { menuItemId: itemId('Spaghetti Carbonara'), ingredientId: ingredientId('Egg'), qtyPerUnit: 2 },
+      { menuItemId: itemId('Spaghetti Carbonara'), ingredientId: ingredientId('Bacon'), qtyPerUnit: 60 },
+      { menuItemId: itemId('Spaghetti Carbonara'), ingredientId: ingredientId('Parmesan Cheese'), qtyPerUnit: 30 },
+
+      { menuItemId: itemId('Fettuccine Alfredo'), ingredientId: ingredientId('Fettuccine'), qtyPerUnit: 180 },
+      { menuItemId: itemId('Fettuccine Alfredo'), ingredientId: ingredientId('Butter'), qtyPerUnit: 30 },
+      { menuItemId: itemId('Fettuccine Alfredo'), ingredientId: ingredientId('Parmesan Cheese'), qtyPerUnit: 40 },
+      { menuItemId: itemId('Fettuccine Alfredo'), ingredientId: ingredientId('Milk'), qtyPerUnit: 100 },
+
+      { menuItemId: itemId('Margherita Pizza'), ingredientId: ingredientId('Pizza Dough'), qtyPerUnit: 1 },
+      { menuItemId: itemId('Margherita Pizza'), ingredientId: ingredientId('Tomato Sauce'), qtyPerUnit: 80 },
+      { menuItemId: itemId('Margherita Pizza'), ingredientId: ingredientId('Mozzarella Cheese'), qtyPerUnit: 120 },
+
+      { menuItemId: itemId('Lasagna al Forno'), ingredientId: ingredientId('Lasagna Sheets'), qtyPerUnit: 150 },
+      { menuItemId: itemId('Lasagna al Forno'), ingredientId: ingredientId('Beef Chuck'), qtyPerUnit: 150 },
+      { menuItemId: itemId('Lasagna al Forno'), ingredientId: ingredientId('Tomato Sauce'), qtyPerUnit: 100 },
+      { menuItemId: itemId('Lasagna al Forno'), ingredientId: ingredientId('Mozzarella Cheese'), qtyPerUnit: 80 },
+
+      { menuItemId: itemId('Chicken Parmigiana'), ingredientId: ingredientId('Chicken Breast'), qtyPerUnit: 180 },
+      { menuItemId: itemId('Chicken Parmigiana'), ingredientId: ingredientId('Breadcrumbs'), qtyPerUnit: 50 },
+      { menuItemId: itemId('Chicken Parmigiana'), ingredientId: ingredientId('Tomato Sauce'), qtyPerUnit: 80 },
+      { menuItemId: itemId('Chicken Parmigiana'), ingredientId: ingredientId('Mozzarella Cheese'), qtyPerUnit: 60 },
+
+      { menuItemId: itemId('Risotto ai Funghi'), ingredientId: ingredientId('Arborio Rice'), qtyPerUnit: 180 },
+      { menuItemId: itemId('Risotto ai Funghi'), ingredientId: ingredientId('Mushroom'), qtyPerUnit: 100 },
+      { menuItemId: itemId('Risotto ai Funghi'), ingredientId: ingredientId('Parmesan Cheese'), qtyPerUnit: 30 },
+      { menuItemId: itemId('Risotto ai Funghi'), ingredientId: ingredientId('Butter'), qtyPerUnit: 20 },
+
+      // Korean
+      { menuItemId: itemId('Bibimbap'), ingredientId: ingredientId('Rice'), qtyPerUnit: 200 },
+      { menuItemId: itemId('Bibimbap'), ingredientId: ingredientId('Beef Chuck'), qtyPerUnit: 100 },
+      { menuItemId: itemId('Bibimbap'), ingredientId: ingredientId('Egg'), qtyPerUnit: 1 },
+      { menuItemId: itemId('Bibimbap'), ingredientId: ingredientId('Kimchi'), qtyPerUnit: 50 },
+      { menuItemId: itemId('Bibimbap'), ingredientId: ingredientId('Sesame Oil'), qtyPerUnit: 10 },
+
+      { menuItemId: itemId('Bulgogi Beef'), ingredientId: ingredientId('Beef Chuck'), qtyPerUnit: 200 },
+      { menuItemId: itemId('Bulgogi Beef'), ingredientId: ingredientId('Sesame Oil'), qtyPerUnit: 15 },
+      { menuItemId: itemId('Bulgogi Beef'), ingredientId: ingredientId('Rice'), qtyPerUnit: 150 },
+
+      { menuItemId: itemId('Korean Fried Chicken'), ingredientId: ingredientId('Chicken Wings'), qtyPerUnit: 300 },
+      { menuItemId: itemId('Korean Fried Chicken'), ingredientId: ingredientId('Gochujang'), qtyPerUnit: 30 },
+
+      { menuItemId: itemId('Kimchi Fried Rice'), ingredientId: ingredientId('Rice'), qtyPerUnit: 200 },
+      { menuItemId: itemId('Kimchi Fried Rice'), ingredientId: ingredientId('Kimchi'), qtyPerUnit: 100 },
+      { menuItemId: itemId('Kimchi Fried Rice'), ingredientId: ingredientId('Egg'), qtyPerUnit: 1 },
+      { menuItemId: itemId('Kimchi Fried Rice'), ingredientId: ingredientId('Sesame Oil'), qtyPerUnit: 10 },
+
+      { menuItemId: itemId('Tteokbokki'), ingredientId: ingredientId('Rice Cake (Tteok)'), qtyPerUnit: 200 },
+      { menuItemId: itemId('Tteokbokki'), ingredientId: ingredientId('Gochujang'), qtyPerUnit: 40 },
+
+      { menuItemId: itemId('Japchae'), ingredientId: ingredientId('Glass Noodles (Dangmyeon)'), qtyPerUnit: 150 },
+      { menuItemId: itemId('Japchae'), ingredientId: ingredientId('Beef Chuck'), qtyPerUnit: 80 },
+      { menuItemId: itemId('Japchae'), ingredientId: ingredientId('Sesame Oil'), qtyPerUnit: 10 },
+      { menuItemId: itemId('Japchae'), ingredientId: ingredientId('Egg'), qtyPerUnit: 1 },
     ],
   });
 
