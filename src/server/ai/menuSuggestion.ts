@@ -40,6 +40,16 @@ function normalizeName(name: string): string {
   return name.trim().toLowerCase();
 }
 
+// Defensive fallback for when the model ignores the "one step per line"
+// instruction and returns numbered steps run together on one line -- if
+// there's no newline already, insert one before every step marker after
+// the first ("2. ", "3. ", ...) so it still renders as a readable list.
+function formatInstructions(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.includes('\n')) return trimmed;
+  return trimmed.replace(/\s*(\d+\.\s)/g, (match, marker: string, offset: number) => (offset === 0 ? marker : `\n${marker}`));
+}
+
 const SYSTEM_PROMPT =
   'You are a menu development assistant for a cafe/restaurant. Given recent best-selling items, ' +
   'current ingredient stock levels (lowest-stock ingredients listed first -- prioritize using these ' +
@@ -48,7 +58,9 @@ const SYSTEM_PROMPT =
   'lowest-stock ones, but you may include an ingredient not currently in stock if the concept ' +
   'genuinely needs it. Respond with ONLY a JSON object of the exact shape ' +
   '{"name":"...","price":<integer IDR>,"category":"...","description":"<1-2 sentences>",' +
-  '"instructions":"<short step-by-step cooking instructions>",' +
+  '"instructions":"<step-by-step cooking instructions, numbered, ONE STEP PER LINE separated by ' +
+  'literal \\n newline characters, e.g. \\"1. Cook the rice.\\n2. Season the chicken.\\n3. Combine ' +
+  'and serve.\\" -- never put multiple numbered steps on the same line>",' +
   '"ingredients":[{"name":"...","unit":"...","qtyPerUnit":<number>}],' +
   '"reasoning":"<1-2 sentences tying this to the sales/stock data given>"}. ' +
   'If nothing sensible can be proposed from the given data, respond with ' +
@@ -154,7 +166,7 @@ export function parseMenuSuggestionResponse(raw: string, knownIngredients: Stock
       price: p.price,
       category: p.category.trim(),
       description: p.description.trim(),
-      instructions: p.instructions.trim(),
+      instructions: formatInstructions(p.instructions),
       ingredients,
       reasoning: p.reasoning.trim(),
     },

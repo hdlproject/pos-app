@@ -58,7 +58,7 @@ describe('parseMenuSuggestionResponse', () => {
       price: 42000,
       category: 'Korean',
       description: 'A rice bowl with chicken and vegetables.',
-      instructions: '1. Cook rice. 2. Cook chicken. 3. Assemble.',
+      instructions: '1. Cook rice.\n2. Cook chicken.\n3. Assemble.',
       ingredients: [{ name: 'rice', unit: 'g', qtyPerUnit: 200 }],
       reasoning: 'Uses low-stock chicken and a popular rice base.',
     });
@@ -70,7 +70,7 @@ describe('parseMenuSuggestionResponse', () => {
         price: 42000,
         category: 'Korean',
         description: 'A rice bowl with chicken and vegetables.',
-        instructions: '1. Cook rice. 2. Cook chicken. 3. Assemble.',
+        instructions: '1. Cook rice.\n2. Cook chicken.\n3. Assemble.',
         ingredients: [{ name: 'Rice', unit: 'g', qtyPerUnit: 200, existingIngredientId: 'i1' }],
         reasoning: 'Uses low-stock chicken and a popular rice base.',
       },
@@ -190,6 +190,40 @@ describe('parseMenuSuggestionResponse', () => {
       expect(result.draft.ingredients).toEqual([
         { name: 'Truffle Oil', unit: 'ml', qtyPerUnit: 10, existingIngredientId: null },
       ]);
+    }
+  });
+
+  it('inserts line breaks before numbered steps when the model runs them together on one line', () => {
+    const raw = JSON.stringify({
+      name: 'Dish',
+      price: 10000,
+      category: 'Food',
+      description: 'd',
+      instructions: '1. Cook rice. 2. Cook chicken. 3. Assemble.',
+      ingredients: [{ name: 'Rice', unit: 'g', qtyPerUnit: 100 }],
+      reasoning: 'r',
+    });
+    const result = parseMenuSuggestionResponse(raw, ingredients);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.draft.instructions).toBe('1. Cook rice.\n2. Cook chicken.\n3. Assemble.');
+    }
+  });
+
+  it('leaves instructions untouched when the model already used real line breaks', () => {
+    const raw = JSON.stringify({
+      name: 'Dish',
+      price: 10000,
+      category: 'Food',
+      description: 'd',
+      instructions: '1. Cook rice.\n2. Cook chicken.\n3. Assemble.',
+      ingredients: [{ name: 'Rice', unit: 'g', qtyPerUnit: 100 }],
+      reasoning: 'r',
+    });
+    const result = parseMenuSuggestionResponse(raw, ingredients);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.draft.instructions).toBe('1. Cook rice.\n2. Cook chicken.\n3. Assemble.');
     }
   });
 
