@@ -18,6 +18,9 @@ describe('buildMenuSuggestionMessages', () => {
       ingredients,
       existingItemNames: ['Latte', 'Espresso'],
       cuisine: ['Korean'],
+      taste: ['Sweet'],
+      aroma: ['Roasted'],
+      texture: ['Creamy'],
       categoryHint: 'Food',
       notes: 'use up chicken',
     });
@@ -27,6 +30,9 @@ describe('buildMenuSuggestionMessages', () => {
     expect(user).toContain('12 sold');
     expect(user).toContain('Chicken Breast');
     expect(user).toContain('Korean');
+    expect(user).toContain('Sweet');
+    expect(user).toContain('Roasted');
+    expect(user).toContain('Creamy');
     expect(user).toContain('Food');
     expect(user).toContain('use up chicken');
   });
@@ -37,6 +43,9 @@ describe('buildMenuSuggestionMessages', () => {
       ingredients,
       existingItemNames: [],
       cuisine: [],
+      taste: [],
+      aroma: [],
+      texture: [],
     });
     expect(messages).toHaveLength(2);
   });

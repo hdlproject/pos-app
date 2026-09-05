@@ -8,6 +8,9 @@ export type MenuSuggestionContext = {
   ingredients: StockIngredient[];
   existingItemNames: string[];
   cuisine: string[];
+  taste: string[];
+  aroma: string[];
+  texture: string[];
   categoryHint?: string;
   notes?: string;
 };
@@ -65,6 +68,9 @@ export function buildMenuSuggestionMessages(context: MenuSuggestionContext): Sug
   const steeringLines = [
     context.cuisine.length ? `Preferred cuisine: ${context.cuisine.join(', ')}` : null,
     context.categoryHint ? `Preferred category: ${context.categoryHint}` : null,
+    context.taste.length ? `Preferred taste: ${context.taste.join(', ')}` : null,
+    context.aroma.length ? `Preferred aroma: ${context.aroma.join(', ')}` : null,
+    context.texture.length ? `Preferred texture: ${context.texture.join(', ')}` : null,
     context.notes ? `Notes: ${context.notes}` : null,
   ].filter((l): l is string => l !== null);
 

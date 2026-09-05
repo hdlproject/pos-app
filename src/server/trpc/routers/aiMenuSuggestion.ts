@@ -9,11 +9,15 @@ import {
   type StockIngredient,
 } from '../../ai/menuSuggestion';
 import { recomputeAvailabilityForMenuItem } from '../../stock/availability';
+import { TASTE_OPTIONS, AROMA_OPTIONS, TEXTURE_OPTIONS } from '../../../lib/suggestionOptions';
 
 const CUISINE_OPTIONS = ['Indonesian', 'Italian', 'Korean', 'Japanese', 'Western', 'Fusion'] as const;
 
 const suggestInput = z.object({
   cuisine: z.array(z.enum(CUISINE_OPTIONS)).max(CUISINE_OPTIONS.length).default([]),
+  taste: z.array(z.enum(TASTE_OPTIONS)).max(TASTE_OPTIONS.length).default([]),
+  aroma: z.array(z.enum(AROMA_OPTIONS)).max(AROMA_OPTIONS.length).default([]),
+  texture: z.array(z.enum(TEXTURE_OPTIONS)).max(TEXTURE_OPTIONS.length).default([]),
   categoryHint: z.string().max(60).optional(),
   notes: z.string().max(200).optional(),
 });
@@ -80,6 +84,9 @@ export const aiMenuSuggestionRouter = router({
         ingredients,
         existingItemNames: existingItems.map((i) => i.name),
         cuisine: input.cuisine,
+        taste: input.taste,
+        aroma: input.aroma,
+        texture: input.texture,
         categoryHint: input.categoryHint,
         notes: input.notes,
       });

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { TASTE_OPTIONS, AROMA_OPTIONS, TEXTURE_OPTIONS } from '@/lib/suggestionOptions';
 
 const CUISINE_OPTIONS = ['Indonesian', 'Italian', 'Korean', 'Japanese', 'Western', 'Fusion'] as const;
 
@@ -41,6 +42,9 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
   const categories = categoriesQuery.data ?? [];
 
   const [cuisine, setCuisine] = useState<(typeof CUISINE_OPTIONS)[number][]>([]);
+  const [taste, setTaste] = useState<(typeof TASTE_OPTIONS)[number][]>([]);
+  const [aroma, setAroma] = useState<(typeof AROMA_OPTIONS)[number][]>([]);
+  const [texture, setTexture] = useState<(typeof TEXTURE_OPTIONS)[number][]>([]);
   const [categoryHint, setCategoryHint] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [noSuggestionReason, setNoSuggestionReason] = useState<string | null>(null);
@@ -79,7 +83,14 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
 
   function requestSuggestion() {
     setNoSuggestionReason(null);
-    suggest.mutate({ cuisine, categoryHint: categoryHint ?? undefined, notes: notes.trim() || undefined });
+    suggest.mutate({
+      cuisine,
+      taste,
+      aroma,
+      texture,
+      categoryHint: categoryHint ?? undefined,
+      notes: notes.trim() || undefined,
+    });
   }
 
   function updateIngredientQty(index: number, qtyPerUnit: number) {
@@ -134,10 +145,51 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
 
         <div className="p-5 overflow-y-auto flex flex-col gap-4">
           <div>
-            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">Cuisine (optional)</div>
+            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+              Cuisine <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
+            </div>
             <div className="flex gap-2 flex-wrap">
               {CUISINE_OPTIONS.map((o) => (
                 <Chip key={o} active={cuisine.includes(o)} onClick={() => setCuisine((c) => toggleValue(c, o))}>
+                  {o}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+              Taste <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {TASTE_OPTIONS.map((o) => (
+                <Chip key={o} active={taste.includes(o)} onClick={() => setTaste((t) => toggleValue(t, o))}>
+                  {o}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+              Aroma <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {AROMA_OPTIONS.map((o) => (
+                <Chip key={o} active={aroma.includes(o)} onClick={() => setAroma((a) => toggleValue(a, o))}>
+                  {o}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+              Texture <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {TEXTURE_OPTIONS.map((o) => (
+                <Chip key={o} active={texture.includes(o)} onClick={() => setTexture((t) => toggleValue(t, o))}>
                   {o}
                 </Chip>
               ))}
