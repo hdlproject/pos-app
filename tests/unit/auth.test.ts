@@ -8,6 +8,16 @@ describe('pin hashing', () => {
     expect(await verifyPin('1234', hash)).toBe(true);
     expect(await verifyPin('9999', hash)).toBe(false);
   });
+
+  it('produces a pbkdf2-formatted hash, not a bcrypt one', async () => {
+    const hash = await hashPin('1234');
+    expect(hash).toMatch(/^pbkdf2\$\d+\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+$/);
+  });
+
+  it('rejects a malformed or foreign hash instead of throwing', async () => {
+    await expect(verifyPin('1234', 'not-a-real-hash')).resolves.toBe(false);
+    await expect(verifyPin('1234', '$2b$10$notarealbcryptash')).resolves.toBe(false);
+  });
 });
 
 describe('session tokens', () => {

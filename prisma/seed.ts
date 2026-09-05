@@ -1,7 +1,7 @@
 // prisma/seed.ts
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import bcrypt from 'bcrypt';
+import { hashPin } from '../src/server/auth/pin';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
@@ -11,9 +11,9 @@ async function main() {
 
   const users = await db.user.createManyAndReturn({
     data: [
-      { name: 'Admin', role: 'ADMIN', pinHash: await bcrypt.hash('1234', 10) },
-      { name: 'Staff', role: 'STAFF', pinHash: await bcrypt.hash('2345', 10) },
-      { name: 'Kitchen', role: 'KITCHEN', pinHash: await bcrypt.hash('4567', 10) },
+      { name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') },
+      { name: 'Staff', role: 'STAFF', pinHash: await hashPin('2345') },
+      { name: 'Kitchen', role: 'KITCHEN', pinHash: await hashPin('4567') },
     ],
   });
   const userId = (name: string) => users.find((u) => u.name === name)!.id;
