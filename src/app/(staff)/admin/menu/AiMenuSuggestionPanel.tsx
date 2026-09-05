@@ -57,6 +57,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
   const [notes, setNotes] = useState('');
   const [noSuggestionReason, setNoSuggestionReason] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Draft[] | null>(null);
+  const [chosenIndex, setChosenIndex] = useState<number | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   // Drives a brief background flash on the freshly-populated candidate
   // picker, plus the scroll-into-view -- the panel gets tall once results
@@ -76,6 +77,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
       }
       setNoSuggestionReason(null);
       setCandidates(result.candidates);
+      setChosenIndex(null);
       setForm(null);
       setJustSuggested(true);
       setTimeout(() => candidatesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
@@ -83,8 +85,9 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
     },
   });
 
-  function chooseCandidate(draft: Draft) {
+  function chooseCandidate(draft: Draft, index: number) {
     const matched = categories.find((c) => c.name.toLowerCase() === draft.category.trim().toLowerCase());
+    setChosenIndex(index);
     setForm({
       name: draft.name,
       price: String(draft.price),
@@ -142,6 +145,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
 
   function reject() {
     setCandidates(null);
+    setChosenIndex(null);
     setForm(null);
     setNoSuggestionReason(null);
     suggest.reset();
@@ -272,16 +276,21 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
               Pick a type and at least one taste, aroma, and texture option before suggesting.
             </p>
           )}
-          {candidates && (
+          {candidates && !form && (
             <p className="text-text-muted text-xs font-semibold text-center -mt-2">
               Reject to change your picks and suggest again.
+            </p>
+          )}
+          {form && (
+            <p className="text-text-muted text-xs font-semibold text-center -mt-2">
+              Pick a different suggestion above, or Reject to start over.
             </p>
           )}
 
           {suggest.isError && <p className="text-warning text-xs font-semibold text-center">{suggest.error.message}</p>}
           {noSuggestionReason && <p className="text-text-muted text-xs font-semibold text-center">{noSuggestionReason}</p>}
 
-          {candidates && !form && (
+          {candidates && (
             <div
               ref={candidatesRef}
               className={`flex flex-col gap-2.5 pt-2 border-t border-border p-3 rounded-2xl transition-colors duration-1000 scroll-mt-4 ${
@@ -294,8 +303,12 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
               {candidates.map((c, i) => (
                 <button
                   key={i}
-                  onClick={() => chooseCandidate(c)}
-                  className="text-left bg-surface-input hover:bg-surface-input/70 transition-colors rounded-2xl p-3 flex flex-col gap-1"
+                  onClick={() => chooseCandidate(c, i)}
+                  className={`text-left transition-colors rounded-2xl p-3 flex flex-col gap-1 border ${
+                    chosenIndex === i
+                      ? 'bg-accent/10 border-accent'
+                      : 'bg-surface-input hover:bg-surface-input/70 border-transparent'
+                  }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-sm text-text">{c.name}</span>
