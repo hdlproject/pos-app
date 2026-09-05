@@ -1,13 +1,14 @@
 import { z } from 'zod';
 import { router, roleProcedure } from '../trpc';
-import { redis } from '../../redis';
+import { noopCache } from '../../cache';
 
 const dateRangeInput = z.object({ from: z.string(), to: z.string() });
 
 export const reportRouter = router({
   dailySales: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
+    const cache = ctx.cache ?? noopCache;
     const cacheKey = `report:dailySales:${input.from}:${input.to}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await cache.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
     const payments = await ctx.db.payment.findMany({
@@ -19,7 +20,7 @@ export const reportRouter = router({
       orderCount: payments.length,
       avgOrderValue: payments.length ? totalRevenue / payments.length : 0,
     };
-    await redis.set(cacheKey, JSON.stringify(result), 'EX', 300);
+    await cache.set(cacheKey, JSON.stringify(result), 300);
     return result;
   }),
 

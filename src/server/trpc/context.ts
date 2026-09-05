@@ -4,6 +4,7 @@ import { db as nodeDb } from '../db';
 import { verifySession } from '../auth/session';
 import { getCloudflareDb } from '../db.cloudflare';
 import { RedisCooldownStore, KvCooldownStore, type CooldownStore, type KvNamespaceLike } from '../cooldownStore';
+import { RedisCache, KvCache, noopCache, type Cache } from '../cache';
 
 export type Context = {
   db: PrismaClient;
@@ -13,16 +14,17 @@ export type Context = {
   // `appRouter.createCaller({ db, user })` keep compiling without needing
   // to plumb a cooldown store through routers that never touch it.
   cooldownStore?: CooldownStore;
+  cache?: Cache;
 };
 
-async function getContextDb(): Promise<PrismaClient> {
+export async function getContextDb(): Promise<PrismaClient> {
   if (process.env.RUNTIME_TARGET === 'cloudflare') {
     return getCloudflareDb();
   }
   return nodeDb;
 }
 
-async function getContextCooldownStore(): Promise<CooldownStore> {
+export async function getContextCooldownStore(): Promise<CooldownStore> {
   if (process.env.RUNTIME_TARGET === 'cloudflare') {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
     const { env } = await getCloudflareContext({ async: true });
@@ -35,9 +37,22 @@ async function getContextCooldownStore(): Promise<CooldownStore> {
   return new RedisCooldownStore();
 }
 
+export async function getContextCache(): Promise<Cache> {
+  if (process.env.RUNTIME_TARGET === 'cloudflare') {
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    const { env } = await getCloudflareContext({ async: true });
+    const kv = (env as Record<string, unknown>).COOLDOWN_KV as KvNamespaceLike | undefined;
+    // Unlike the cooldown store, a missing binding here degrades to a
+    // no-op instead of throwing -- caching has no correctness requirement.
+    return kv ? new KvCache(kv) : noopCache;
+  }
+  return new RedisCache();
+}
+
 export async function createContext(): Promise<Context> {
   const db = await getContextDb();
   const cooldownStore = await getContextCooldownStore();
+  const cache = await getContextCache();
 
   const token = (await cookies()).get('session')?.value;
   const payload = token ? await verifySession(token) : null;
@@ -50,5 +65,5 @@ export async function createContext(): Promise<Context> {
     }
   }
 
-  return { db, user, cooldownStore };
+  return { db, user, cooldownStore, cache };
 }

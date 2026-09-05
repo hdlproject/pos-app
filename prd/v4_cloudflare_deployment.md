@@ -33,6 +33,8 @@ Cloudflare Hyperdrive and KV are **bindings** — objects only reachable through
 
 R2, by contrast, is reached over its plain S3-compatible HTTPS API with access-key credentials — the exact same `@aws-sdk/client-s3` code already in `src/server/storage.ts` and consumed by `src/app/api/upload/route.ts` works unchanged; only the `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET` env values differ between Minio (dev) and R2 (prod). No code branching needed there.
 
+**Correction (found during final review):** Postgres and the cooldown store were not, in fact, the only two things needing runtime branching. `report.ts`/`payment.ts`/`order.ts`'s Redis-backed daily-sales caching had the exact same problem — it called `ioredis` directly with no Cloudflare path. This was folded into the same design as a parallel `Cache` abstraction (`RedisCache`/`KvCache`/`noopCache`, in `src/server/cache.ts`), reusing the `COOLDOWN_KV` binding rather than provisioning a separate KV namespace. Unlike the cooldown store, a missing binding here degrades to a no-op (always miss, no-op set/invalidate) instead of throwing, since caching is a pure performance optimization with no correctness requirement — unlike the abuse-guard cooldown, which does.
+
 ## Component changes
 
 ### 1. `src/server/db.ts` — per-request-aware Postgres client
@@ -96,6 +98,8 @@ If `RUNTIME_TARGET=cloudflare` and a required binding (`HYPERDRIVE`, `COOLDOWN_K
 - No automated Workers-runtime test in CI. Before an actual deploy, run `wrangler dev` (or OpenNext's local preview) as a manual smoke test against a real Hyperdrive/KV-bound preview environment.
 
 ## Migration steps at actual deploy time (not part of this code change)
+
+**Smoke-test ordering note (flagged explicitly by the final review):** whatever order the steps below happen in, test PIN login *first* in the manual `wrangler dev`/preview smoke test, before anything else. There's an open question about whether Cloudflare Workers' `crypto.subtle.deriveBits` enforces a maximum PBKDF2 iteration count that `ITERATIONS = 100_000` in `src/server/auth/pin.ts` might sit at or near; if login fails with an opaque crypto error on Workers, that's the likely cause. `verifyPin` already parses the iteration count from the stored hash (not hardcoded), so lowering `ITERATIONS` in `hashPin` and reseeding is a safe, contained fix if needed.
 
 1. Create the Neon Postgres project, run `prisma migrate deploy` against it.
 2. Create the Cloudflare KV namespace and Hyperdrive config, wire both into `wrangler.jsonc`.

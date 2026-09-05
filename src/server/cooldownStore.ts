@@ -24,6 +24,7 @@ export type KvNamespaceLike = {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
   delete(key: string): Promise<void>;
+  list(options: { prefix: string }): Promise<{ keys: { name: string }[] }>;
 };
 
 // get-then-put is not atomic the way Redis's SET NX is -- KV's eventual

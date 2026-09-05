@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 import { router, protectedProcedure, publicProcedure, roleProcedure } from '../trpc';
 import { publishOrderEvent } from '../../ably';
 import { deductStockForOrder, revertStockForOrder } from '../../stock/deduct';
-import { redis } from '../../redis';
+import { noopCache } from '../../cache';
 
 const orderItemInput = z.object({
   menuItemId: z.string(),
@@ -439,8 +439,7 @@ export const orderRouter = router({
         console.error('publishOrderEvent failed for order.cancelled', err);
       }
       try {
-        const keys = await redis.keys('report:dailySales:*');
-        if (keys.length) await redis.del(...keys);
+        await (ctx.cache ?? noopCache).deleteByPrefix('report:dailySales:');
       } catch (err) {
         console.error('dailySales cache invalidation failed after order.cancel', err);
       }

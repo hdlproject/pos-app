@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { redis } from '@/server/redis';
 import { RedisCooldownStore, KvCooldownStore, type KvNamespaceLike } from '@/server/cooldownStore';
 
@@ -40,6 +40,7 @@ function fakeKv(): KvNamespaceLike {
     delete: async (key) => {
       data.delete(key);
     },
+    list: async () => ({ keys: [] }),
   };
 }
 
@@ -47,6 +48,14 @@ describe('KvCooldownStore', () => {
   it('allows the first request for a key', async () => {
     const store = new KvCooldownStore(fakeKv());
     await expect(store.checkAndSet('table-a', 30)).resolves.toBe(true);
+  });
+
+  it('passes the TTL through to the fake KV put call', async () => {
+    const kv = fakeKv();
+    const putSpy = vi.spyOn(kv, 'put');
+    const store = new KvCooldownStore(kv);
+    await store.checkAndSet('table-a', 30);
+    expect(putSpy).toHaveBeenCalledWith('table-a', '1', { expirationTtl: 30 });
   });
 
   it('blocks a second request for the same key', async () => {

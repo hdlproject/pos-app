@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { router, roleProcedure } from '../trpc';
 import { deductStockForOrder } from '../../stock/deduct';
 import { publishOrderEvent } from '../../ably';
-import { redis } from '../../redis';
+import { noopCache } from '../../cache';
 
 export const paymentRouter = router({
   payCash: roleProcedure('ADMIN', 'STAFF')
@@ -38,8 +38,7 @@ export const paymentRouter = router({
         console.error('publishOrderEvent failed for order.paid', err);
       }
       try {
-        const keys = await redis.keys('report:dailySales:*');
-        if (keys.length) await redis.del(...keys);
+        await (ctx.cache ?? noopCache).deleteByPrefix('report:dailySales:');
       } catch (err) {
         console.error('dailySales cache invalidation failed after payment.payCash', err);
       }
