@@ -46,6 +46,7 @@ const createInput = z.object({
 // nested include.
 type MenuRow = { id: string; name: string };
 type IngredientRow = { id: string; name: string; unit: string; stockQty: unknown };
+type MenuItemWithCategoryName = { name: string; category: { name: string } };
 
 export const aiMenuSuggestionRouter = router({
   suggestNewItem: roleProcedure('ADMIN')
@@ -61,11 +62,11 @@ export const aiMenuSuggestionRouter = router({
         where: { id: { in: bestSellerRows.map((r) => r.menuItemId) } },
       })) as unknown as MenuRow[];
       const bestSellerById = new Map(bestSellerItems.map((i) => [i.id, i]));
-      const bestSellers = bestSellerRows
+      const soldItems = bestSellerRows
         .map((r) => ({ name: bestSellerById.get(r.menuItemId)?.name, qtySold: r._sum.qty ?? 0 }))
-        .filter((b): b is { name: string; qtySold: number } => typeof b.name === 'string')
-        .sort((a, b) => b.qtySold - a.qtySold)
-        .slice(0, 10);
+        .filter((b): b is { name: string; qtySold: number } => typeof b.name === 'string');
+      const bestSellers = [...soldItems].sort((a, b) => b.qtySold - a.qtySold).slice(0, 10);
+      const worstSellers = [...soldItems].sort((a, b) => a.qtySold - b.qtySold).slice(0, 5);
 
       const ingredientRows = (await ctx.db.ingredient.findMany({
         orderBy: { stockQty: 'asc' },
@@ -77,12 +78,22 @@ export const aiMenuSuggestionRouter = router({
         stockQty: Number(i.stockQty),
       }));
 
-      const existingItems = await ctx.db.menuItem.findMany({ select: { name: true } });
+      const existingItems = (await ctx.db.menuItem.findMany({
+        select: { name: true, category: { select: { name: true } } },
+      })) as unknown as MenuItemWithCategoryName[];
+
+      const categoryCountMap = new Map<string, number>();
+      for (const item of existingItems) {
+        categoryCountMap.set(item.category.name, (categoryCountMap.get(item.category.name) ?? 0) + 1);
+      }
+      const categoryCounts = Array.from(categoryCountMap.entries()).map(([name, count]) => ({ name, count }));
 
       const messages = buildMenuSuggestionMessages({
         bestSellers,
+        worstSellers,
         ingredients,
         existingItemNames: existingItems.map((i) => i.name),
+        categoryCounts,
         cuisine: input.cuisine,
         taste: input.taste,
         aroma: input.aroma,

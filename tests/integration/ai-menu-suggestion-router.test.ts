@@ -17,7 +17,7 @@ describe('aiMenuSuggestion router', () => {
     mockedFetch.mockReset();
   });
 
-  it('suggestNewItem returns a draft with existing ingredients tagged by real id', async () => {
+  it('suggestNewItem returns candidates with existing ingredients tagged by real id', async () => {
     const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
     const category = await db.category.create({ data: { name: 'Food', sortOrder: 1 } });
     const rice = await db.ingredient.create({ data: { name: 'Rice', unit: 'g', stockQty: 50 } });
@@ -36,21 +36,26 @@ describe('aiMenuSuggestion router', () => {
 
     mockedFetch.mockResolvedValue(
       JSON.stringify({
-        name: 'Rice Bowl',
-        price: 35000,
-        category: 'Food',
-        description: 'A simple rice bowl.',
-        instructions: 'Cook rice, serve.',
-        ingredients: [{ name: 'rice', unit: 'g', qtyPerUnit: 150 }],
-        reasoning: 'Uses low-stock rice; Nasi Goreng sells well.',
+        candidates: [
+          {
+            name: 'Rice Bowl',
+            price: 35000,
+            category: 'Food',
+            description: 'A simple rice bowl.',
+            instructions: 'Cook rice, serve.',
+            ingredients: [{ name: 'rice', unit: 'g', qtyPerUnit: 150 }],
+            reasoning: 'Uses low-stock rice; Nasi Goreng sells well.',
+          },
+        ],
       })
     );
 
     const result = await admin.aiMenuSuggestion.suggestNewItem({ cuisine: [] });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.draft.name).toBe('Rice Bowl');
-      expect(result.draft.ingredients).toEqual([
+      expect(result.candidates).toHaveLength(1);
+      expect(result.candidates[0].name).toBe('Rice Bowl');
+      expect(result.candidates[0].ingredients).toEqual([
         { name: 'Rice', unit: 'g', qtyPerUnit: 150, existingIngredientId: rice.id },
       ]);
     }

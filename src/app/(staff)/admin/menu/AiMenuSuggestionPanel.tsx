@@ -19,7 +19,7 @@ type Draft = {
   ingredients: DraftIngredient[];
   reasoning: string;
 };
-type SuggestResult = { ok: true; draft: Draft } | { ok: false; reason: string };
+type SuggestResult = { ok: true; candidates: Draft[] } | { ok: false; reason: string };
 
 type FormState = {
   name: string;
@@ -56,12 +56,13 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
   const [categoryHint, setCategoryHint] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [noSuggestionReason, setNoSuggestionReason] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<Draft[] | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
-  // Drives a brief background flash on the freshly-populated draft, plus
-  // the scroll-into-view -- the panel gets tall once the draft appears, so
-  // both cues point the admin straight at what just showed up.
+  // Drives a brief background flash on the freshly-populated candidate
+  // picker, plus the scroll-into-view -- the panel gets tall once results
+  // appear, so both cues point the admin straight at what just showed up.
   const [justSuggested, setJustSuggested] = useState(false);
-  const draftRef = useRef<HTMLDivElement>(null);
+  const candidatesRef = useRef<HTMLDivElement>(null);
   const nameFieldRef = useRef<HTMLDivElement>(null);
 
   const suggest = trpc.aiMenuSuggestion.suggestNewItem.useMutation({
@@ -69,26 +70,33 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
       const result = data as unknown as SuggestResult;
       if (!result.ok) {
         setNoSuggestionReason(result.reason);
+        setCandidates(null);
         setForm(null);
         return;
       }
       setNoSuggestionReason(null);
-      const matched = categories.find((c) => c.name.toLowerCase() === result.draft.category.trim().toLowerCase());
-      setForm({
-        name: result.draft.name,
-        price: String(result.draft.price),
-        categoryId: matched?.id ?? '',
-        newCategoryName: matched ? '' : result.draft.category,
-        description: result.draft.description,
-        instructions: result.draft.instructions,
-        ingredients: result.draft.ingredients,
-        reasoning: result.draft.reasoning,
-      });
+      setCandidates(result.candidates);
+      setForm(null);
       setJustSuggested(true);
-      setTimeout(() => nameFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      setTimeout(() => candidatesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
       setTimeout(() => setJustSuggested(false), 1300);
     },
   });
+
+  function chooseCandidate(draft: Draft) {
+    const matched = categories.find((c) => c.name.toLowerCase() === draft.category.trim().toLowerCase());
+    setForm({
+      name: draft.name,
+      price: String(draft.price),
+      categoryId: matched?.id ?? '',
+      newCategoryName: matched ? '' : draft.category,
+      description: draft.description,
+      instructions: draft.instructions,
+      ingredients: draft.ingredients,
+      reasoning: draft.reasoning,
+    });
+    setTimeout(() => nameFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
 
   const create = trpc.aiMenuSuggestion.createFromSuggestion.useMutation({
     onSuccess: () => {
@@ -133,6 +141,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
   }
 
   function reject() {
+    setCandidates(null);
     setForm(null);
     setNoSuggestionReason(null);
     suggest.reset();
@@ -176,7 +185,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
                   <Chip
                     key={c.id}
                     active={categoryHint === c.name}
-                    disabled={!!form}
+                    disabled={!!candidates}
                     onClick={() => setCategoryHint((current) => (current === c.name ? null : c.name))}
                   >
                     {c.name}
@@ -192,7 +201,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
             <div className="flex gap-2 flex-wrap">
               {TASTE_OPTIONS.map((o) => (
-                <Chip key={o} active={taste.includes(o)} disabled={!!form} onClick={() => setTaste((t) => toggleValue(t, o))}>
+                <Chip key={o} active={taste.includes(o)} disabled={!!candidates} onClick={() => setTaste((t) => toggleValue(t, o))}>
                   {o}
                 </Chip>
               ))}
@@ -205,7 +214,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
             <div className="flex gap-2 flex-wrap">
               {AROMA_OPTIONS.map((o) => (
-                <Chip key={o} active={aroma.includes(o)} disabled={!!form} onClick={() => setAroma((a) => toggleValue(a, o))}>
+                <Chip key={o} active={aroma.includes(o)} disabled={!!candidates} onClick={() => setAroma((a) => toggleValue(a, o))}>
                   {o}
                 </Chip>
               ))}
@@ -218,7 +227,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
             <div className="flex gap-2 flex-wrap">
               {TEXTURE_OPTIONS.map((o) => (
-                <Chip key={o} active={texture.includes(o)} disabled={!!form} onClick={() => setTexture((t) => toggleValue(t, o))}>
+                <Chip key={o} active={texture.includes(o)} disabled={!!candidates} onClick={() => setTexture((t) => toggleValue(t, o))}>
                   {o}
                 </Chip>
               ))}
@@ -231,7 +240,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
             <div className="flex gap-2 flex-wrap">
               {CUISINE_OPTIONS.map((o) => (
-                <Chip key={o} active={cuisine.includes(o)} disabled={!!form} onClick={() => setCuisine((c) => toggleValue(c, o))}>
+                <Chip key={o} active={cuisine.includes(o)} disabled={!!candidates} onClick={() => setCuisine((c) => toggleValue(c, o))}>
                   {o}
                 </Chip>
               ))}
@@ -244,21 +253,26 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={200}
-              disabled={!!form}
+              disabled={!!candidates}
               placeholder="e.g. something using up the chicken"
               className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
             />
           </div>
 
-          <Button variant="primary" className="w-full" disabled={!canSuggest || suggest.isPending || !!form} onClick={requestSuggestion}>
-            {suggest.isPending ? 'Thinking…' : form ? 'Suggested' : 'Suggest'}
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={!canSuggest || suggest.isPending || !!candidates}
+            onClick={requestSuggestion}
+          >
+            {suggest.isPending ? 'Thinking…' : candidates ? 'Suggested' : 'Suggest'}
           </Button>
-          {!canSuggest && !form && (
+          {!canSuggest && !candidates && (
             <p className="text-text-muted text-xs font-semibold text-center -mt-2">
               Pick a type and at least one taste, aroma, and texture option before suggesting.
             </p>
           )}
-          {form && (
+          {candidates && (
             <p className="text-text-muted text-xs font-semibold text-center -mt-2">
               Reject to change your picks and suggest again.
             </p>
@@ -267,13 +281,36 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
           {suggest.isError && <p className="text-warning text-xs font-semibold text-center">{suggest.error.message}</p>}
           {noSuggestionReason && <p className="text-text-muted text-xs font-semibold text-center">{noSuggestionReason}</p>}
 
-          {form && (
+          {candidates && !form && (
             <div
-              ref={draftRef}
-              className={`flex flex-col gap-3 pt-2 border-t border-border p-3 rounded-2xl transition-colors duration-1000 ${
+              ref={candidatesRef}
+              className={`flex flex-col gap-2.5 pt-2 border-t border-border p-3 rounded-2xl transition-colors duration-1000 scroll-mt-4 ${
                 justSuggested ? 'bg-success/15' : 'bg-transparent'
               }`}
             >
+              <div className="text-xs font-extrabold text-text-muted-2 uppercase">
+                Pick one to develop <span className="normal-case font-semibold text-text-muted">· {candidates.length} option{candidates.length === 1 ? '' : 's'}</span>
+              </div>
+              {candidates.map((c, i) => (
+                <button
+                  key={i}
+                  onClick={() => chooseCandidate(c)}
+                  className="text-left bg-surface-input hover:bg-surface-input/70 transition-colors rounded-2xl p-3 flex flex-col gap-1"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-sm text-text">{c.name}</span>
+                    <span className="text-xs font-extrabold text-accent-tint shrink-0">Rp {c.price.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="text-xs text-text-muted-2">{c.category}</div>
+                  <div className="text-xs text-text-muted">{c.description}</div>
+                  <div className="text-[11px] text-text-muted italic">{c.reasoning}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {form && (
+            <div className="flex flex-col gap-3 pt-2 border-t border-border p-3 rounded-2xl">
               <div ref={nameFieldRef} className="scroll-mt-4">
                 <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-1">Name</div>
                 <Input

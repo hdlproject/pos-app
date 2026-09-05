@@ -2,11 +2,14 @@ import type { SuggestionMessage } from './suggestion';
 
 export type BestSeller = { name: string; qtySold: number };
 export type StockIngredient = { id: string; name: string; unit: string; stockQty: number };
+export type CategoryCount = { name: string; count: number };
 
 export type MenuSuggestionContext = {
   bestSellers: BestSeller[];
+  worstSellers: BestSeller[];
   ingredients: StockIngredient[];
   existingItemNames: string[];
+  categoryCounts: CategoryCount[];
   cuisine: string[];
   taste: string[];
   aroma: string[];
@@ -32,9 +35,11 @@ export type MenuSuggestionDraft = {
   reasoning: string;
 };
 
-export type MenuSuggestionResult = { ok: true; draft: MenuSuggestionDraft } | { ok: false; reason: string };
+export type MenuSuggestionResult = { ok: true; candidates: MenuSuggestionDraft[] } | { ok: false; reason: string };
 
 export class MenuSuggestionParseError extends Error {}
+
+const MAX_CANDIDATES = 3;
 
 function normalizeName(name: string): string {
   return name.trim().toLowerCase();
@@ -51,18 +56,23 @@ function formatInstructions(raw: string): string {
 }
 
 const SYSTEM_PROMPT =
-  'You are a menu development assistant for a cafe/restaurant. Given recent best-selling items, ' +
-  'current ingredient stock levels (lowest-stock ingredients listed first -- prioritize using these ' +
-  'up before they run out or spoil), and the existing menu, propose ONE new menu item concept. ' +
-  'Avoid duplicating an existing item. Prefer ingredients already in stock, especially the ' +
-  'lowest-stock ones, but you may include an ingredient not currently in stock if the concept ' +
-  'genuinely needs it. Respond with ONLY a JSON object of the exact shape ' +
+  'You are a menu development assistant for a cafe/restaurant. Given recent best- and worst-selling ' +
+  'items, current ingredient stock levels (lowest-stock ingredients listed first -- prioritize using ' +
+  'these up before they run out or spoil), how many items each existing category already has, and the ' +
+  'existing menu, propose THREE distinct new menu item concepts. Avoid duplicating an existing item, ' +
+  'and avoid repeating whatever likely made the worst-selling items unpopular. Favor categories with ' +
+  "fewer existing items when it makes sense, but don't force a bad fit. Prefer ingredients already in " +
+  'stock, especially the lowest-stock ones, but you may include an ingredient not currently in stock if ' +
+  'a concept genuinely needs it. Respond with ONLY a JSON object of the exact shape ' +
+  '{"candidates":[<item>,<item>,<item>]} where each <item> has the exact shape ' +
   '{"name":"...","price":<integer IDR>,"category":"...","description":"<1-2 sentences>",' +
   '"instructions":"<step-by-step cooking instructions, numbered, ONE STEP PER LINE separated by ' +
   'literal \\n newline characters, e.g. \\"1. Cook the rice.\\n2. Season the chicken.\\n3. Combine ' +
   'and serve.\\" -- never put multiple numbered steps on the same line>",' +
   '"ingredients":[{"name":"...","unit":"...","qtyPerUnit":<number>}],' +
   '"reasoning":"<1-2 sentences tying this to the sales/stock data given>"}. ' +
+  'The three candidates must be meaningfully different from each other (different category, main ' +
+  'ingredient, or style) -- never near-duplicates of one another. ' +
   'If nothing sensible can be proposed from the given data, respond with ' +
   '{"error":"<short reason>"} instead of forcing a bad match.';
 
@@ -71,9 +81,17 @@ export function buildMenuSuggestionMessages(context: MenuSuggestionContext): Sug
     ? context.bestSellers.map((b) => `- ${b.name}: ${b.qtySold} sold`).join('\n')
     : '(no sales data available)';
 
+  const worstSellerLines = context.worstSellers.length
+    ? context.worstSellers.map((b) => `- ${b.name}: ${b.qtySold} sold`).join('\n')
+    : '(no clear underperformers)';
+
   const ingredientLines = context.ingredients.length
     ? context.ingredients.map((i) => `- ${i.name} (${i.unit}): ${i.stockQty} in stock`).join('\n')
     : '(no ingredients in inventory)';
+
+  const categoryCountLines = context.categoryCounts.length
+    ? context.categoryCounts.map((c) => `- ${c.name}: ${c.count} item${c.count === 1 ? '' : 's'}`).join('\n')
+    : '(no categories yet)';
 
   const existingMenuLine = context.existingItemNames.length ? context.existingItemNames.join(', ') : '(menu is empty)';
 
@@ -88,15 +106,77 @@ export function buildMenuSuggestionMessages(context: MenuSuggestionContext): Sug
 
   const user =
     `Best-selling items (last 30 days):\n${bestSellerLines}\n\n` +
+    `Worst-selling items (last 30 days):\n${worstSellerLines}\n\n` +
     `Current ingredient stock (lowest first):\n${ingredientLines}\n\n` +
+    `Items per existing category:\n${categoryCountLines}\n\n` +
     `Existing menu items (avoid near-duplicates):\n${existingMenuLine}\n\n` +
     (steeringLines.length ? `Admin preferences:\n${steeringLines.join('\n')}\n\n` : '') +
-    `Propose one new menu item.`;
+    `Propose three new menu item concepts.`;
 
   return [
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: user },
   ];
+}
+
+// One bad field anywhere in a candidate invalidates just that candidate,
+// not the whole batch -- a single malformed entry among three shouldn't
+// deny the admin the two good ones.
+function parseCandidate(raw: unknown, byName: Map<string, StockIngredient>): MenuSuggestionDraft | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const p = raw as Record<string, unknown>;
+  if (
+    typeof p.name !== 'string' ||
+    p.name.trim().length === 0 ||
+    typeof p.price !== 'number' ||
+    !(p.price > 0) ||
+    typeof p.category !== 'string' ||
+    p.category.trim().length === 0 ||
+    typeof p.description !== 'string' ||
+    typeof p.instructions !== 'string' ||
+    typeof p.reasoning !== 'string' ||
+    !Array.isArray(p.ingredients) ||
+    p.ingredients.length === 0
+  ) {
+    return null;
+  }
+
+  const ingredients: MenuSuggestionIngredientDraft[] = [];
+  const seenIngredientKeys = new Set<string>();
+  for (const entry of p.ingredients) {
+    if (
+      typeof entry !== 'object' ||
+      entry === null ||
+      typeof (entry as { name?: unknown }).name !== 'string' ||
+      typeof (entry as { unit?: unknown }).unit !== 'string' ||
+      typeof (entry as { qtyPerUnit?: unknown }).qtyPerUnit !== 'number' ||
+      !((entry as { qtyPerUnit: number }).qtyPerUnit > 0)
+    ) {
+      return null;
+    }
+    const e = entry as { name: string; unit: string; qtyPerUnit: number };
+    const known = byName.get(normalizeName(e.name));
+    const draft: MenuSuggestionIngredientDraft = known
+      ? { name: known.name, unit: known.unit, qtyPerUnit: e.qtyPerUnit, existingIngredientId: known.id }
+      : { name: e.name.trim(), unit: e.unit.trim(), qtyPerUnit: e.qtyPerUnit, existingIngredientId: null };
+
+    const dedupKey = draft.existingIngredientId ?? normalizeName(draft.name);
+    if (seenIngredientKeys.has(dedupKey)) continue;
+    seenIngredientKeys.add(dedupKey);
+
+    ingredients.push(draft);
+  }
+  if (ingredients.length === 0) return null;
+
+  return {
+    name: p.name.trim(),
+    price: p.price,
+    category: p.category.trim(),
+    description: p.description.trim(),
+    instructions: formatInstructions(p.instructions),
+    ingredients,
+    reasoning: p.reasoning.trim(),
+  };
 }
 
 export function parseMenuSuggestionResponse(raw: string, knownIngredients: StockIngredient[]): MenuSuggestionResult {
@@ -115,60 +195,21 @@ export function parseMenuSuggestionResponse(raw: string, knownIngredients: Stock
     return { ok: false, reason: (parsed as { error: string }).error };
   }
 
-  const p = parsed as Record<string, unknown>;
-  if (
-    typeof p.name !== 'string' ||
-    p.name.trim().length === 0 ||
-    typeof p.price !== 'number' ||
-    !(p.price > 0) ||
-    typeof p.category !== 'string' ||
-    p.category.trim().length === 0 ||
-    typeof p.description !== 'string' ||
-    typeof p.instructions !== 'string' ||
-    typeof p.reasoning !== 'string' ||
-    !Array.isArray(p.ingredients) ||
-    p.ingredients.length === 0
-  ) {
-    throw new MenuSuggestionParseError('AI response missing required fields');
+  const p = parsed as { candidates?: unknown };
+  if (!Array.isArray(p.candidates) || p.candidates.length === 0) {
+    throw new MenuSuggestionParseError('AI response missing a candidates array');
   }
 
   const byName = new Map(knownIngredients.map((i) => [normalizeName(i.name), i]));
-  const ingredients: MenuSuggestionIngredientDraft[] = [];
-  const seenIngredientKeys = new Set<string>();
-  for (const entry of p.ingredients) {
-    if (
-      typeof entry !== 'object' ||
-      entry === null ||
-      typeof (entry as { name?: unknown }).name !== 'string' ||
-      typeof (entry as { unit?: unknown }).unit !== 'string' ||
-      typeof (entry as { qtyPerUnit?: unknown }).qtyPerUnit !== 'number' ||
-      !((entry as { qtyPerUnit: number }).qtyPerUnit > 0)
-    ) {
-      throw new MenuSuggestionParseError('AI response has a malformed ingredient entry');
-    }
-    const e = entry as { name: string; unit: string; qtyPerUnit: number };
-    const known = byName.get(normalizeName(e.name));
-    const draft: MenuSuggestionIngredientDraft = known
-      ? { name: known.name, unit: known.unit, qtyPerUnit: e.qtyPerUnit, existingIngredientId: known.id }
-      : { name: e.name.trim(), unit: e.unit.trim(), qtyPerUnit: e.qtyPerUnit, existingIngredientId: null };
-
-    const dedupKey = draft.existingIngredientId ?? normalizeName(draft.name);
-    if (seenIngredientKeys.has(dedupKey)) continue;
-    seenIngredientKeys.add(dedupKey);
-
-    ingredients.push(draft);
+  const candidates: MenuSuggestionDraft[] = [];
+  for (const entry of p.candidates.slice(0, MAX_CANDIDATES)) {
+    const draft = parseCandidate(entry, byName);
+    if (draft) candidates.push(draft);
   }
 
-  return {
-    ok: true,
-    draft: {
-      name: p.name.trim(),
-      price: p.price,
-      category: p.category.trim(),
-      description: p.description.trim(),
-      instructions: formatInstructions(p.instructions),
-      ingredients,
-      reasoning: p.reasoning.trim(),
-    },
-  };
+  if (candidates.length === 0) {
+    throw new MenuSuggestionParseError('AI response had no valid candidates');
+  }
+
+  return { ok: true, candidates };
 }
