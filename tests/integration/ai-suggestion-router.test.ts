@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { db } from '@/server/db';
 import { redis } from '@/server/redis';
+import { RedisCooldownStore } from '@/server/cooldownStore';
 import { resetDb } from '../helpers/db';
 
 vi.mock('@/server/ai/openaiClient', () => ({
@@ -32,7 +33,7 @@ describe('aiSuggestion router', () => {
       JSON.stringify({ suggestions: [{ menuItemId: item.id, name: 'Latte', reason: 'Sweet and creamy' }] })
     );
 
-    const anon = appRouter.createCaller({ db, user: null });
+    const anon = appRouter.createCaller({ db, user: null, cooldownStore: new RedisCooldownStore() });
     const result = await anon.aiSuggestion.getSuggestion({
       tableToken: table.qrToken,
       requests: [{ type: 'Coffee', taste: ['Sweet'], aroma: [], texture: ['Creamy'] }],
@@ -73,7 +74,7 @@ describe('aiSuggestion router', () => {
         JSON.stringify({ suggestions: [{ menuItemId: tea.id, name: 'Chamomile', reason: 'Soothing' }] })
       );
 
-    const anon = appRouter.createCaller({ db, user: null });
+    const anon = appRouter.createCaller({ db, user: null, cooldownStore: new RedisCooldownStore() });
     const result = await anon.aiSuggestion.getSuggestion({
       tableToken: table.qrToken,
       requests: [
@@ -93,14 +94,14 @@ describe('aiSuggestion router', () => {
 
   it('rejects an empty requests array', async () => {
     const table = await db.table.create({ data: { label: 'T-empty', qrToken: 'tok-empty' } });
-    const anon = appRouter.createCaller({ db, user: null });
+    const anon = appRouter.createCaller({ db, user: null, cooldownStore: new RedisCooldownStore() });
     await expect(
       anon.aiSuggestion.getSuggestion({ tableToken: table.qrToken, requests: [] })
     ).rejects.toThrow();
   });
 
   it('rejects an invalid table token', async () => {
-    const anon = appRouter.createCaller({ db, user: null });
+    const anon = appRouter.createCaller({ db, user: null, cooldownStore: new RedisCooldownStore() });
     await expect(
       anon.aiSuggestion.getSuggestion({
         tableToken: 'not-a-real-token',
@@ -115,7 +116,7 @@ describe('aiSuggestion router', () => {
     await db.menuItem.create({ data: { name: 'Chamomile', price: 17000, categoryId: category.id, available: true } });
     mockedFetch.mockResolvedValue(JSON.stringify({ suggestions: [] }));
 
-    const anon = appRouter.createCaller({ db, user: null });
+    const anon = appRouter.createCaller({ db, user: null, cooldownStore: new RedisCooldownStore() });
     const input = { tableToken: table.qrToken, requests: [{ type: 'Tea', taste: [], aroma: [], texture: [] }] };
     await anon.aiSuggestion.getSuggestion(input);
     await expect(anon.aiSuggestion.getSuggestion(input)).rejects.toThrow();
@@ -123,7 +124,7 @@ describe('aiSuggestion router', () => {
 
   it('returns no suggestions without calling OpenAI when the menu is empty', async () => {
     const table = await db.table.create({ data: { label: 'T3', qrToken: 'tok-3' } });
-    const anon = appRouter.createCaller({ db, user: null });
+    const anon = appRouter.createCaller({ db, user: null, cooldownStore: new RedisCooldownStore() });
     const result = await anon.aiSuggestion.getSuggestion({
       tableToken: table.qrToken,
       requests: [{ type: 'Coffee', taste: [], aroma: [], texture: [] }],
@@ -138,7 +139,7 @@ describe('aiSuggestion router', () => {
     await db.menuItem.create({ data: { name: 'Latte', price: 28000, categoryId: category.id, available: true } });
     mockedFetch.mockRejectedValue(new Error('network down'));
 
-    const anon = appRouter.createCaller({ db, user: null });
+    const anon = appRouter.createCaller({ db, user: null, cooldownStore: new RedisCooldownStore() });
     await expect(
       anon.aiSuggestion.getSuggestion({
         tableToken: table.qrToken,

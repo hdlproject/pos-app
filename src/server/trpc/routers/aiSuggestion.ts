@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { TASTE_OPTIONS, AROMA_OPTIONS, TEXTURE_OPTIONS } from '../../../lib/suggestionOptions';
-import { checkAndSetCooldown, clearCooldown } from '../../ai/cooldown';
 import { buildSuggestionMessages, parseSuggestionResponse, SuggestionParseError } from '../../ai/suggestion';
 import { fetchChatCompletion } from '../../ai/openaiClient';
 
@@ -23,6 +22,12 @@ const suggestionInput = z.object({
   tableToken: z.string(),
   requests: z.array(requestInput).min(1).max(10),
 });
+
+const COOLDOWN_SECONDS = 30;
+
+function cooldownKey(tableToken: string): string {
+  return `ai-suggest-cooldown:${tableToken}`;
+}
 
 // Explicit flat row shape -- same TS2589 workaround as every other router
 // here (see menu.ts's MenuItemWithCategory) for a Prisma query with a
@@ -46,10 +51,15 @@ type SuggestionCard = {
 
 export const aiSuggestionRouter = router({
   getSuggestion: publicProcedure.input(suggestionInput).mutation(async ({ ctx, input }) => {
+    const cooldownStore = ctx.cooldownStore;
+    if (!cooldownStore) {
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'cooldown store not configured' });
+    }
+
     const table = await ctx.db.table.findUnique({ where: { qrToken: input.tableToken } });
     if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
-    const allowed = await checkAndSetCooldown(input.tableToken);
+    const allowed = await cooldownStore.checkAndSet(cooldownKey(input.tableToken), COOLDOWN_SECONDS);
     if (!allowed) {
       throw new TRPCError({
         code: 'TOO_MANY_REQUESTS',
@@ -63,7 +73,7 @@ export const aiSuggestionRouter = router({
     })) as unknown as SuggestionMenuRow[];
 
     if (items.length === 0) {
-      await clearCooldown(input.tableToken);
+      await cooldownStore.clear(cooldownKey(input.tableToken));
       return { results: input.requests.map((r) => ({ type: r.type, suggestions: [] as SuggestionCard[] })) };
     }
 
@@ -108,7 +118,7 @@ export const aiSuggestionRouter = router({
       } else {
         console.error('OpenAI suggestion call failed', err);
       }
-      await clearCooldown(input.tableToken);
+      await cooldownStore.clear(cooldownKey(input.tableToken));
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Couldn't get suggestions, try again." });
     }
   }),
