@@ -129,6 +129,11 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
     (!!form.categoryId || form.newCategoryName.trim().length > 0) &&
     form.ingredients.length > 0;
 
+  // Type/Taste/Aroma/Texture are mandatory, same as the customer-facing AI
+  // suggestion chat -- Cuisine and Notes stay optional refinements on top.
+  const typeSatisfied = categories.length === 0 || categoryHint !== null;
+  const canSuggest = typeSatisfied && taste.length > 0 && aroma.length > 0 && texture.length > 0;
+
   return (
     <div className="fixed inset-0 z-50 bg-dark-ui/60 backdrop-blur-sm flex items-center justify-center p-6">
       <div className="w-full max-w-[520px] max-h-[85vh] bg-surface rounded-3xl overflow-hidden shadow-2xl flex flex-col">
@@ -144,62 +149,10 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
         </div>
 
         <div className="p-5 overflow-y-auto flex flex-col gap-4">
-          <div>
-            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
-              Cuisine <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {CUISINE_OPTIONS.map((o) => (
-                <Chip key={o} active={cuisine.includes(o)} onClick={() => setCuisine((c) => toggleValue(c, o))}>
-                  {o}
-                </Chip>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
-              Taste <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {TASTE_OPTIONS.map((o) => (
-                <Chip key={o} active={taste.includes(o)} onClick={() => setTaste((t) => toggleValue(t, o))}>
-                  {o}
-                </Chip>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
-              Aroma <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {AROMA_OPTIONS.map((o) => (
-                <Chip key={o} active={aroma.includes(o)} onClick={() => setAroma((a) => toggleValue(a, o))}>
-                  {o}
-                </Chip>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
-              Texture <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {TEXTURE_OPTIONS.map((o) => (
-                <Chip key={o} active={texture.includes(o)} onClick={() => setTexture((t) => toggleValue(t, o))}>
-                  {o}
-                </Chip>
-              ))}
-            </div>
-          </div>
-
           {categories.length > 0 && (
             <div>
               <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
-                Category hint <span className="normal-case font-semibold text-text-muted">· pick one (optional)</span>
+                Type <span className="normal-case font-semibold text-text-muted">· pick one</span>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {categories.map((c) => (
@@ -216,6 +169,58 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
           )}
 
           <div>
+            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+              Taste <span className="normal-case font-semibold text-text-muted">· pick any</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {TASTE_OPTIONS.map((o) => (
+                <Chip key={o} active={taste.includes(o)} onClick={() => setTaste((t) => toggleValue(t, o))}>
+                  {o}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+              Aroma <span className="normal-case font-semibold text-text-muted">· pick any</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {AROMA_OPTIONS.map((o) => (
+                <Chip key={o} active={aroma.includes(o)} onClick={() => setAroma((a) => toggleValue(a, o))}>
+                  {o}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+              Texture <span className="normal-case font-semibold text-text-muted">· pick any</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {TEXTURE_OPTIONS.map((o) => (
+                <Chip key={o} active={texture.includes(o)} onClick={() => setTexture((t) => toggleValue(t, o))}>
+                  {o}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+              Cuisine <span className="normal-case font-semibold text-text-muted">· pick any (optional)</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {CUISINE_OPTIONS.map((o) => (
+                <Chip key={o} active={cuisine.includes(o)} onClick={() => setCuisine((c) => toggleValue(c, o))}>
+                  {o}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">Notes (optional)</div>
             <Input
               value={notes}
@@ -226,9 +231,14 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             />
           </div>
 
-          <Button variant="primary" className="w-full" disabled={suggest.isPending} onClick={requestSuggestion}>
+          <Button variant="primary" className="w-full" disabled={!canSuggest || suggest.isPending} onClick={requestSuggestion}>
             {suggest.isPending ? 'Thinking…' : form ? 'Suggest another' : 'Suggest'}
           </Button>
+          {!canSuggest && (
+            <p className="text-text-muted text-xs font-semibold text-center -mt-2">
+              Pick a type and at least one taste, aroma, and texture option before suggesting.
+            </p>
+          )}
 
           {suggest.isError && <p className="text-warning text-xs font-semibold text-center">{suggest.error.message}</p>}
           {noSuggestionReason && <p className="text-text-muted text-xs font-semibold text-center">{noSuggestionReason}</p>}
