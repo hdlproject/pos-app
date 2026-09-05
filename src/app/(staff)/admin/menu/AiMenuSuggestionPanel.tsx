@@ -36,6 +36,14 @@ function toggleValue<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
+// Grows a textarea to fit its content so the full description/instructions
+// text is always visible with no inner scrollbar, instead of a fixed
+// row count that clips longer AI-generated text.
+function autoGrow(el: HTMLTextAreaElement) {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void }) {
   const utils = trpc.useUtils();
   const categoriesQuery = trpc.menu.listCategories.useQuery();
@@ -54,6 +62,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
   // both cues point the admin straight at what just showed up.
   const [justSuggested, setJustSuggested] = useState(false);
   const draftRef = useRef<HTMLDivElement>(null);
+  const nameFieldRef = useRef<HTMLDivElement>(null);
 
   const suggest = trpc.aiMenuSuggestion.suggestNewItem.useMutation({
     onSuccess: (data) => {
@@ -76,7 +85,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
         reasoning: result.draft.reasoning,
       });
       setJustSuggested(true);
-      setTimeout(() => draftRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      setTimeout(() => nameFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
       setTimeout(() => setJustSuggested(false), 1300);
     },
   });
@@ -255,10 +264,10 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             <div
               ref={draftRef}
               className={`flex flex-col gap-3 pt-2 border-t border-border p-3 -m-1 rounded-2xl transition-colors duration-1000 ${
-                justSuggested ? 'bg-accent/10' : 'bg-transparent'
+                justSuggested ? 'bg-success/15' : 'bg-transparent'
               }`}
             >
-              <div>
+              <div ref={nameFieldRef}>
                 <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-1">Name</div>
                 <Input
                   value={form.name}
@@ -296,20 +305,22 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
               <div>
                 <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-1">Description</div>
                 <textarea
+                  ref={(el) => { if (el) autoGrow(el); }}
                   value={form.description}
-                  onChange={(e) => setForm((f) => (f ? { ...f, description: e.target.value } : f))}
+                  onChange={(e) => { setForm((f) => (f ? { ...f, description: e.target.value } : f)); autoGrow(e.target); }}
                   rows={2}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent resize-none overflow-hidden"
                 />
               </div>
 
               <div>
                 <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-1">Instructions</div>
                 <textarea
+                  ref={(el) => { if (el) autoGrow(el); }}
                   value={form.instructions}
-                  onChange={(e) => setForm((f) => (f ? { ...f, instructions: e.target.value } : f))}
+                  onChange={(e) => { setForm((f) => (f ? { ...f, instructions: e.target.value } : f)); autoGrow(e.target); }}
                   rows={3}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent resize-none overflow-hidden"
                 />
               </div>
 
