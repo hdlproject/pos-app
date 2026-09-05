@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
@@ -49,6 +49,11 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
   const [notes, setNotes] = useState('');
   const [noSuggestionReason, setNoSuggestionReason] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  // Drives a brief background flash on the freshly-populated draft, plus
+  // the scroll-into-view -- the panel gets tall once the draft appears, so
+  // both cues point the admin straight at what just showed up.
+  const [justSuggested, setJustSuggested] = useState(false);
+  const draftRef = useRef<HTMLDivElement>(null);
 
   const suggest = trpc.aiMenuSuggestion.suggestNewItem.useMutation({
     onSuccess: (data) => {
@@ -70,6 +75,9 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
         ingredients: result.draft.ingredients,
         reasoning: result.draft.reasoning,
       });
+      setJustSuggested(true);
+      setTimeout(() => draftRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      setTimeout(() => setJustSuggested(false), 1300);
     },
   });
 
@@ -244,7 +252,12 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
           {noSuggestionReason && <p className="text-text-muted text-xs font-semibold text-center">{noSuggestionReason}</p>}
 
           {form && (
-            <div className="flex flex-col gap-3 pt-2 border-t border-border">
+            <div
+              ref={draftRef}
+              className={`flex flex-col gap-3 pt-2 border-t border-border p-3 -m-1 rounded-2xl transition-colors duration-1000 ${
+                justSuggested ? 'bg-accent/10' : 'bg-transparent'
+              }`}
+            >
               <div>
                 <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-1">Name</div>
                 <Input
