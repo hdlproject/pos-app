@@ -176,6 +176,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
                   <Chip
                     key={c.id}
                     active={categoryHint === c.name}
+                    disabled={!!form}
                     onClick={() => setCategoryHint((current) => (current === c.name ? null : c.name))}
                   >
                     {c.name}
@@ -191,7 +192,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
             <div className="flex gap-2 flex-wrap">
               {TASTE_OPTIONS.map((o) => (
-                <Chip key={o} active={taste.includes(o)} onClick={() => setTaste((t) => toggleValue(t, o))}>
+                <Chip key={o} active={taste.includes(o)} disabled={!!form} onClick={() => setTaste((t) => toggleValue(t, o))}>
                   {o}
                 </Chip>
               ))}
@@ -204,7 +205,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
             <div className="flex gap-2 flex-wrap">
               {AROMA_OPTIONS.map((o) => (
-                <Chip key={o} active={aroma.includes(o)} onClick={() => setAroma((a) => toggleValue(a, o))}>
+                <Chip key={o} active={aroma.includes(o)} disabled={!!form} onClick={() => setAroma((a) => toggleValue(a, o))}>
                   {o}
                 </Chip>
               ))}
@@ -217,7 +218,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
             <div className="flex gap-2 flex-wrap">
               {TEXTURE_OPTIONS.map((o) => (
-                <Chip key={o} active={texture.includes(o)} onClick={() => setTexture((t) => toggleValue(t, o))}>
+                <Chip key={o} active={texture.includes(o)} disabled={!!form} onClick={() => setTexture((t) => toggleValue(t, o))}>
                   {o}
                 </Chip>
               ))}
@@ -230,7 +231,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
             <div className="flex gap-2 flex-wrap">
               {CUISINE_OPTIONS.map((o) => (
-                <Chip key={o} active={cuisine.includes(o)} onClick={() => setCuisine((c) => toggleValue(c, o))}>
+                <Chip key={o} active={cuisine.includes(o)} disabled={!!form} onClick={() => setCuisine((c) => toggleValue(c, o))}>
                   {o}
                 </Chip>
               ))}
@@ -243,17 +244,23 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={200}
+              disabled={!!form}
               placeholder="e.g. something using up the chicken"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
             />
           </div>
 
-          <Button variant="primary" className="w-full" disabled={!canSuggest || suggest.isPending} onClick={requestSuggestion}>
-            {suggest.isPending ? 'Thinking…' : form ? 'Suggest another' : 'Suggest'}
+          <Button variant="primary" className="w-full" disabled={!canSuggest || suggest.isPending || !!form} onClick={requestSuggestion}>
+            {suggest.isPending ? 'Thinking…' : form ? 'Suggested' : 'Suggest'}
           </Button>
-          {!canSuggest && (
+          {!canSuggest && !form && (
             <p className="text-text-muted text-xs font-semibold text-center -mt-2">
               Pick a type and at least one taste, aroma, and texture option before suggesting.
+            </p>
+          )}
+          {form && (
+            <p className="text-text-muted text-xs font-semibold text-center -mt-2">
+              Reject to change your picks and suggest again.
             </p>
           )}
 
@@ -263,11 +270,11 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
           {form && (
             <div
               ref={draftRef}
-              className={`flex flex-col gap-3 pt-2 border-t border-border p-3 -m-1 rounded-2xl transition-colors duration-1000 ${
+              className={`flex flex-col gap-3 pt-2 border-t border-border p-3 rounded-2xl transition-colors duration-1000 ${
                 justSuggested ? 'bg-success/15' : 'bg-transparent'
               }`}
             >
-              <div ref={nameFieldRef}>
+              <div ref={nameFieldRef} className="scroll-mt-4">
                 <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-1">Name</div>
                 <Input
                   value={form.name}
