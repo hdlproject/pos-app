@@ -41,7 +41,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
   const categories = categoriesQuery.data ?? [];
 
   const [cuisine, setCuisine] = useState<(typeof CUISINE_OPTIONS)[number][]>([]);
-  const [categoryHint, setCategoryHint] = useState('');
+  const [categoryHint, setCategoryHint] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [noSuggestionReason, setNoSuggestionReason] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
@@ -79,7 +79,7 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
 
   function requestSuggestion() {
     setNoSuggestionReason(null);
-    suggest.mutate({ cuisine, categoryHint: categoryHint.trim() || undefined, notes: notes.trim() || undefined });
+    suggest.mutate({ cuisine, categoryHint: categoryHint ?? undefined, notes: notes.trim() || undefined });
   }
 
   function updateIngredientQty(index: number, qtyPerUnit: number) {
@@ -144,15 +144,24 @@ export default function AiMenuSuggestionPanel({ onClose }: { onClose: () => void
             </div>
           </div>
 
-          <div>
-            <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">Category hint (optional)</div>
-            <Input
-              value={categoryHint}
-              onChange={(e) => setCategoryHint(e.target.value)}
-              placeholder="e.g. Snacks, or leave blank"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-border-strong bg-surface-input text-text text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            />
-          </div>
+          {categories.length > 0 && (
+            <div>
+              <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">
+                Category hint <span className="normal-case font-semibold text-text-muted">· pick one (optional)</span>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {categories.map((c) => (
+                  <Chip
+                    key={c.id}
+                    active={categoryHint === c.name}
+                    onClick={() => setCategoryHint((current) => (current === c.name ? null : c.name))}
+                  >
+                    {c.name}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <div className="text-xs font-extrabold text-text-muted-2 uppercase mb-2">Notes (optional)</div>
