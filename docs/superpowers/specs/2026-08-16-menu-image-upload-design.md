@@ -16,7 +16,7 @@ Replace the admin menu page's "Image URL" text field — in both the "New Item" 
 - `src/components/ui/ImageUpload.tsx`: file-picker UI with preview, replacing the "Image URL" `Input` everywhere it appears.
 - Wire `ImageUpload` into `admin/menu/page.tsx`'s New Item form and inline Edit-image row.
 - Properly support *clearing* an item's image (a real gap in the current text-field flow — sending an empty string collapses to `undefined`, which Prisma treats as "leave unchanged," so a bad image can't actually be removed today). Fixed as part of this rebuild since it's the same code path.
-- New env vars: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`, `S3_PUBLIC_URL`.
+- New env vars: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`.
 - One integration test for the upload route (auth gate + validation), matching this project's convention of testing real server logic, not presentational UI.
 
 **Out of scope:**
@@ -57,7 +57,6 @@ Port 9000 is the S3 API; port 9001 is MinIO's web console (useful for inspecting
 - `S3_ACCESS_KEY=minioadmin`
 - `S3_SECRET_KEY=minioadmin`
 - `S3_BUCKET=menu-images`
-- `S3_PUBLIC_URL=http://localhost:9000` — base URL used to construct the URL stored in `MenuItem.image`; for local dev this is the same host:port the browser itself can reach, since MinIO's port is mapped straight to the host.
 
 **`src/server/storage.ts`:**
 ```ts
@@ -127,7 +126,7 @@ export async function uploadMenuImage(
       ContentType: contentType,
     })
   );
-  return `${process.env.S3_PUBLIC_URL}/${BUCKET}/${key}`;
+  return `/api/images/${key}`;
 }
 ```
 

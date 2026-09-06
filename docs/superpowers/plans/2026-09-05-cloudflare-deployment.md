@@ -15,7 +15,7 @@
 - Cloudflare bindings are named exactly `HYPERDRIVE` (Hyperdrive) and `COOLDOWN_KV` (KV namespace).
 - `wrangler.jsonc` must set `compatibility_flags: ["nodejs_compat"]` and `compatibility_date` >= `2024-09-23`.
 - If `RUNTIME_TARGET=cloudflare` and a required binding is missing at request time, throw immediately with a message naming the missing binding — never silently fall back to a Node-style client.
-- DB safety rule: every DB-touching command sets `DATABASE_URL` explicitly on that command line, never via `source .env`. Test env line: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npm test`.
+- DB safety rule: every DB-touching command sets `DATABASE_URL` explicitly on that command line, never via `source .env`. Test env line: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npm test`.
 - No git worktree — work directly on `master` (no remote configured), matching every prior feature this session.
 - Commit messages end with `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
 - No CI/CD auto-deploy pipeline, no changes to Ably/JWT/tRPC business logic, no automated Workers-runtime test in CI — all explicitly out of scope per the spec.
@@ -48,7 +48,7 @@ export async function verifyPin(pin: string, hash: string): Promise<boolean> {
 
 - [ ] **Step 1: Confirm the existing round-trip test currently passes (bcrypt baseline)**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npx vitest run tests/unit/auth.test.ts -t "pin hashing"`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npx vitest run tests/unit/auth.test.ts -t "pin hashing"`
 
 Expected: PASS (this is the baseline before the swap — the test itself doesn't assert on hash format, so it will still pass after the swap without modification, but running it now confirms today's state).
 
@@ -78,7 +78,7 @@ describe('pin hashing', () => {
 
 - [ ] **Step 3: Run the extended test to verify it fails (new assertions, old implementation)**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npx vitest run tests/unit/auth.test.ts -t "pin hashing"`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npx vitest run tests/unit/auth.test.ts -t "pin hashing"`
 
 Expected: FAIL on `'produces a pbkdf2-formatted hash, not a bcrypt one'` — bcrypt hashes look like `$2b$10$...`, not `pbkdf2$...`.
 
@@ -152,7 +152,7 @@ This uses only `globalThis.crypto` (Web Crypto API) and `Buffer` (already used e
 
 - [ ] **Step 5: Run the test again to verify it passes**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npx vitest run tests/unit/auth.test.ts -t "pin hashing"`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npx vitest run tests/unit/auth.test.ts -t "pin hashing"`
 
 Expected: PASS (all three cases).
 
@@ -187,7 +187,7 @@ Run: `npm uninstall bcrypt @types/bcrypt`
 Run: `npm run build`
 Expected: clean, no TypeScript errors, no remaining `bcrypt` import anywhere (grep to confirm: `grep -rn "bcrypt" src prisma` should return nothing).
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npm test`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npm test`
 Expected: all tests pass, including every integration test that creates a user via `hashPin(...)` (auth-router, order-router, payment-router, stock-batch-router, ingredient-router, upload-route) — none of these need code changes, they only call `hashPin` as an opaque helper.
 
 - [ ] **Step 9: Re-seed pos_dev with the new hash format**
@@ -326,7 +326,7 @@ describe('KvCooldownStore', () => {
 
 - [ ] **Step 2: Run the new test file to verify it fails**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npx vitest run tests/unit/cooldownStore.test.ts`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npx vitest run tests/unit/cooldownStore.test.ts`
 
 Expected: FAIL with a module-not-found error for `@/server/cooldownStore` (it doesn't exist yet).
 
@@ -383,7 +383,7 @@ export class KvCooldownStore implements CooldownStore {
 
 - [ ] **Step 4: Run the test file again to verify it passes**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npx vitest run tests/unit/cooldownStore.test.ts`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npx vitest run tests/unit/cooldownStore.test.ts`
 
 Expected: PASS (all 8 cases).
 
@@ -686,7 +686,7 @@ RUNTIME_TARGET=node
 Run: `npm run build`
 Expected: clean, no TypeScript errors.
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npm test`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npm test`
 Expected: all tests pass, including `tests/integration/ai-suggestion-router.test.ts`'s cooldown-enforcement test and every other integration test's ~50 unrelated `createCaller({ db, user })` call sites (these must NOT need updating — if any of them fail to compile because `cooldownStore` was made non-optional by mistake, that's a defect in this task, not in those tests: `cooldownStore` must be optional on `Context`).
 
 - [ ] **Step 12: Commit**

@@ -29,7 +29,7 @@
 - Modify: `.env.example`
 
 **Interfaces:**
-- Produces: a MinIO container reachable at `http://localhost:9000` (S3 API) and `http://localhost:9001` (web console), and five env vars (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`, `S3_PUBLIC_URL`) that Task 2's `storage.ts` reads.
+- Produces: a MinIO container reachable at `http://localhost:9000` (S3 API) and `http://localhost:9001` (web console), and four env vars (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`) that Task 2's `storage.ts` reads.
 
 - [ ] **Step 1: Add the `minio` service to `docker-compose.yml`**
 
@@ -119,7 +119,6 @@ S3_ENDPOINT=http://localhost:9000
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
 S3_BUCKET=menu-images
-S3_PUBLIC_URL=http://localhost:9000
 ```
 
 - [ ] **Step 3: Add the same vars to `.env.example`**
@@ -144,7 +143,6 @@ S3_ENDPOINT=http://localhost:9000
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
 S3_BUCKET=menu-images
-S3_PUBLIC_URL=http://localhost:9000
 ```
 
 - [ ] **Step 4: Start MinIO and verify it's reachable**
@@ -169,7 +167,7 @@ git commit -m "chore: add local MinIO service and S3 env vars"
 - Create: `src/server/storage.ts`
 
 **Interfaces:**
-- Consumes: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`, `S3_PUBLIC_URL` env vars from Task 1.
+- Consumes: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` env vars from Task 1.
 - Produces: `uploadMenuImage(bytes: Buffer, filename: string, contentType: string): Promise<string>` — Task 3's route handler imports and calls this.
 
 - [ ] **Step 1: Install the dependency**
@@ -247,7 +245,7 @@ export async function uploadMenuImage(
       ContentType: contentType,
     })
   );
-  return `${process.env.S3_PUBLIC_URL}/${BUCKET}/${key}`;
+  return `/api/images/${key}`;
 }
 ```
 
@@ -412,7 +410,6 @@ S3_ENDPOINT="http://localhost:9000" \
 S3_ACCESS_KEY="minioadmin" \
 S3_SECRET_KEY="minioadmin" \
 S3_BUCKET="menu-images" \
-S3_PUBLIC_URL="http://localhost:9000" \
 npx vitest run tests/integration/upload-route.test.ts
 ```
 Expected: 5/5 tests pass. The "uploads a valid image" test makes a real `PutObject` call against local MinIO — confirm by checking `http://localhost:9001` (MinIO console, login `minioadmin`/`minioadmin`) shows a new object in the `menu-images` bucket after the run.
@@ -875,7 +872,6 @@ S3_ENDPOINT="http://localhost:9000" \
 S3_ACCESS_KEY="minioadmin" \
 S3_SECRET_KEY="minioadmin" \
 S3_BUCKET="menu-images" \
-S3_PUBLIC_URL="http://localhost:9000" \
 npm test
 ```
 Expected: all tests pass, including the new ones from Tasks 3 and 4.

@@ -736,7 +736,7 @@ Expected: PASS (13/13).
 
 - [ ] **Step 5: Run the full suite and the build**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npm test`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npm test`
 Expected: all tests pass (existing 50 + 13 new = 63).
 
 Run: `npm run build`
@@ -1320,7 +1320,6 @@ S3_ENDPOINT="http://localhost:9000" \
 S3_ACCESS_KEY="minioadmin" \
 S3_SECRET_KEY="minioadmin" \
 S3_BUCKET="menu-images" \
-S3_PUBLIC_URL="http://localhost:9000" \
 npm test
 ```
 Expected: all tests pass (existing 50 + 13 new from Tasks 2-5 = 63).

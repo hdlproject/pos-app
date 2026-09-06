@@ -16,7 +16,7 @@
 - Every ingredient the AI proposes is cross-checked by name (case/whitespace-insensitive) against the real ingredient list for that request; only a genuine name match is treated as "existing" (carrying the real id and unit forward) — the AI itself never gets to assert existing-vs-new, the code decides. This is the same self-consistency principle that fixed a real bug in v2's `parseSuggestionResponse`.
 - Follow the codebase's TS2589 workaround (explicit flat local type + `as unknown as X` cast) for any Prisma query with a nested `include`, matching `menu.ts`'s `MenuItemWithCategory`.
 - `DATABASE_URL` must always be explicit on the command line, never sourced from `.env`. Test command:
-  `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npm test`
+  `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npm test`
 - Working directly on `master`, no worktree (matches every prior feature this session) — do not create one.
 - Run `npm run build` clean after every task that touches TypeScript source.
 
@@ -254,7 +254,7 @@ describe('parseMenuSuggestionResponse', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npx vitest run tests/unit/ai-menu-suggestion.test.ts`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npx vitest run tests/unit/ai-menu-suggestion.test.ts`
 Expected: FAIL — `Cannot find module '@/server/ai/menuSuggestion'`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -612,7 +612,7 @@ describe('aiMenuSuggestion router', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npx vitest run tests/integration/ai-menu-suggestion-router.test.ts`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npx vitest run tests/integration/ai-menu-suggestion-router.test.ts`
 Expected: FAIL — `appRouter.aiMenuSuggestion` is undefined
 
 - [ ] **Step 3: Write minimal implementation**
@@ -810,7 +810,7 @@ Expected: PASS (8 tests)
 
 - [ ] **Step 5: Run the full suite to confirm no regressions**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npm test`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npm test`
 Expected: PASS, all files (existing suite + Tasks 2-3's new files)
 
 - [ ] **Step 6: Commit**
@@ -1164,7 +1164,7 @@ Expected: compiles clean, no TypeScript errors
 
 - [ ] **Step 4: Run the full test suite**
 
-Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" S3_PUBLIC_URL="http://localhost:9000" npm test`
+Run: `DATABASE_URL="postgresql://postgres:postgres@localhost:5433/pos_test" JWT_SECRET="dev-secret-change-in-prod" S3_ENDPOINT="http://localhost:9000" S3_ACCESS_KEY="minioadmin" S3_SECRET_KEY="minioadmin" S3_BUCKET="menu-images" npm test`
 Expected: PASS, no regressions
 
 - [ ] **Step 5: Manual verification**

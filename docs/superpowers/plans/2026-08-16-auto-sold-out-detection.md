@@ -992,7 +992,6 @@ S3_ENDPOINT="http://localhost:9000" \
 S3_ACCESS_KEY="minioadmin" \
 S3_SECRET_KEY="minioadmin" \
 S3_BUCKET="menu-images" \
-S3_PUBLIC_URL="http://localhost:9000" \
 npm test
 ```
 Expected: all tests pass, including the 9 new ones added across Tasks 2-5 (4 + 2 + 2 + 1).
