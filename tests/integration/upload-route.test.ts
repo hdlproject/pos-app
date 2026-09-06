@@ -25,6 +25,7 @@ vi.mock('next/headers', () => {
 
 import { cookies } from 'next/headers';
 import { POST } from '@/app/api/upload/route';
+import { GET as getImage } from '@/app/api/images/[key]/route';
 
 function pngFile(sizeBytes: number, name = 'photo.png'): File {
   return new File([new Uint8Array(sizeBytes)], name, { type: 'image/png' });
@@ -41,14 +42,33 @@ async function loginAs(role: 'ADMIN' | 'STAFF' | 'KITCHEN') {
 describe('upload route', () => {
   beforeEach(resetDb);
 
-  it('uploads a valid image as ADMIN', async () => {
+  it('uploads a valid image as ADMIN and can read it back via the image proxy route', async () => {
     await loginAs('ADMIN');
     const form = new FormData();
     form.append('file', pngFile(1024));
     const res = await POST(new Request('http://localhost/api/upload', { method: 'POST', body: form }));
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.url).toMatch(/^http/);
+    expect(data.url).toMatch(/^\/api\/images\/.+\.png$/);
+
+    // The bucket is private -- this confirms the app can actually read back
+    // what it just wrote using its own credentials, not that a public URL
+    // happens to resolve.
+    const key = data.url.replace('/api/images/', '');
+    const imageRes = await getImage(new Request(`http://localhost${data.url}`), {
+      params: Promise.resolve({ key }),
+    });
+    expect(imageRes.status).toBe(200);
+    expect(imageRes.headers.get('Content-Type')).toBe('image/png');
+    const bytes = new Uint8Array(await imageRes.arrayBuffer());
+    expect(bytes).toHaveLength(1024);
+  });
+
+  it('returns 404 from the image proxy route for an unknown key', async () => {
+    const res = await getImage(new Request('http://localhost/api/images/does-not-exist.png'), {
+      params: Promise.resolve({ key: 'does-not-exist.png' }),
+    });
+    expect(res.status).toBe(404);
   });
 
   it('rejects a non-admin STAFF user', async () => {

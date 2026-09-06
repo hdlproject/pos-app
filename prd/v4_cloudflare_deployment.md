@@ -11,7 +11,7 @@ Two runtimes are supported side by side, selected by a new `RUNTIME_TARGET` env 
 | Compute | `next dev` / `next start` | Cloudflare Workers via `@opennextjs/cloudflare` |
 | Postgres | Docker Postgres, direct `DATABASE_URL` | Neon, reached through a Cloudflare **Hyperdrive** binding |
 | Cooldown store | Redis (`ioredis`) | Cloudflare **KV** binding |
-| File storage | Minio (S3-compatible) | Cloudflare **R2** (S3-compatible) |
+| File storage | Minio (S3-compatible) | Backblaze B2 (S3-compatible) |
 | Realtime / Auth | Ably / JWT — unchanged in both |
 
 ## Scope
@@ -31,7 +31,9 @@ Two runtimes are supported side by side, selected by a new `RUNTIME_TARGET` env 
 
 Cloudflare Hyperdrive and KV are **bindings** — objects only reachable through the Workers request's `env`, accessed in Next.js via OpenNext's `getCloudflareContext()`. They are not plain connection strings sitting in `process.env` the way `DATABASE_URL`/`REDIS_URL` are today, so the code that constructs a Postgres client or a cooldown store needs to know, per request, which runtime it's in.
 
-R2, by contrast, is reached over its plain S3-compatible HTTPS API with access-key credentials — the exact same `@aws-sdk/client-s3` code already in `src/server/storage.ts` and consumed by `src/app/api/upload/route.ts` works unchanged; only the `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET` env values differ between Minio (dev) and R2 (prod). No code branching needed there.
+File storage, by contrast, is reached over a plain S3-compatible HTTPS API with access-key credentials — the exact same `@aws-sdk/client-s3` code already in `src/server/storage.ts` and consumed by `src/app/api/upload/route.ts` works unchanged; only the `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET` env values differ between Minio (dev) and the production provider. No code branching needed there.
+
+**Correction (storage provider swapped, and the bucket stays private):** R2's free tier requires a card on file just to enable the product, so this deploy uses Backblaze B2 instead — a genuinely free S3-compatible provider with no card required. B2's S3-compatible API also has no `PutBucketPolicy` support at all (confirmed against B2's own docs), so rather than chase per-provider public-read mechanisms, the design changed to never make the bucket public: `uploadMenuImage` returns an app-relative URL (`/api/images/<key>`), and a new route (`src/app/api/images/[key]/route.ts`) fetches the object from the bucket using the app's own credentials (`getMenuImage` in `storage.ts`) and streams it back. This works identically regardless of the bucket's public/private state or provider, so `S3_PUBLIC_URL` is gone entirely — only `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET` remain.
 
 **Correction (found during final review):** Postgres and the cooldown store were not, in fact, the only two things needing runtime branching. `report.ts`/`payment.ts`/`order.ts`'s Redis-backed daily-sales caching had the exact same problem — it called `ioredis` directly with no Cloudflare path. This was folded into the same design as a parallel `Cache` abstraction (`RedisCache`/`KvCache`/`noopCache`, in `src/server/cache.ts`), reusing the `KV` binding rather than provisioning a separate KV namespace. Unlike the cooldown store, a missing binding here degrades to a no-op (always miss, no-op set/invalidate) instead of throwing, since caching is a pure performance optimization with no correctness requirement — unlike the abuse-guard cooldown, which does.
 
@@ -82,7 +84,7 @@ New/changed for `cloudflare`:
 - `RUNTIME_TARGET=cloudflare`
 - Hyperdrive binding configured in `wrangler.jsonc` (points at the Neon connection string — set via `wrangler secret put` or the binding's own config, not a plain env var)
 - `KV` binding (KV namespace, configured in `wrangler.jsonc`)
-- `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET`/`S3_PUBLIC_URL` → R2 values
+- `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET` → Backblaze B2 values
 - `JWT_SECRET`, `ABLY_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL` → set as Workers secrets via `wrangler secret put`, same values/semantics as today
 
 Unchanged for `node`: everything as it is in `.env` today (`RUNTIME_TARGET` unset or `node`).
@@ -103,6 +105,6 @@ If `RUNTIME_TARGET=cloudflare` and a required binding (`HYPERDRIVE`, `KV`) is mi
 
 1. Create the Neon Postgres project, run `prisma migrate deploy` against it.
 2. Create the Cloudflare KV namespace and Hyperdrive config, wire both into `wrangler.jsonc`.
-3. Create the R2 bucket and API token; set `S3_*` secrets.
+3. Create the Backblaze B2 bucket (private is fine — the app never relies on public bucket URLs) and an application key; set `S3_*` secrets.
 4. `wrangler secret put` for `JWT_SECRET`, `ABLY_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`.
 5. `npm run build:cf && npm run deploy:cf`.

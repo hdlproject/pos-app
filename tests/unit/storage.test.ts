@@ -12,31 +12,20 @@ vi.mock('@aws-sdk/client-s3', async () => {
   };
 });
 
-import {
-  HeadBucketCommand,
-  CreateBucketCommand,
-  PutBucketPolicyCommand,
-  PutBucketAclCommand,
-  PutObjectCommand,
-} from '@aws-sdk/client-s3';
-import { uploadMenuImage } from '@/server/storage';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getMenuImage } from '@/server/storage';
 
-describe('uploadMenuImage bucket public-read fallback', () => {
-  it('falls back to PutBucketAcl when the provider rejects PutBucketPolicy (e.g. Backblaze B2)', async () => {
+describe('getMenuImage', () => {
+  it('returns null instead of throwing when the object does not exist', async () => {
     sendMock.mockImplementation(async (command: unknown) => {
-      if (command instanceof HeadBucketCommand) throw new Error('bucket does not exist');
-      if (command instanceof CreateBucketCommand) return {};
-      if (command instanceof PutBucketPolicyCommand) throw new Error('NotImplemented');
-      if (command instanceof PutBucketAclCommand) return {};
-      if (command instanceof PutObjectCommand) return {};
-      throw new Error(`unexpected command sent: ${(command as { constructor: { name: string } }).constructor.name}`);
+      if (command instanceof GetObjectCommand) {
+        const err = new Error('not found');
+        err.name = 'NoSuchKey';
+        throw err;
+      }
+      throw new Error('unexpected command');
     });
 
-    const url = await uploadMenuImage(Buffer.from('fake image bytes'), 'photo.png', 'image/png');
-
-    expect(url).toMatch(/\.png$/);
-    const aclCalls = sendMock.mock.calls.filter(([cmd]) => cmd instanceof PutBucketAclCommand);
-    expect(aclCalls).toHaveLength(1);
-    expect((aclCalls[0][0] as PutBucketAclCommand).input).toMatchObject({ ACL: 'public-read' });
+    await expect(getMenuImage('missing.png')).resolves.toBeNull();
   });
 });

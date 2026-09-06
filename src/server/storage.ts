@@ -1,11 +1,4 @@
-import {
-  S3Client,
-  PutObjectCommand,
-  CreateBucketCommand,
-  HeadBucketCommand,
-  PutBucketPolicyCommand,
-  PutBucketAclCommand,
-} from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 
 const client = new S3Client({
   endpoint: process.env.S3_ENDPOINT,
@@ -20,33 +13,12 @@ const client = new S3Client({
 const BUCKET = process.env.S3_BUCKET!;
 let bucketReady: Promise<void> | undefined;
 
-// Not every S3-compatible provider supports bucket policies -- Backblaze B2's
-// S3-compatible API has no PutBucketPolicy at all, only the canned
-// public-read ACL. Try the policy first (what Minio/AWS use today) and fall
-// back to the ACL call for providers that reject it.
-async function makeBucketPublicRead(): Promise<void> {
-  try {
-    await client.send(
-      new PutBucketPolicyCommand({
-        Bucket: BUCKET,
-        Policy: JSON.stringify({
-          Version: '2012-10-17',
-          Statement: [
-            {
-              Effect: 'Allow',
-              Principal: '*',
-              Action: ['s3:GetObject'],
-              Resource: [`arn:aws:s3:::${BUCKET}/*`],
-            },
-          ],
-        }),
-      })
-    );
-  } catch {
-    await client.send(new PutBucketAclCommand({ Bucket: BUCKET, ACL: 'public-read' }));
-  }
-}
-
+// The bucket is never made public -- every read goes through
+// src/app/api/images/[key]/route.ts, which fetches the object with these
+// same credentials and streams it back. That works identically whether the
+// bucket is public or private, so there's no bucket-policy/ACL setup here,
+// and no per-provider quirks to work around (some S3-compatible providers,
+// e.g. Backblaze B2, don't support bucket policies at all).
 function ensureBucket(): Promise<void> {
   if (!bucketReady) {
     bucketReady = (async () => {
@@ -64,7 +36,6 @@ function ensureBucket(): Promise<void> {
             throw err;
           }
         }
-        await makeBucketPublicRead();
       }
     })().catch((err) => {
       // Don't permanently cache a rejected promise — a transient failure
@@ -93,5 +64,17 @@ export async function uploadMenuImage(
       ContentType: contentType,
     })
   );
-  return `${process.env.S3_PUBLIC_URL}/${BUCKET}/${key}`;
+  return `/api/images/${key}`;
+}
+
+export async function getMenuImage(key: string): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+    const bytes = (await result.Body?.transformToByteArray()) ?? new Uint8Array();
+    return { bytes, contentType: result.ContentType ?? 'application/octet-stream' };
+  } catch (err) {
+    const name = (err as { name?: string })?.name;
+    if (name === 'NoSuchKey' || name === 'NotFound') return null;
+    throw err;
+  }
 }

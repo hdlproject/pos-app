@@ -36,7 +36,7 @@ The test database's schema must be migrated first (once, or after adding new mig
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_test npx prisma migrate deploy
 ```
 
-The upload route and menu-image tests also need `JWT_SECRET` plus the five S3 env vars (matching `.env`) and a running MinIO, since they exercise the real S3 client wrapper. Start MinIO with `docker compose up -d minio` (or the full stack via `docker compose up -d`), then set the vars explicitly on the same command line as the test run:
+The upload route and menu-image tests also need `JWT_SECRET` plus the four S3 env vars (matching `.env`) and a running MinIO, since they exercise the real S3 client wrapper. Start MinIO with `docker compose up -d minio` (or the full stack via `docker compose up -d`), then set the vars explicitly on the same command line as the test run:
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_test \
@@ -45,7 +45,6 @@ S3_ENDPOINT=http://localhost:9000 \
 S3_ACCESS_KEY=minioadmin \
 S3_SECRET_KEY=minioadmin \
 S3_BUCKET=menu-images \
-S3_PUBLIC_URL=http://localhost:9000 \
 npm test
 ```
 
