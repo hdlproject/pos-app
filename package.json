@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "predev": "bash scripts/kill-port.sh",
     "dev": "next dev",
     "build": "next build",
