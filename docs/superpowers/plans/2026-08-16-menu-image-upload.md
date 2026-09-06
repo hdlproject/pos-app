@@ -103,7 +103,6 @@ Current full file:
 
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_dev
-DATABASE_URL_TEST=postgresql://postgres:postgres@localhost:5433/pos_test
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=dev-secret-change-in-prod
 ABLY_API_KEY=REPLACE_ME
@@ -113,7 +112,6 @@ Replace it with:
 
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_dev
-DATABASE_URL_TEST=postgresql://postgres:postgres@localhost:5433/pos_test
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=dev-secret-change-in-prod
 ABLY_API_KEY=REPLACE_ME
@@ -130,7 +128,6 @@ Current full file:
 
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_dev
-DATABASE_URL_TEST=postgresql://postgres:postgres@localhost:5433/pos_test
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=change-me-in-prod
 ABLY_API_KEY=your-ably-key
@@ -140,7 +137,6 @@ Replace it with:
 
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_dev
-DATABASE_URL_TEST=postgresql://postgres:postgres@localhost:5433/pos_test
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=change-me-in-prod
 ABLY_API_KEY=your-ably-key
