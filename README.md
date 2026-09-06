@@ -24,7 +24,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 Unit tests run against whatever `DATABASE_URL` currently resolves to (Vitest does not auto-load `.env`, so `DATABASE_URL` is otherwise undefined). Integration tests under `tests/integration/` hit a real Postgres database via Prisma, so they must be run against the **test** database (`pos_test`), not the dev database, to avoid clobbering dev data.
 
-Point `DATABASE_URL` at the test database (matching `DATABASE_URL_TEST` in `.env`) when running the test suite:
+Point `DATABASE_URL` at the test database when running the test suite:
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_test npm test
