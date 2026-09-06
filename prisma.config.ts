@@ -1,16 +1,27 @@
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
 
+const runtimeTarget = process.env.RUNTIME_TARGET ?? 'node';
+
+function resolveDatabaseUrl(): string {
+  if (runtimeTarget === 'cloudflare') {
+    // Real DB access on Cloudflare goes through the Hyperdrive binding at
+    // Worker request time (src/server/db.cloudflare.ts) -- this CLI config
+    // has no access to that binding outside a deployed Worker, and `prisma
+    // generate`'s config loading still needs *some* syntactically valid
+    // value. Never used for a real connection in this runtime target.
+    return 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
+  }
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required when RUNTIME_TARGET is unset or "node" (see prisma.config.ts).');
+  }
+  return process.env.DATABASE_URL;
+}
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   datasource: {
-    // `prisma generate` never opens a connection, but config loading still
-    // eagerly resolves this -- Cloudflare's build step has no DATABASE_URL
-    // (that's the deployed Worker's runtime config, via Hyperdrive), so a
-    // strict env() lookup here would fail generate for no real reason. Real
-    // DB commands (migrate/studio) and the app itself still read the real
-    // DATABASE_URL wherever it's actually set.
-    url: process.env.DATABASE_URL ?? 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
+    url: resolveDatabaseUrl(),
   },
   migrations: {
     seed: 'npx tsx prisma/seed.ts',
