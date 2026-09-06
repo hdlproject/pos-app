@@ -28,9 +28,9 @@ export async function getContextCooldownStore(): Promise<CooldownStore> {
   if (process.env.RUNTIME_TARGET === 'cloudflare') {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
     const { env } = await getCloudflareContext({ async: true });
-    const kv = (env as Record<string, unknown>).COOLDOWN_KV as KvNamespaceLike | undefined;
+    const kv = (env as Record<string, unknown>).KV as KvNamespaceLike | undefined;
     if (!kv) {
-      throw new Error('RUNTIME_TARGET=cloudflare but the COOLDOWN_KV binding is missing');
+      throw new Error('RUNTIME_TARGET=cloudflare but the KV binding is missing');
     }
     return new KvCooldownStore(kv);
   }
@@ -41,7 +41,7 @@ export async function getContextCache(): Promise<Cache> {
   if (process.env.RUNTIME_TARGET === 'cloudflare') {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
     const { env } = await getCloudflareContext({ async: true });
-    const kv = (env as Record<string, unknown>).COOLDOWN_KV as KvNamespaceLike | undefined;
+    const kv = (env as Record<string, unknown>).KV as KvNamespaceLike | undefined;
     // Unlike the cooldown store, a missing binding here degrades to a
     // no-op instead of throwing -- caching has no correctness requirement.
     return kv ? new KvCache(kv) : noopCache;

@@ -33,7 +33,7 @@ Cloudflare Hyperdrive and KV are **bindings** — objects only reachable through
 
 R2, by contrast, is reached over its plain S3-compatible HTTPS API with access-key credentials — the exact same `@aws-sdk/client-s3` code already in `src/server/storage.ts` and consumed by `src/app/api/upload/route.ts` works unchanged; only the `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET` env values differ between Minio (dev) and R2 (prod). No code branching needed there.
 
-**Correction (found during final review):** Postgres and the cooldown store were not, in fact, the only two things needing runtime branching. `report.ts`/`payment.ts`/`order.ts`'s Redis-backed daily-sales caching had the exact same problem — it called `ioredis` directly with no Cloudflare path. This was folded into the same design as a parallel `Cache` abstraction (`RedisCache`/`KvCache`/`noopCache`, in `src/server/cache.ts`), reusing the `COOLDOWN_KV` binding rather than provisioning a separate KV namespace. Unlike the cooldown store, a missing binding here degrades to a no-op (always miss, no-op set/invalidate) instead of throwing, since caching is a pure performance optimization with no correctness requirement — unlike the abuse-guard cooldown, which does.
+**Correction (found during final review):** Postgres and the cooldown store were not, in fact, the only two things needing runtime branching. `report.ts`/`payment.ts`/`order.ts`'s Redis-backed daily-sales caching had the exact same problem — it called `ioredis` directly with no Cloudflare path. This was folded into the same design as a parallel `Cache` abstraction (`RedisCache`/`KvCache`/`noopCache`, in `src/server/cache.ts`), reusing the `KV` binding rather than provisioning a separate KV namespace. Unlike the cooldown store, a missing binding here degrades to a no-op (always miss, no-op set/invalidate) instead of throwing, since caching is a pure performance optimization with no correctness requirement — unlike the abuse-guard cooldown, which does.
 
 ## Component changes
 
@@ -73,7 +73,7 @@ Since there is no real user data to preserve (dev/demo PINs only), this is a str
 ### 4. Build & deploy tooling
 
 - Add `@opennextjs/cloudflare` as a dev dependency.
-- Add `wrangler.jsonc`: `compatibility_flags: ["nodejs_compat"]`, `compatibility_date` ≥ `2024-09-23`, a Hyperdrive binding (`HYPERDRIVE`) pointed at the Neon connection string, and a KV namespace binding (`COOLDOWN_KV`).
+- Add `wrangler.jsonc`: `compatibility_flags: ["nodejs_compat"]`, `compatibility_date` ≥ `2024-09-23`, a Hyperdrive binding (`HYPERDRIVE`) pointed at the Neon connection string, and a KV namespace binding (`KV`).
 - New `package.json` scripts: `build:cf` (OpenNext Cloudflare build), `preview:cf` (local Workers-runtime preview via Wrangler), `deploy:cf` (`wrangler deploy`). Existing `dev`/`build`/`start`/`test` scripts are untouched.
 
 ## Env vars / secrets (Cloudflare path)
@@ -81,7 +81,7 @@ Since there is no real user data to preserve (dev/demo PINs only), this is a str
 New/changed for `cloudflare`:
 - `RUNTIME_TARGET=cloudflare`
 - Hyperdrive binding configured in `wrangler.jsonc` (points at the Neon connection string — set via `wrangler secret put` or the binding's own config, not a plain env var)
-- `COOLDOWN_KV` binding (KV namespace, configured in `wrangler.jsonc`)
+- `KV` binding (KV namespace, configured in `wrangler.jsonc`)
 - `S3_ENDPOINT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET`/`S3_PUBLIC_URL` → R2 values
 - `JWT_SECRET`, `ABLY_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL` → set as Workers secrets via `wrangler secret put`, same values/semantics as today
 
@@ -89,7 +89,7 @@ Unchanged for `node`: everything as it is in `.env` today (`RUNTIME_TARGET` unse
 
 ## Error handling
 
-If `RUNTIME_TARGET=cloudflare` and a required binding (`HYPERDRIVE`, `COOLDOWN_KV`) is missing at request time, throw immediately at context construction with a clear message naming the missing binding. Never fall back to a Node-style client — a raw TCP/socket attempt would just hang or fail opaquely on Workers instead of surfacing the real misconfiguration.
+If `RUNTIME_TARGET=cloudflare` and a required binding (`HYPERDRIVE`, `KV`) is missing at request time, throw immediately at context construction with a clear message naming the missing binding. Never fall back to a Node-style client — a raw TCP/socket attempt would just hang or fail opaquely on Workers instead of surfacing the real misconfiguration.
 
 ## Testing
 

@@ -37,22 +37,22 @@ describe('RUNTIME_TARGET=cloudflare', () => {
     await expect(getContextDb()).rejects.toThrow(/HYPERDRIVE/);
   });
 
-  it('getContextCooldownStore() throws naming COOLDOWN_KV when the binding is missing', async () => {
+  it('getContextCooldownStore() throws naming KV when the binding is missing', async () => {
     vi.stubEnv('RUNTIME_TARGET', 'cloudflare');
     mockedGetCloudflareContext.mockResolvedValue({ env: {} } as never);
 
-    await expect(getContextCooldownStore()).rejects.toThrow(/COOLDOWN_KV/);
+    await expect(getContextCooldownStore()).rejects.toThrow(/KV/);
   });
 
-  it('getContextCooldownStore() returns a KvCooldownStore when COOLDOWN_KV is present', async () => {
+  it('getContextCooldownStore() returns a KvCooldownStore when KV is present', async () => {
     vi.stubEnv('RUNTIME_TARGET', 'cloudflare');
-    mockedGetCloudflareContext.mockResolvedValue({ env: { COOLDOWN_KV: fakeKv() } } as never);
+    mockedGetCloudflareContext.mockResolvedValue({ env: { KV: fakeKv() } } as never);
 
     const store = await getContextCooldownStore();
     expect(store).toBeInstanceOf(KvCooldownStore);
   });
 
-  it('getContextCache() returns noopCache (does NOT throw) when COOLDOWN_KV is missing', async () => {
+  it('getContextCache() returns noopCache (does NOT throw) when KV is missing', async () => {
     vi.stubEnv('RUNTIME_TARGET', 'cloudflare');
     mockedGetCloudflareContext.mockResolvedValue({ env: {} } as never);
 
@@ -60,9 +60,9 @@ describe('RUNTIME_TARGET=cloudflare', () => {
     expect(cache).toBe(noopCache);
   });
 
-  it('getContextCache() returns a KvCache when COOLDOWN_KV is present', async () => {
+  it('getContextCache() returns a KvCache when KV is present', async () => {
     vi.stubEnv('RUNTIME_TARGET', 'cloudflare');
-    mockedGetCloudflareContext.mockResolvedValue({ env: { COOLDOWN_KV: fakeKv() } } as never);
+    mockedGetCloudflareContext.mockResolvedValue({ env: { KV: fakeKv() } } as never);
 
     const cache = await getContextCache();
     expect(cache).toBeInstanceOf(KvCache);
