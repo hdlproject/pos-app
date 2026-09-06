@@ -4,6 +4,7 @@ import {
   CreateBucketCommand,
   HeadBucketCommand,
   PutBucketPolicyCommand,
+  PutBucketAclCommand,
 } from '@aws-sdk/client-s3';
 
 const client = new S3Client({
@@ -18,6 +19,33 @@ const client = new S3Client({
 
 const BUCKET = process.env.S3_BUCKET!;
 let bucketReady: Promise<void> | undefined;
+
+// Not every S3-compatible provider supports bucket policies -- Backblaze B2's
+// S3-compatible API has no PutBucketPolicy at all, only the canned
+// public-read ACL. Try the policy first (what Minio/AWS use today) and fall
+// back to the ACL call for providers that reject it.
+async function makeBucketPublicRead(): Promise<void> {
+  try {
+    await client.send(
+      new PutBucketPolicyCommand({
+        Bucket: BUCKET,
+        Policy: JSON.stringify({
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Effect: 'Allow',
+              Principal: '*',
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${BUCKET}/*`],
+            },
+          ],
+        }),
+      })
+    );
+  } catch {
+    await client.send(new PutBucketAclCommand({ Bucket: BUCKET, ACL: 'public-read' }));
+  }
+}
 
 function ensureBucket(): Promise<void> {
   if (!bucketReady) {
@@ -36,22 +64,7 @@ function ensureBucket(): Promise<void> {
             throw err;
           }
         }
-        await client.send(
-          new PutBucketPolicyCommand({
-            Bucket: BUCKET,
-            Policy: JSON.stringify({
-              Version: '2012-10-17',
-              Statement: [
-                {
-                  Effect: 'Allow',
-                  Principal: '*',
-                  Action: ['s3:GetObject'],
-                  Resource: [`arn:aws:s3:::${BUCKET}/*`],
-                },
-              ],
-            }),
-          })
-        );
+        await makeBucketPublicRead();
       }
     })().catch((err) => {
       // Don't permanently cache a rejected promise — a transient failure
