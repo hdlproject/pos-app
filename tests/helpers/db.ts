@@ -1,19 +1,19 @@
-import { db } from '@/server/db';
+import { kdb } from '@/server/db.kysely';
 
 export async function resetDb() {
-  await db.$transaction([
-    db.stockMovement.deleteMany(),
-    db.stockAdjustmentLine.deleteMany(),
-    db.stockAdjustmentBatch.deleteMany(),
-    db.payment.deleteMany(),
-    db.orderItem.deleteMany(),
-    db.order.deleteMany(),
-    db.recipe.deleteMany(),
-    db.menuItem.deleteMany(),
-    db.category.deleteMany(),
-    db.ingredient.deleteMany(),
-    db.table.deleteMany(),
-    db.user.deleteMany(),
-    db.store.deleteMany(),
-  ]);
+  await kdb.transaction().execute(async (trx) => {
+    await trx.deleteFrom('StockMovement').execute();
+    await trx.deleteFrom('StockAdjustmentLine').execute();
+    await trx.deleteFrom('StockAdjustmentBatch').execute();
+    await trx.deleteFrom('Payment').execute();
+    await trx.deleteFrom('OrderItem').execute();
+    await trx.deleteFrom('Order').execute();
+    await trx.deleteFrom('Recipe').execute();
+    await trx.deleteFrom('MenuItem').execute();
+    await trx.deleteFrom('Category').execute();
+    await trx.deleteFrom('Ingredient').execute();
+    await trx.deleteFrom('Table').execute();
+    await trx.deleteFrom('User').execute();
+    await trx.deleteFrom('Store').execute();
+  });
 }
