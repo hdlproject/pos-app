@@ -1,13 +1,17 @@
 import { cookies } from 'next/headers';
 import type { PrismaClient, Role } from '@prisma/client';
+import type { Kysely } from 'kysely';
 import { db as nodeDb } from '../db';
 import { verifySession } from '../auth/session';
 import { getCloudflareDb } from '../db.cloudflare';
+import { kdb } from '../db.kysely';
+import type { DB } from '../db.types';
 import { RedisCooldownStore, KvCooldownStore, type CooldownStore, type KvNamespaceLike } from '../cooldownStore';
 import { RedisCache, KvCache, noopCache, type Cache } from '../cache';
 
 export type Context = {
   db: PrismaClient;
+  kdb?: Kysely<DB>;
   user: { userId: string; role: Role; name: string } | null;
   // Optional on the type (even though createContext() always sets it) so
   // the ~50 existing test call sites that do
@@ -65,5 +69,5 @@ export async function createContext(): Promise<Context> {
     }
   }
 
-  return { db, user, cooldownStore, cache };
+  return { db, kdb, user, cooldownStore, cache };
 }
