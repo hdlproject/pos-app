@@ -1,11 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('ably', () => {
+vi.mock('ably/modular', () => {
   const publish = vi.fn();
   const channels = { get: vi.fn(() => ({ publish })) };
   const createTokenRequest = vi.fn(async () => ({ token: 'fake' }));
   return {
-    default: { Rest: vi.fn(function () { return { channels, auth: { createTokenRequest } }; }) },
+    BaseRest: vi.fn(function () {
+      return { channels, auth: { createTokenRequest } };
+    }),
+    FetchRequest: {},
   };
 });
 
