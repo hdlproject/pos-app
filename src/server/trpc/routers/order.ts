@@ -4,7 +4,7 @@ import type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { router, protectedProcedure, publicProcedure, roleProcedure } from '../trpc';
 import { publishOrderEvent } from '../../ably';
-import { deductStockForOrder, revertStockForOrder } from '../../stock/deduct';
+import { deductStockForOrder, revertStockForOrder } from '../../stock/deduct.prisma';
 import { noopCache } from '../../cache';
 
 const orderItemInput = z.object({

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, roleProcedure } from '../trpc';
-import { recomputeAvailabilityForIngredient, recomputeAvailabilityForMenuItem } from '../../stock/availability';
+import { recomputeAvailabilityForIngredient, recomputeAvailabilityForMenuItem } from '../../stock/availability.prisma';
 
 export const ingredientRouter = router({
   list: roleProcedure('ADMIN').query(({ ctx }) => ctx.db.ingredient.findMany()),

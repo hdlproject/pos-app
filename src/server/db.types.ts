@@ -80,7 +80,7 @@ export interface OrderTable {
   source: OrderSource;
   cancelReason: string | null;
   createdById: string | null;
-  total: Generated<Numeric>;
+  total: ColumnType<string, string | number | undefined, string | number>;
   createdAt: Generated<Date>;
   parentOrderId: string | null;
   isOpenTableSession: Generated<boolean>;

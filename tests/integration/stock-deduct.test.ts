@@ -1,83 +1,73 @@
-// tests/integration/stock-deduct.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from '@/server/db';
+import { kdb } from '@/server/db.kysely';
 import { resetDb } from '../helpers/db';
+import { createId } from '@/server/id';
 import { deductStockForOrder, revertStockForOrder } from '@/server/stock/deduct';
 
-describe('stock deduction', () => {
+describe('stock deduction (Kysely)', () => {
   beforeEach(resetDb);
 
   async function seedOrder() {
-    const admin = await db.user.create({ data: { name: 'Admin', role: 'ADMIN', pinHash: 'x' } });
-    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
-    const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    await db.recipe.create({ data: { menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 } });
-    const order = await db.order.create({
-      data: {
-        type: 'TAKEAWAY', status: 'SENT_TO_KITCHEN', source: 'STAFF', total: 9,
-        items: { create: [{ menuItemId: item.id, qty: 2, unitPrice: 4.5 }] },
-      },
-    });
-    return { admin, milk, order };
+    const admin = await kdb.insertInto('User').values({ id: createId(), name: 'Admin', role: 'ADMIN', pinHash: 'x' }).returningAll().executeTakeFirstOrThrow();
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 1000 }).returningAll().executeTakeFirstOrThrow();
+    const item = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    await kdb.insertInto('Recipe').values({ id: createId(), menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 }).execute();
+    const order = await kdb.insertInto('Order')
+      .values({ id: createId(), type: 'TAKEAWAY', status: 'SENT_TO_KITCHEN', source: 'STAFF', total: 9 })
+      .returningAll().executeTakeFirstOrThrow();
+    await kdb.insertInto('OrderItem').values({ id: createId(), orderId: order.id, menuItemId: item.id, qty: 2, unitPrice: 4.5 }).execute();
+    return { admin, milk, order, item };
   }
 
   it('deducts ingredient stock per recipe and records a StockMovement', async () => {
     const { admin, milk, order } = await seedOrder();
-    await deductStockForOrder(db, order.id, admin.id);
+    await deductStockForOrder(kdb, order.id, admin.id);
 
-    const afterDeduct = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
+    const afterDeduct = await kdb.selectFrom('Ingredient').selectAll().where('id', '=', milk.id).executeTakeFirstOrThrow();
     expect(Number(afterDeduct.stockQty)).toBe(600); // 1000 - (200 * 2)
 
-    const movements = await db.stockMovement.findMany({ where: { refOrderId: order.id } });
+    const movements = await kdb.selectFrom('StockMovement').selectAll().where('refOrderId', '=', order.id).execute();
     expect(movements).toHaveLength(1);
     expect(movements[0].reason).toBe('SALE');
   });
 
   it('allows stock to go negative rather than blocking', async () => {
     const { admin, milk, order } = await seedOrder();
-    await db.ingredient.update({ where: { id: milk.id }, data: { stockQty: 100 } });
+    await kdb.updateTable('Ingredient').set({ stockQty: 100 }).where('id', '=', milk.id).execute();
 
-    await deductStockForOrder(db, order.id, admin.id);
-    const afterDeduct = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
+    await deductStockForOrder(kdb, order.id, admin.id);
+    const afterDeduct = await kdb.selectFrom('Ingredient').selectAll().where('id', '=', milk.id).executeTakeFirstOrThrow();
     expect(Number(afterDeduct.stockQty)).toBe(-300); // 100 - 400, allowed negative
   });
 
   it('reverts a deduction', async () => {
     const { admin, milk, order } = await seedOrder();
-    await deductStockForOrder(db, order.id, admin.id);
-    await revertStockForOrder(db, order.id, admin.id);
+    await deductStockForOrder(kdb, order.id, admin.id);
+    await revertStockForOrder(kdb, order.id, admin.id);
 
-    const reverted = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
+    const reverted = await kdb.selectFrom('Ingredient').selectAll().where('id', '=', milk.id).executeTakeFirstOrThrow();
     expect(Number(reverted.stockQty)).toBe(1000);
   });
 
   it('auto-marks the item out of stock when a deduction depletes its ingredient', async () => {
-    const { admin, milk, order, item } = await (async () => {
-      const seeded = await seedOrder();
-      const item = await db.menuItem.findFirstOrThrow({ where: { name: 'Latte' } });
-      return { ...seeded, item };
-    })();
-    await db.ingredient.update({ where: { id: milk.id }, data: { stockQty: 400 } }); // exactly enough for this order
+    const { admin, milk, order, item } = await seedOrder();
+    await kdb.updateTable('Ingredient').set({ stockQty: 400 }).where('id', '=', milk.id).execute(); // exactly enough for this order
 
-    await deductStockForOrder(db, order.id, admin.id);
+    await deductStockForOrder(kdb, order.id, admin.id);
 
-    const updated = await db.menuItem.findUniqueOrThrow({ where: { id: item.id } });
+    const updated = await kdb.selectFrom('MenuItem').selectAll().where('id', '=', item.id).executeTakeFirstOrThrow();
     expect(updated.outOfStockReason).toBe('Out of stock: Milk');
   });
 
   it('auto-clears the item when reverting a deduction restores enough stock', async () => {
-    const { admin, milk, order, item } = await (async () => {
-      const seeded = await seedOrder();
-      const item = await db.menuItem.findFirstOrThrow({ where: { name: 'Latte' } });
-      return { ...seeded, item };
-    })();
-    await db.ingredient.update({ where: { id: milk.id }, data: { stockQty: 400 } });
-    await deductStockForOrder(db, order.id, admin.id);
+    const { admin, milk, order, item } = await seedOrder();
+    await kdb.updateTable('Ingredient').set({ stockQty: 400 }).where('id', '=', milk.id).execute();
+    await deductStockForOrder(kdb, order.id, admin.id);
 
-    await revertStockForOrder(db, order.id, admin.id);
+    await revertStockForOrder(kdb, order.id, admin.id);
 
-    const updated = await db.menuItem.findUniqueOrThrow({ where: { id: item.id } });
+    const updated = await kdb.selectFrom('MenuItem').selectAll().where('id', '=', item.id).executeTakeFirstOrThrow();
     expect(updated.outOfStockReason).toBeNull();
   });
 });

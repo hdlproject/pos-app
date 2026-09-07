@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, roleProcedure } from '../trpc';
-import { deductStockForOrder } from '../../stock/deduct';
+import { deductStockForOrder } from '../../stock/deduct.prisma';
 import { publishOrderEvent } from '../../ably';
 import { noopCache } from '../../cache';
 

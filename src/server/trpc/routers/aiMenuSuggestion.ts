@@ -8,7 +8,7 @@ import {
   MenuSuggestionParseError,
   type StockIngredient,
 } from '../../ai/menuSuggestion';
-import { recomputeAvailabilityForMenuItem } from '../../stock/availability';
+import { recomputeAvailabilityForMenuItem } from '../../stock/availability.prisma';
 import { TASTE_OPTIONS, AROMA_OPTIONS, TEXTURE_OPTIONS } from '../../../lib/suggestionOptions';
 
 const CUISINE_OPTIONS = ['Indonesian', 'Italian', 'Korean', 'Japanese', 'Western', 'Fusion'] as const;

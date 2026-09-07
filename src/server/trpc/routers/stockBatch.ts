@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, roleProcedure } from '../trpc';
-import { recomputeAvailabilityForIngredient } from '../../stock/availability';
+import { recomputeAvailabilityForIngredient } from '../../stock/availability.prisma';
 
 export const stockBatchRouter = router({
   getPending: roleProcedure('ADMIN').query(({ ctx }) =>
