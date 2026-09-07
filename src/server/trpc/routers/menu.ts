@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
+import type { Kysely } from 'kysely';
+import type { DB } from '../../db.types';
 import { router, publicProcedure, roleProcedure } from '../trpc';
+import { createId } from '../../id';
 
 const menuItemInput = z.object({
   name: z.string().min(1),
@@ -28,18 +30,15 @@ const updateItemInput = z.object({
   modifiers: z.record(z.string(), z.any()).optional(),
 });
 
-// Hand-written (non-generic) shape for MenuItem + Category, used instead of
-// Prisma.MenuItemGetPayload<...> to keep the type tRPC infers on the client
-// cheap to instantiate (see TS2589 investigation in the build-fix task).
 type MenuItemWithCategory = {
   id: string;
   name: string;
-  price: Prisma.Decimal;
+  price: string;
   categoryId: string;
   available: boolean;
   outOfStockReason: string | null;
   image: string | null;
-  modifiers: Prisma.JsonValue;
+  modifiers: unknown;
   category: {
     id: string;
     name: string;
@@ -47,54 +46,82 @@ type MenuItemWithCategory = {
   };
 };
 
-export const menuRouter = router({
-  listAvailable: publicProcedure.query(
-    ({ ctx }): Promise<MenuItemWithCategory[]> =>
-      ctx.db.menuItem.findMany({
-        where: { available: true, outOfStockReason: null },
-        include: { category: true },
-        orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
-      })
-  ),
+async function listMenuItems(kdb: Kysely<DB>, onlyAvailable: boolean): Promise<MenuItemWithCategory[]> {
+  let query = kdb
+    .selectFrom('MenuItem')
+    .innerJoin('Category', 'Category.id', 'MenuItem.categoryId')
+    .select([
+      'MenuItem.id as id',
+      'MenuItem.name as name',
+      'MenuItem.price as price',
+      'MenuItem.categoryId as categoryId',
+      'MenuItem.available as available',
+      'MenuItem.outOfStockReason as outOfStockReason',
+      'MenuItem.image as image',
+      'MenuItem.modifiers as modifiers',
+      'Category.id as category_id',
+      'Category.name as category_name',
+      'Category.sortOrder as category_sortOrder',
+    ]);
+  if (onlyAvailable) {
+    query = query.where('MenuItem.available', '=', true).where('MenuItem.outOfStockReason', 'is', null);
+  }
+  const rows = await query.orderBy('Category.sortOrder', 'asc').orderBy('MenuItem.name', 'asc').execute();
+  return rows.map((r) => ({
+    id: r.id, name: r.name, price: r.price, categoryId: r.categoryId, available: r.available,
+    outOfStockReason: r.outOfStockReason, image: r.image, modifiers: r.modifiers,
+    category: { id: r.category_id, name: r.category_name, sortOrder: r.category_sortOrder },
+  }));
+}
 
-  listAll: roleProcedure('ADMIN', 'STAFF').query(
-    ({ ctx }): Promise<MenuItemWithCategory[]> =>
-      ctx.db.menuItem.findMany({
-        include: { category: true },
-        orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
-      })
-  ),
+export const menuRouter = router({
+  listAvailable: publicProcedure.query(({ ctx }) => listMenuItems(ctx.kdb!, true)),
+
+  listAll: roleProcedure('ADMIN', 'STAFF').query(({ ctx }) => listMenuItems(ctx.kdb!, false)),
 
   listCategories: roleProcedure('ADMIN').query(({ ctx }) =>
-    ctx.db.category.findMany({ orderBy: { sortOrder: 'asc' } })
+    ctx.kdb!.selectFrom('Category').selectAll().orderBy('sortOrder', 'asc').execute()
   ),
 
   createCategory: roleProcedure('ADMIN')
     .input(z.object({ name: z.string().min(1), sortOrder: z.number().default(0) }))
-    .mutation(({ ctx, input }) => ctx.db.category.create({ data: input })),
+    .mutation(({ ctx, input }) =>
+      ctx.kdb!.insertInto('Category')
+        .values({ id: createId(), name: input.name, sortOrder: input.sortOrder })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+    ),
 
   deleteCategory: roleProcedure('ADMIN')
     .input(z.object({ id: z.string() }))
-    .mutation(({ ctx, input }) => ctx.db.category.delete({ where: { id: input.id } })),
+    .mutation(({ ctx, input }) =>
+      ctx.kdb!.deleteFrom('Category').where('id', '=', input.id).returningAll().executeTakeFirstOrThrow()
+    ),
 
   createItem: roleProcedure('ADMIN')
     .input(menuItemInput)
-    .mutation(({ ctx, input }) => {
-      const data: Prisma.MenuItemUncheckedCreateInput = {
-        ...input,
-        modifiers: input.modifiers as Prisma.InputJsonValue | undefined,
-      };
-      return ctx.db.menuItem.create({ data });
-    }),
+    .mutation(({ ctx, input }) =>
+      ctx.kdb!.insertInto('MenuItem')
+        .values({
+          id: createId(),
+          name: input.name,
+          price: input.price,
+          categoryId: input.categoryId,
+          available: input.available,
+          image: input.image ?? null,
+          modifiers: input.modifiers ?? null,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+    ),
 
   updateItem: roleProcedure('ADMIN')
     .input(updateItemInput)
     .mutation(({ ctx, input }) => {
       const { id, ...rest } = input;
-      const data: Prisma.MenuItemUncheckedUpdateInput = {
-        ...rest,
-        modifiers: rest.modifiers as Prisma.InputJsonValue | undefined,
-      };
-      return ctx.db.menuItem.update({ where: { id }, data });
+      // Kysely's .set() automatically drops keys whose value is `undefined`
+      // (verified this session), matching Prisma's update() semantics — a
+      // field the caller omitted is left untouched, not set to NULL.
+      return ctx.kdb!.updateTable('MenuItem').set(rest).where('id', '=', id).returningAll().executeTakeFirstOrThrow();
     }),
 });
