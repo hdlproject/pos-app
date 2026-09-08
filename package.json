@@ -11,10 +11,8 @@
     "test": "vitest run",
     "build:cf": "opennextjs-cloudflare build",
     "preview:cf": "opennextjs-cloudflare preview",
-    "deploy:cf": "opennextjs-cloudflare deploy"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "deploy:cf": "opennextjs-cloudflare deploy",
+    "seed": "tsx database/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1111.0",
