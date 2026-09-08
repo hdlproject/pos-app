@@ -85,9 +85,9 @@ export const orderRouter = router({
   createStaff: roleProcedure('ADMIN', 'STAFF')
     .input(createOrderInput)
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const builtItems = await buildOrderItems(kdb, input.items);
-      const order = await kdb.transaction().execute(async (trx) => {
+      const db = ctx.db;
+      const builtItems = await buildOrderItems(db, input.items);
+      const order = await db.transaction().execute(async (trx) => {
         const created = await trx.insertInto('Order')
           .values({
             id: createId(), type: input.type, tableId: input.tableId ?? null, status: 'SENT_TO_KITCHEN',
@@ -100,7 +100,7 @@ export const orderRouter = router({
           .execute();
         return created;
       });
-      const items = (await loadItemsWithMenuItem(kdb, [order.id])).get(order.id) ?? [];
+      const items = (await loadItemsWithMenuItem(db, [order.id])).get(order.id) ?? [];
       const result = { ...order, items };
       try {
         await publishOrderEvent('order.created', result);
@@ -120,10 +120,10 @@ export const orderRouter = router({
   createAndCharge: roleProcedure('ADMIN', 'STAFF')
     .input(createOrderInput)
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const builtItems = await buildOrderItems(kdb, input.items);
+      const db = ctx.db;
+      const builtItems = await buildOrderItems(db, input.items);
       const total = calcTotal(builtItems);
-      const order = await kdb.transaction().execute(async (trx) => {
+      const order = await db.transaction().execute(async (trx) => {
         const created = await trx.insertInto('Order')
           .values({
             id: createId(), type: input.type, tableId: input.tableId ?? null, status: 'OPEN',
@@ -157,8 +157,8 @@ export const orderRouter = router({
   sendToKitchen: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const order = await kdb.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
+      const db = ctx.db;
+      const order = await db.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
       if (order.status !== 'OPEN') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is not pending dispatch' });
       }
@@ -174,13 +174,13 @@ export const orderRouter = router({
         // first, or paying now strands it forever: still undispatched,
         // parentless in every sense that matters, and invisible on this
         // same queue since it's excluded once the parent isn't OPEN.
-        const children = await kdb.selectFrom('Order').selectAll().where('parentOrderId', '=', order.id).execute();
+        const children = await db.selectFrom('Order').selectAll().where('parentOrderId', '=', order.id).execute();
         if (children.some((c) => c.status === 'OPEN')) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'every round must be sent to the kitchen or cancelled before confirming payment' });
         }
         const processed = children.filter((c) => c.status !== 'CANCELLED');
         const total = processed.reduce((sum, c) => sum + Number(c.total), 0);
-        return kdb.transaction().execute(async (trx) => {
+        return db.transaction().execute(async (trx) => {
           await trx.insertInto('Payment')
             .values({ id: createId(), orderId: order.id, amount: total, method: 'CASH', receivedById: ctx.user.userId })
             .execute();
@@ -189,7 +189,7 @@ export const orderRouter = router({
       }
 
       if (order.parentOrderId) {
-        const updated = await kdb.transaction().execute(async (trx) => {
+        const updated = await db.transaction().execute(async (trx) => {
           await deductStockForOrder(trx, order.id, ctx.user.userId);
           return trx.updateTable('Order').set({ status: 'SENT_TO_KITCHEN' }).where('id', '=', order.id).returningAll().executeTakeFirstOrThrow();
         });
@@ -201,8 +201,8 @@ export const orderRouter = router({
         return updated;
       }
 
-      const payment = await kdb.selectFrom('Payment').selectAll().where('orderId', '=', order.id).executeTakeFirst();
-      const updated = await kdb.transaction().execute(async (trx) => {
+      const payment = await db.selectFrom('Payment').selectAll().where('orderId', '=', order.id).executeTakeFirst();
+      const updated = await db.transaction().execute(async (trx) => {
         if (!payment) {
           await trx.insertInto('Payment')
             .values({ id: createId(), orderId: order.id, amount: order.total, method: 'CASH', receivedById: ctx.user.userId })
@@ -228,8 +228,8 @@ export const orderRouter = router({
   // only once finished -- so the client can group an in-progress table's
   // rounds under it too, not just a closed-out bill awaiting payment.
   listPendingDispatch: roleProcedure('ADMIN', 'STAFF').query(async ({ ctx }) => {
-    const kdb = ctx.db;
-    const orders = await kdb
+    const db = ctx.db;
+    const orders = await db
       .selectFrom('Order')
       .leftJoin('Table', 'Table.id', 'Order.tableId')
       .where('Order.status', '=', 'OPEN')
@@ -250,9 +250,9 @@ export const orderRouter = router({
 
     const orderIds = orders.map((o) => o.id);
     const [itemsByOrder, payments, children] = await Promise.all([
-      loadItemsWithMenuItem(kdb, orderIds),
-      orderIds.length ? kdb.selectFrom('Payment').selectAll().where('orderId', 'in', orderIds).execute() : Promise.resolve([]),
-      orderIds.length ? kdb.selectFrom('Order').selectAll().where('parentOrderId', 'in', orderIds).execute() : Promise.resolve([]),
+      loadItemsWithMenuItem(db, orderIds),
+      orderIds.length ? db.selectFrom('Payment').selectAll().where('orderId', 'in', orderIds).execute() : Promise.resolve([]),
+      orderIds.length ? db.selectFrom('Order').selectAll().where('parentOrderId', 'in', orderIds).execute() : Promise.resolve([]),
     ]);
     const paymentsByOrder = new Map<string, typeof payments>();
     for (const p of payments) {
@@ -267,9 +267,9 @@ export const orderRouter = router({
       childrenByOrder.set(c.parentOrderId!, list);
     }
 
-    return orders.map((o) => ({
+    return orders.map(({ table_id, table_label, table_qrToken, ...o }) => ({
       ...o,
-      table: o.table_id ? { id: o.table_id, label: o.table_label, qrToken: o.table_qrToken } : null,
+      table: table_id ? { id: table_id, label: table_label, qrToken: table_qrToken } : null,
       items: itemsByOrder.get(o.id) ?? [],
       payments: paymentsByOrder.get(o.id) ?? [],
       children: childrenByOrder.get(o.id) ?? [],
@@ -283,17 +283,17 @@ export const orderRouter = router({
   startTableSession: publicProcedure
     .input(z.object({ tableToken: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
+      const db = ctx.db;
+      const table = await db.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
-      const existing = await kdb.selectFrom('Order').selectAll()
+      const existing = await db.selectFrom('Order').selectAll()
         .where('tableId', '=', table.id).where('source', '=', 'QR').where('isOpenTableSession', '=', true)
         .where('status', '=', 'OPEN').where('sessionFinished', '=', false)
         .executeTakeFirst();
       if (existing) return existing;
 
-      return kdb.insertInto('Order')
+      return db.insertInto('Order')
         .values({ id: createId(), type: 'DINE_IN', tableId: table.id, status: 'OPEN', source: 'QR', isOpenTableSession: true, total: 0 })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -309,8 +309,8 @@ export const orderRouter = router({
   finishTableSession: publicProcedure
     .input(z.object({ tableToken: z.string(), orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const order = await kdb
+      const db = ctx.db;
+      const order = await db
         .selectFrom('Order')
         .leftJoin('Table', 'Table.id', 'Order.tableId')
         .selectAll('Order')
@@ -324,15 +324,15 @@ export const orderRouter = router({
       if (order.status !== 'OPEN') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'session is already closed' });
       }
-      const childCount = await kdb.selectFrom('Order').select(({ fn }) => fn.countAll().as('count')).where('parentOrderId', '=', order.id).executeTakeFirstOrThrow();
+      const childCount = await db.selectFrom('Order').select(({ fn }) => fn.countAll().as('count')).where('parentOrderId', '=', order.id).executeTakeFirstOrThrow();
       if (Number(childCount.count) === 0) {
-        return kdb.updateTable('Order')
+        return db.updateTable('Order')
           .set({ status: 'CANCELLED', cancelReason: 'table finished with no orders placed' })
           .where('id', '=', order.id)
           .returningAll()
           .executeTakeFirstOrThrow();
       }
-      return kdb.updateTable('Order').set({ sessionFinished: true }).where('id', '=', order.id).returningAll().executeTakeFirstOrThrow();
+      return db.updateTable('Order').set({ sessionFinished: true }).where('id', '=', order.id).returningAll().executeTakeFirstOrThrow();
     }),
 
   // Same charge-first shape as the staff cart's createAndCharge, minus the
@@ -347,12 +347,12 @@ export const orderRouter = router({
   createByTable: publicProcedure
     .input(z.object({ tableToken: z.string(), items: z.array(orderItemInput).min(1), parentOrderId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
+      const db = ctx.db;
+      const table = await db.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
       if (input.parentOrderId) {
-        const parent = await kdb.selectFrom('Order').selectAll().where('id', '=', input.parentOrderId).executeTakeFirst();
+        const parent = await db.selectFrom('Order').selectAll().where('id', '=', input.parentOrderId).executeTakeFirst();
         if (!parent || !parent.isOpenTableSession || parent.tableId !== table.id) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table session' });
         }
@@ -361,8 +361,8 @@ export const orderRouter = router({
         }
       }
 
-      const builtItems = await buildOrderItems(kdb, input.items);
-      const order = await kdb.transaction().execute(async (trx) => {
+      const builtItems = await buildOrderItems(db, input.items);
+      const order = await db.transaction().execute(async (trx) => {
         const created = await trx.insertInto('Order')
           .values({
             id: createId(), type: 'DINE_IN', tableId: table.id, status: 'OPEN', source: 'QR',
@@ -373,7 +373,7 @@ export const orderRouter = router({
         await trx.insertInto('OrderItem').values(builtItems.map((i) => ({ ...i, orderId: created.id }))).execute();
         return created;
       });
-      const items = (await loadItemsWithMenuItem(kdb, [order.id])).get(order.id) ?? [];
+      const items = (await loadItemsWithMenuItem(db, [order.id])).get(order.id) ?? [];
       return { ...order, items };
     }),
 
@@ -383,8 +383,8 @@ export const orderRouter = router({
   appendItems: publicProcedure
     .input(z.object({ orderId: z.string(), items: z.array(orderItemInput).min(1), tableToken: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const order = await kdb
+      const db = ctx.db;
+      const order = await db
         .selectFrom('Order')
         .leftJoin('Table', 'Table.id', 'Order.tableId')
         .selectAll('Order')
@@ -403,8 +403,8 @@ export const orderRouter = router({
         throw new TRPCError({ code: 'FORBIDDEN', message: 'table token mismatch' });
       }
 
-      const newItems = await buildOrderItems(kdb, input.items);
-      const updated = await kdb.transaction().execute(async (trx) => {
+      const newItems = await buildOrderItems(db, input.items);
+      const updated = await db.transaction().execute(async (trx) => {
         await trx.insertInto('OrderItem').values(newItems.map((i) => ({ ...i, orderId: order.id }))).execute();
         return trx.updateTable('Order')
           .set({ total: sql`"total" + ${calcTotal(newItems)}` })
@@ -413,25 +413,26 @@ export const orderRouter = router({
           .executeTakeFirstOrThrow();
       });
       // Still OPEN (unconfirmed) -- not kitchen-relevant yet, so no publish.
-      const items = (await loadItemsWithMenuItem(kdb, [updated.id])).get(updated.id) ?? [];
+      const items = (await loadItemsWithMenuItem(db, [updated.id])).get(updated.id) ?? [];
       return { ...updated, items };
     }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const order = await kdb
+      const db = ctx.db;
+      const order = await db
         .selectFrom('Order')
         .leftJoin('Table', 'Table.id', 'Order.tableId')
         .selectAll('Order')
         .select(['Table.id as table_id', 'Table.label as table_label', 'Table.qrToken as table_qrToken'])
         .where('Order.id', '=', input.id)
         .executeTakeFirstOrThrow();
-      const items = (await loadItemsWithMenuItem(kdb, [order.id])).get(order.id) ?? [];
+      const items = (await loadItemsWithMenuItem(db, [order.id])).get(order.id) ?? [];
+      const { table_id, table_label, table_qrToken, ...rest } = order;
       return {
-        ...order,
-        table: order.table_id ? { id: order.table_id, label: order.table_label, qrToken: order.table_qrToken } : null,
+        ...rest,
+        table: table_id ? { id: table_id, label: table_label, qrToken: table_qrToken } : null,
         items,
       };
     }),
@@ -449,20 +450,20 @@ export const orderRouter = router({
   getOpenOrderByTableToken: publicProcedure
     .input(z.object({ tableToken: z.string() }))
     .query(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
+      const db = ctx.db;
+      const table = await db.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
-      const session = await kdb.selectFrom('Order').selectAll()
+      const session = await db.selectFrom('Order').selectAll()
         .where('tableId', '=', table.id).where('source', '=', 'QR').where('isOpenTableSession', '=', true)
         .where('status', '=', 'OPEN').where('sessionFinished', '=', false)
         .orderBy('createdAt', 'desc')
         .executeTakeFirst();
       if (!session) return null;
 
-      const children = await kdb.selectFrom('Order').selectAll().where('parentOrderId', '=', session.id).orderBy('createdAt', 'asc').execute();
+      const children = await db.selectFrom('Order').selectAll().where('parentOrderId', '=', session.id).orderBy('createdAt', 'asc').execute();
       const childIds = children.map((c) => c.id);
-      const itemsByOrder = await loadItemsWithMenuItem(kdb, childIds);
+      const itemsByOrder = await loadItemsWithMenuItem(db, childIds);
       return {
         mode: 'OPEN_TABLE' as const,
         session: { ...session, children: children.map((c) => ({ ...c, items: itemsByOrder.get(c.id) ?? [] })) },
@@ -475,8 +476,8 @@ export const orderRouter = router({
   // few hours -- the KDS's Delivered/All filters need some recent history,
   // but a full unbounded log would grow forever over a day's service.
   listOpen: roleProcedure('ADMIN', 'STAFF', 'KITCHEN').query(async ({ ctx }) => {
-    const kdb = ctx.db;
-    const orders = await kdb
+    const db = ctx.db;
+    const orders = await db
       .selectFrom('Order')
       .leftJoin('Table', 'Table.id', 'Order.tableId')
       .where((eb) =>
@@ -489,10 +490,10 @@ export const orderRouter = router({
       .select(['Table.id as table_id', 'Table.label as table_label', 'Table.qrToken as table_qrToken'])
       .orderBy('Order.createdAt', 'asc')
       .execute();
-    const itemsByOrder = await loadItemsWithMenuItem(kdb, orders.map((o) => o.id));
-    return orders.map((o) => ({
+    const itemsByOrder = await loadItemsWithMenuItem(db, orders.map((o) => o.id));
+    return orders.map(({ table_id, table_label, table_qrToken, ...o }) => ({
       ...o,
-      table: o.table_id ? { id: o.table_id, label: o.table_label, qrToken: o.table_qrToken } : null,
+      table: table_id ? { id: table_id, label: table_label, qrToken: table_qrToken } : null,
       items: itemsByOrder.get(o.id) ?? [],
     }));
   }),
@@ -503,8 +504,8 @@ export const orderRouter = router({
   cancel: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string(), reason: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const order = await kdb.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
+      const db = ctx.db;
+      const order = await db.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
       if (order.status === 'CANCELLED') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order already cancelled' });
       }
@@ -517,7 +518,7 @@ export const orderRouter = router({
       // round is cancelled individually (its own stock revert, its own
       // dispatch event) rather than left dangling under a cancelled parent.
       const children = order.isOpenTableSession
-        ? await kdb.selectFrom('Order').selectAll().where('parentOrderId', '=', order.id).where('status', '!=', 'CANCELLED').execute()
+        ? await db.selectFrom('Order').selectAll().where('parentOrderId', '=', order.id).where('status', '!=', 'CANCELLED').execute()
         : [];
       if (ctx.user.role === 'STAFF' && children.some((c) => c.status !== 'OPEN')) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'only an admin can cancel a table with rounds already dispatched' });
@@ -533,11 +534,11 @@ export const orderRouter = router({
       // signal either way.
       const deductedIds = new Set(
         (
-          await kdb.selectFrom('StockMovement').select('refOrderId')
+          await db.selectFrom('StockMovement').select('refOrderId')
             .where('refOrderId', 'in', ordersToCancelIds).where('reason', '=', 'SALE').execute()
         ).map((m) => m.refOrderId)
       );
-      await kdb.transaction().execute(async (trx) => {
+      await db.transaction().execute(async (trx) => {
         for (const o of ordersToCancel) {
           await trx.updateTable('Order').set({ status: 'CANCELLED', cancelReason: input.reason }).where('id', '=', o.id).execute();
           if (deductedIds.has(o.id)) {

@@ -44,9 +44,9 @@ export const aiSuggestionRouter = router({
     if (!cooldownStore) {
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'cooldown store not configured' });
     }
-    const kdb = ctx.db;
+    const db = ctx.db;
 
-    const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
+    const table = await db.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
     if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
     const allowed = await cooldownStore.checkAndSet(cooldownKey(input.tableToken), COOLDOWN_SECONDS);
@@ -57,7 +57,7 @@ export const aiSuggestionRouter = router({
       });
     }
 
-    const rows = await kdb
+    const rows = await db
       .selectFrom('MenuItem')
       .innerJoin('Category', 'Category.id', 'MenuItem.categoryId')
       .select(['MenuItem.id as id', 'MenuItem.name as name', 'MenuItem.price as price', 'MenuItem.image as image', 'Category.name as categoryName'])

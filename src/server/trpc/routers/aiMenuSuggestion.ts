@@ -46,10 +46,10 @@ export const aiMenuSuggestionRouter = router({
   suggestNewItem: roleProcedure('ADMIN')
     .input(suggestInput)
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
+      const db = ctx.db;
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-      const bestSellerRows = await kdb
+      const bestSellerRows = await db
         .selectFrom('OrderItem')
         .innerJoin('Order', 'Order.id', 'OrderItem.orderId')
         .innerJoin('MenuItem', 'MenuItem.id', 'OrderItem.menuItemId')
@@ -64,7 +64,7 @@ export const aiMenuSuggestionRouter = router({
       const bestSellers = [...soldItems].sort((a, b) => b.qtySold - a.qtySold).slice(0, 10);
       const worstSellers = [...soldItems].sort((a, b) => a.qtySold - b.qtySold).slice(0, 5);
 
-      const ingredientRows = await kdb.selectFrom('Ingredient').selectAll().orderBy('stockQty', 'asc').execute();
+      const ingredientRows = await db.selectFrom('Ingredient').selectAll().orderBy('stockQty', 'asc').execute();
       const ingredients: StockIngredient[] = ingredientRows.map((i) => ({
         id: i.id,
         name: i.name,
@@ -72,7 +72,7 @@ export const aiMenuSuggestionRouter = router({
         stockQty: Number(i.stockQty),
       }));
 
-      const existingItems = await kdb
+      const existingItems = await db
         .selectFrom('MenuItem')
         .innerJoin('Category', 'Category.id', 'MenuItem.categoryId')
         .select(['MenuItem.name as name', 'Category.name as categoryName'])
@@ -123,9 +123,9 @@ export const aiMenuSuggestionRouter = router({
       if (!input.categoryId && !input.newCategoryName) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'category is required' });
       }
-      const kdb = ctx.db;
+      const db = ctx.db;
 
-      const menuItemId = await kdb.transaction().execute(async (trx) => {
+      const menuItemId = await db.transaction().execute(async (trx) => {
         let categoryId = input.categoryId;
         if (!categoryId) {
           const maxSort = await trx.selectFrom('Category').select(({ fn }) => fn.max('sortOrder').as('maxSortOrder')).executeTakeFirst();
@@ -167,13 +167,14 @@ export const aiMenuSuggestionRouter = router({
         return created.id;
       });
 
-      const item = await kdb
+      const item = await db
         .selectFrom('MenuItem')
         .innerJoin('Category', 'Category.id', 'MenuItem.categoryId')
         .selectAll('MenuItem')
         .select(['Category.id as category_id', 'Category.name as category_name', 'Category.sortOrder as category_sortOrder'])
         .where('MenuItem.id', '=', menuItemId)
         .executeTakeFirstOrThrow();
-      return { ...item, category: { id: item.category_id, name: item.category_name, sortOrder: item.category_sortOrder } };
+      const { category_id, category_name, category_sortOrder, ...rest } = item;
+      return { ...rest, category: { id: category_id, name: category_name, sortOrder: category_sortOrder } };
     }),
 });

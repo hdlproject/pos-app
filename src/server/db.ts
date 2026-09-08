@@ -71,7 +71,13 @@ export function buildDb(connectionString: string): Kysely<DB> {
 // is never set in the deployed Workers env (only the HYPERDRIVE binding
 // is), and an eager throw here would crash the worker at cold start even
 // though this singleton is never actually used on that path.
-export const db = globalThis.__posAppDb ?? buildDb(process.env.DATABASE_URL ?? '');
+//
+// The fallback string is a deliberately invalid connection string, not ''.
+// postgres.js treats an empty string as "use my own defaults"
+// (localhost:5432, OS-user database) rather than failing — on a dev box
+// that happens to run local Postgres on 5432, a missing DATABASE_URL would
+// silently connect to a real, different database instead of failing loud.
+export const db = globalThis.__posAppDb ?? buildDb(process.env.DATABASE_URL ?? 'postgresql://invalid-no-database-url-set/invalid');
 
 if (process.env.NODE_ENV !== 'production') {
   globalThis.__posAppDb = db;

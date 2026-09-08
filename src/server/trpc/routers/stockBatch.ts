@@ -7,10 +7,10 @@ import { recomputeAvailabilityForIngredient } from '../../stock/availability';
 
 export const stockBatchRouter = router({
   getPending: roleProcedure('ADMIN').query(async ({ ctx }) => {
-    const kdb = ctx.db;
-    const batch = await kdb.selectFrom('StockAdjustmentBatch').selectAll().where('status', '=', 'PENDING').executeTakeFirst();
+    const db = ctx.db;
+    const batch = await db.selectFrom('StockAdjustmentBatch').selectAll().where('status', '=', 'PENDING').executeTakeFirst();
     if (!batch) return null;
-    const lines = await kdb
+    const lines = await db
       .selectFrom('StockAdjustmentLine')
       .innerJoin('Ingredient', 'Ingredient.id', 'StockAdjustmentLine.ingredientId')
       .select([
@@ -125,6 +125,9 @@ export const stockBatchRouter = router({
     .input(z.object({ batchId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.transaction().execute(async (trx) => {
+        // No-op update used only to atomically check-and-lock the row:
+        // count is 0 if the batch is no longer PENDING (already
+        // confirmed/cancelled by a concurrent request).
         const result = await trx.updateTable('StockAdjustmentBatch')
           .set({ status: 'PENDING' })
           .where('id', '=', input.batchId)
@@ -140,8 +143,8 @@ export const stockBatchRouter = router({
     }),
 
   listHistory: roleProcedure('ADMIN').query(async ({ ctx }) => {
-    const kdb = ctx.db;
-    const batches = await kdb
+    const db = ctx.db;
+    const batches = await db
       .selectFrom('StockAdjustmentBatch')
       .innerJoin('User as CreatedBy', 'CreatedBy.id', 'StockAdjustmentBatch.createdById')
       .leftJoin('User as ConfirmedBy', 'ConfirmedBy.id', 'StockAdjustmentBatch.confirmedById')
@@ -163,7 +166,7 @@ export const stockBatchRouter = router({
       .execute();
 
     const batchIds = batches.map((b) => b.id);
-    const lines = batchIds.length === 0 ? [] : await kdb
+    const lines = batchIds.length === 0 ? [] : await db
       .selectFrom('StockAdjustmentLine')
       .innerJoin('Ingredient', 'Ingredient.id', 'StockAdjustmentLine.ingredientId')
       .select([

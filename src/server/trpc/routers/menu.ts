@@ -46,8 +46,8 @@ type MenuItemWithCategory = {
   };
 };
 
-async function listMenuItems(kdb: Kysely<DB>, onlyAvailable: boolean): Promise<MenuItemWithCategory[]> {
-  let query = kdb
+async function listMenuItems(db: Kysely<DB>, onlyAvailable: boolean): Promise<MenuItemWithCategory[]> {
+  let query = db
     .selectFrom('MenuItem')
     .innerJoin('Category', 'Category.id', 'MenuItem.categoryId')
     .select([
@@ -121,7 +121,13 @@ export const menuRouter = router({
       const { id, ...rest } = input;
       // Kysely's .set() automatically drops keys whose value is `undefined`
       // (verified this session), matching Prisma's update() semantics — a
-      // field the caller omitted is left untouched, not set to NULL.
+      // field the caller omitted is left untouched, not set to NULL. But if
+      // every field is omitted, .set() would emit an empty SET list, which
+      // Postgres rejects as a syntax error — Prisma treated that case as a
+      // no-op returning the unchanged row, so we do too.
+      if (Object.values(rest).every((v) => v === undefined)) {
+        return ctx.db.selectFrom('MenuItem').selectAll().where('id', '=', id).executeTakeFirstOrThrow();
+      }
       return ctx.db.updateTable('MenuItem').set(rest).where('id', '=', id).returningAll().executeTakeFirstOrThrow();
     }),
 });

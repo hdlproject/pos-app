@@ -28,11 +28,11 @@ export const reportRouter = router({
   }),
 
   bestSellers: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const kdb = ctx.db;
+    const db = ctx.db;
     // A paid charge-first order can still be status OPEN (awaiting kitchen
     // dispatch) rather than PAID -- payment existence is the real "counts
     // as a sale" signal, not the status literal.
-    const rows = await kdb
+    const rows = await db
       .selectFrom('OrderItem')
       .innerJoin('Order', 'Order.id', 'OrderItem.orderId')
       .where('Order.createdAt', '>=', new Date(input.from))
@@ -45,7 +45,7 @@ export const reportRouter = router({
       .execute();
 
     const menuItemIds = rows.map((r) => r.menuItemId);
-    const menuItems = menuItemIds.length === 0 ? [] : await kdb.selectFrom('MenuItem').selectAll().where('id', 'in', menuItemIds).execute();
+    const menuItems = menuItemIds.length === 0 ? [] : await db.selectFrom('MenuItem').selectAll().where('id', 'in', menuItemIds).execute();
     const byId = new Map(menuItems.map((m) => [m.id, m]));
     return rows
       .map((r) => ({ menuItem: byId.get(r.menuItemId), qtySold: Number(r.qtySold ?? 0) }))
@@ -53,8 +53,8 @@ export const reportRouter = router({
   }),
 
   salesDetail: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const kdb = ctx.db;
-    const orders = await kdb
+    const db = ctx.db;
+    const orders = await db
       .selectFrom('Order')
       .leftJoin('Table', 'Table.id', 'Order.tableId')
       .where('Order.createdAt', '>=', new Date(input.from))
@@ -70,7 +70,7 @@ export const reportRouter = router({
       .execute();
 
     const orderIds = orders.map((o) => o.id);
-    const items = orderIds.length === 0 ? [] : await kdb
+    const items = orderIds.length === 0 ? [] : await db
       .selectFrom('OrderItem')
       .innerJoin('MenuItem', 'MenuItem.id', 'OrderItem.menuItemId')
       .select(['OrderItem.id as id', 'OrderItem.orderId as orderId', 'OrderItem.qty as qty', 'OrderItem.unitPrice as unitPrice', 'MenuItem.name as menuItemName'])
@@ -97,8 +97,8 @@ export const reportRouter = router({
   // per ingredient (one row per unique ingredient), not one row per
   // movement -- this is a summary, not a raw ledger.
   inventoryUsage: roleProcedure('ADMIN').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const kdb = ctx.db;
-    const rows = await kdb
+    const db = ctx.db;
+    const rows = await db
       .selectFrom('StockMovement')
       .where('reason', '=', 'SALE')
       .where('createdAt', '>=', new Date(input.from))
@@ -107,7 +107,7 @@ export const reportRouter = router({
       .select(['ingredientId', (eb) => eb.fn.sum('delta').as('totalDelta')])
       .execute();
     const ingredientIds = rows.map((r) => r.ingredientId);
-    const ingredients = ingredientIds.length === 0 ? [] : await kdb.selectFrom('Ingredient').selectAll().where('id', 'in', ingredientIds).execute();
+    const ingredients = ingredientIds.length === 0 ? [] : await db.selectFrom('Ingredient').selectAll().where('id', 'in', ingredientIds).execute();
     const byId = new Map(ingredients.map((i) => [i.id, i]));
     const usage = rows
       .map((r) => ({ ingredientId: r.ingredientId, ingredient: byId.get(r.ingredientId), totalDelta: r.totalDelta ?? '0' }))

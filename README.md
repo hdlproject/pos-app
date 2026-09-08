@@ -52,7 +52,7 @@ To smoke-test the Cloudflare Workers bundle locally with `wrangler dev` against 
 
 ```bash
 npm run build:cf
-CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgresql://postgres:postgres@localhost:5433/pos_dev npx wrangler dev
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgresql://postgres:postgres@localhost:5433/pos_test npx wrangler dev
 ```
 
 ## Database migrations
@@ -64,6 +64,14 @@ DATABASE_URL="postgresql://..." ./database/migrate.sh
 ```
 
 It tracks applied versions in a `schema_migrations` table and skips migrations already recorded there, so it's safe to re-run.
+
+`database/001_initial.sql` is raw `pg_dump` output and includes `\restrict`/`\unrestrict` psql meta-commands — it runs fine through `migrate.sh` (which shells out to `psql`), but can't be pasted into a non-psql SQL runner (e.g. a web-based SQL editor) as-is; strip those two lines first if you need to run it that way.
+
+After migrating, seed sample data (menu items, ingredients, recipes, tables, a week of sample orders):
+
+```bash
+DATABASE_URL="postgresql://..." npm run seed
+```
 
 **Prerequisite:** `migrate.sh` requires a local `psql` client on `PATH`. It is *not* installed by this repo's Node dependencies, so a machine that has never needed a Postgres CLI before will hit `psql: command not found`.
 

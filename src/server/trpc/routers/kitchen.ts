@@ -8,18 +8,18 @@ export const kitchenRouter = router({
   updateItemStatus: roleProcedure('ADMIN', 'KITCHEN', 'STAFF')
     .input(z.object({ orderItemId: z.string(), status: z.enum(ITEM_STATUSES) }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const item = await kdb
+      const db = ctx.db;
+      const item = await db
         .updateTable('OrderItem')
         .set({ kitchenStatus: input.status })
         .where('id', '=', input.orderItemId)
         .returningAll()
         .executeTakeFirstOrThrow();
 
-      const siblings = await kdb.selectFrom('OrderItem').selectAll().where('orderId', '=', item.orderId).execute();
+      const siblings = await db.selectFrom('OrderItem').selectAll().where('orderId', '=', item.orderId).execute();
       const allReady = siblings.every((s) => s.kitchenStatus === 'READY' || s.kitchenStatus === 'SERVED');
       if (allReady) {
-        await kdb.updateTable('Order').set({ status: 'READY' }).where('id', '=', item.orderId).execute();
+        await db.updateTable('Order').set({ status: 'READY' }).where('id', '=', item.orderId).execute();
       }
 
       try {

@@ -69,6 +69,17 @@ describe('menu router', () => {
     expect(updated.available).toBe(false);
   });
 
+  it('updateItem with only id and no other fields is a no-op returning the unchanged row', async () => {
+    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const category = await db.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const item = await db.insertInto('MenuItem')
+      .values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id, available: true })
+      .returningAll().executeTakeFirstOrThrow();
+
+    const updated = await admin.menu.updateItem({ id: item.id });
+    expect(updated).toMatchObject({ id: item.id, name: 'Latte', available: true });
+  });
+
   it('excludes an auto-detected-out-of-stock item from listAvailable', async () => {
     const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
     const anon = appRouter.createCaller({ db, user: null });

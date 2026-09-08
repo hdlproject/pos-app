@@ -10,10 +10,10 @@ export const paymentRouter = router({
   payCash: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string(), tendered: z.number().positive() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.db;
-      const order = await kdb.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
+      const db = ctx.db;
+      const order = await db.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
       if (order.status === 'CANCELLED') throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is cancelled' });
-      const existingPayment = await kdb.selectFrom('Payment').selectAll().where('orderId', '=', order.id).executeTakeFirst();
+      const existingPayment = await db.selectFrom('Payment').selectAll().where('orderId', '=', order.id).executeTakeFirst();
       if (existingPayment) throw new TRPCError({ code: 'BAD_REQUEST', message: 'order already paid' });
 
       const total = Number(order.total);
@@ -22,7 +22,7 @@ export const paymentRouter = router({
       }
       const change = input.tendered - total;
 
-      await kdb.transaction().execute(async (trx) => {
+      await db.transaction().execute(async (trx) => {
         await trx.insertInto('Payment')
           .values({ id: createId(), orderId: order.id, amount: total, method: 'ONLINE', receivedById: ctx.user.userId })
           .execute();
