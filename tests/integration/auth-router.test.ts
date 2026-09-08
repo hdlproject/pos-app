@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { db } from '@/server/db';
+import { kdb } from '@/server/db.kysely';
+import { createId } from '@/server/id';
 import { resetDb } from '../helpers/db';
 import { hashPin } from '@/server/auth/pin';
 import { appRouter } from '@/server/trpc/routers/_app';
@@ -32,8 +34,8 @@ describe('auth router', () => {
   beforeEach(resetDb);
 
   it('logs in with a valid PIN and rejects an invalid one', async () => {
-    await db.user.create({ data: { name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
-    const caller = appRouter.createCaller({ db, user: null });
+    await kdb.insertInto('User').values({ id: createId(), name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') }).execute();
+    const caller = appRouter.createCaller({ db, kdb, user: null });
 
     const result = await caller.auth.login({ pin: '1234' });
     expect(result).toMatchObject({ name: 'Admin', role: 'ADMIN' });
@@ -42,13 +44,13 @@ describe('auth router', () => {
   });
 
   it('logs out an authenticated user and rejects an unauthenticated logout', async () => {
-    const user = await db.user.create({ data: { name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
+    const user = await kdb.insertInto('User').values({ id: createId(), name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') }).returningAll().executeTakeFirstOrThrow();
 
-    const authedCaller = appRouter.createCaller({ db, user: { userId: user.id, role: user.role, name: user.name } });
+    const authedCaller = appRouter.createCaller({ db, kdb, user: { userId: user.id, role: user.role, name: user.name } });
     const result = await authedCaller.auth.logout();
     expect(result).toEqual({ ok: true });
 
-    const anonCaller = appRouter.createCaller({ db, user: null });
+    const anonCaller = appRouter.createCaller({ db, kdb, user: null });
     await expect(anonCaller.auth.logout()).rejects.toThrow();
   });
 });
