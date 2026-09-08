@@ -48,6 +48,13 @@ S3_BUCKET=menu-images \
 npm test
 ```
 
+To smoke-test the Cloudflare Workers bundle locally with `wrangler dev` against a real (local) Hyperdrive-emulated connection, `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` must be set on the actual process environment when `wrangler dev` runs — a value in `.dev.vars` alone is not read for this purpose:
+
+```bash
+npm run build:cf
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgresql://postgres:postgres@localhost:5433/pos_dev npx wrangler dev
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

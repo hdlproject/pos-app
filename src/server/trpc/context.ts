@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import type { Kysely } from 'kysely';
-import { db } from '../db';
+import { db as nodeDb, buildDb } from '../db';
 import type { DB, Role } from '../db.types';
 import { verifySession } from '../auth/session';
 import { RedisCooldownStore, KvCooldownStore, type CooldownStore, type KvNamespaceLike } from '../cooldownStore';
@@ -16,6 +16,36 @@ export type Context = {
   cooldownStore?: CooldownStore;
   cache?: Cache;
 };
+
+// On Cloudflare Workers, a Kysely client built over a postgres.js socket is
+// tied to the I/O context of whichever request constructed it -- a second
+// request running in a fresh I/O context will see any query against that
+// client hang forever (workerd's hang detector eventually kills it; see the
+// module-scope comment on `buildDb` in `../db` for the full explanation).
+// So on the Cloudflare path we build a brand new client on every single
+// request -- no caching, no globalThis stash, unlike the Node path below.
+// This mirrors the old (pre-Kysely, Prisma-era) getContextDb()/
+// getCloudflareDb() split, which had the identical constraint for the same
+// reason (see git history: src/server/db.cloudflare.ts, deleted when Prisma
+// was removed).
+export async function getContextDb(): Promise<Kysely<DB>> {
+  if (process.env.RUNTIME_TARGET === 'cloudflare') {
+    // The ASYNC form of getCloudflareContext is required here, not the sync
+    // form -- the sync form only reliably resolves request-scoped bindings
+    // (like HYPERDRIVE) when called synchronously within specific points of
+    // Next's request lifecycle, which this general-purpose context builder
+    // cannot guarantee. The async form properly awaits the request-scoped
+    // context instead of racing it.
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    const { env } = await getCloudflareContext({ async: true });
+    const hyperdrive = (env as Record<string, unknown>).HYPERDRIVE as { connectionString: string } | undefined;
+    if (!hyperdrive) {
+      throw new Error('RUNTIME_TARGET=cloudflare but the HYPERDRIVE binding is missing');
+    }
+    return buildDb(hyperdrive.connectionString);
+  }
+  return nodeDb;
+}
 
 export async function getContextCooldownStore(): Promise<CooldownStore> {
   if (process.env.RUNTIME_TARGET === 'cloudflare') {
@@ -43,6 +73,7 @@ export async function getContextCache(): Promise<Cache> {
 }
 
 export async function createContext(): Promise<Context> {
+  const db = await getContextDb();
   const cooldownStore = await getContextCooldownStore();
   const cache = await getContextCache();
 
