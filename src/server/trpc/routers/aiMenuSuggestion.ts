@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, roleProcedure } from '../trpc';
+import { createId } from '../../id';
 import { fetchChatCompletion } from '../../ai/openaiClient';
 import {
   buildMenuSuggestionMessages,
@@ -8,7 +9,7 @@ import {
   MenuSuggestionParseError,
   type StockIngredient,
 } from '../../ai/menuSuggestion';
-import { recomputeAvailabilityForMenuItem } from '../../stock/availability.prisma';
+import { recomputeAvailabilityForMenuItem } from '../../stock/availability';
 import { TASTE_OPTIONS, AROMA_OPTIONS, TEXTURE_OPTIONS } from '../../../lib/suggestionOptions';
 
 const CUISINE_OPTIONS = ['Indonesian', 'Italian', 'Korean', 'Japanese', 'Western', 'Fusion'] as const;
@@ -41,36 +42,29 @@ const createInput = z.object({
     .min(1),
 });
 
-// Explicit flat row shapes -- same TS2589 workaround as every other router
-// here (see menu.ts's MenuItemWithCategory) for a Prisma query with a
-// nested include.
-type MenuRow = { id: string; name: string };
-type IngredientRow = { id: string; name: string; unit: string; stockQty: unknown };
-type MenuItemWithCategoryName = { name: string; category: { name: string } };
-
 export const aiMenuSuggestionRouter = router({
   suggestNewItem: roleProcedure('ADMIN')
     .input(suggestInput)
     .mutation(async ({ ctx, input }) => {
+      const kdb = ctx.kdb!;
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const bestSellerRows = await ctx.db.orderItem.groupBy({
-        by: ['menuItemId'],
-        where: { order: { createdAt: { gte: since }, payments: { some: {} } } },
-        _sum: { qty: true },
-      });
-      const bestSellerItems = (await ctx.db.menuItem.findMany({
-        where: { id: { in: bestSellerRows.map((r) => r.menuItemId) } },
-      })) as unknown as MenuRow[];
-      const bestSellerById = new Map(bestSellerItems.map((i) => [i.id, i]));
-      const soldItems = bestSellerRows
-        .map((r) => ({ name: bestSellerById.get(r.menuItemId)?.name, qtySold: r._sum.qty ?? 0 }))
-        .filter((b): b is { name: string; qtySold: number } => typeof b.name === 'string');
+
+      const bestSellerRows = await kdb
+        .selectFrom('OrderItem')
+        .innerJoin('Order', 'Order.id', 'OrderItem.orderId')
+        .innerJoin('MenuItem', 'MenuItem.id', 'OrderItem.menuItemId')
+        .where('Order.createdAt', '>=', since)
+        .where((eb) =>
+          eb.exists(eb.selectFrom('Payment').select('Payment.id').whereRef('Payment.orderId', '=', 'Order.id'))
+        )
+        .groupBy(['OrderItem.menuItemId', 'MenuItem.name'])
+        .select(['MenuItem.name as name', (eb) => eb.fn.sum('OrderItem.qty').as('qtySold')])
+        .execute();
+      const soldItems = bestSellerRows.map((r) => ({ name: r.name, qtySold: Number(r.qtySold ?? 0) }));
       const bestSellers = [...soldItems].sort((a, b) => b.qtySold - a.qtySold).slice(0, 10);
       const worstSellers = [...soldItems].sort((a, b) => a.qtySold - b.qtySold).slice(0, 5);
 
-      const ingredientRows = (await ctx.db.ingredient.findMany({
-        orderBy: { stockQty: 'asc' },
-      })) as unknown as IngredientRow[];
+      const ingredientRows = await kdb.selectFrom('Ingredient').selectAll().orderBy('stockQty', 'asc').execute();
       const ingredients: StockIngredient[] = ingredientRows.map((i) => ({
         id: i.id,
         name: i.name,
@@ -78,13 +72,15 @@ export const aiMenuSuggestionRouter = router({
         stockQty: Number(i.stockQty),
       }));
 
-      const existingItems = (await ctx.db.menuItem.findMany({
-        select: { name: true, category: { select: { name: true } } },
-      })) as unknown as MenuItemWithCategoryName[];
+      const existingItems = await kdb
+        .selectFrom('MenuItem')
+        .innerJoin('Category', 'Category.id', 'MenuItem.categoryId')
+        .select(['MenuItem.name as name', 'Category.name as categoryName'])
+        .execute();
 
       const categoryCountMap = new Map<string, number>();
       for (const item of existingItems) {
-        categoryCountMap.set(item.category.name, (categoryCountMap.get(item.category.name) ?? 0) + 1);
+        categoryCountMap.set(item.categoryName, (categoryCountMap.get(item.categoryName) ?? 0) + 1);
       }
       const categoryCounts = Array.from(categoryCountMap.entries()).map(([name, count]) => ({ name, count }));
 
@@ -127,14 +123,16 @@ export const aiMenuSuggestionRouter = router({
       if (!input.categoryId && !input.newCategoryName) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'category is required' });
       }
+      const kdb = ctx.kdb!;
 
-      const menuItemId = await ctx.db.$transaction(async (tx) => {
+      const menuItemId = await kdb.transaction().execute(async (trx) => {
         let categoryId = input.categoryId;
         if (!categoryId) {
-          const maxSort = await tx.category.aggregate({ _max: { sortOrder: true } });
-          const category = await tx.category.create({
-            data: { name: input.newCategoryName as string, sortOrder: (maxSort._max.sortOrder ?? 0) + 1 },
-          });
+          const maxSort = await trx.selectFrom('Category').select(({ fn }) => fn.max('sortOrder').as('maxSortOrder')).executeTakeFirst();
+          const category = await trx.insertInto('Category')
+            .values({ id: createId(), name: input.newCategoryName as string, sortOrder: Number(maxSort?.maxSortOrder ?? 0) + 1 })
+            .returningAll()
+            .executeTakeFirstOrThrow();
           categoryId = category.id;
         }
 
@@ -142,26 +140,40 @@ export const aiMenuSuggestionRouter = router({
         for (const ing of input.ingredients) {
           const ingredientId =
             ing.existingIngredientId ??
-            (await tx.ingredient.create({ data: { name: ing.name, unit: ing.unit, stockQty: 0 } })).id;
+            (await trx.insertInto('Ingredient').values({ id: createId(), name: ing.name, unit: ing.unit, stockQty: 0 }).returningAll().executeTakeFirstOrThrow()).id;
           recipeInputs.push({ ingredientId, qtyPerUnit: ing.qtyPerUnit });
         }
 
-        const created = await tx.menuItem.create({
-          data: {
+        const created = await trx.insertInto('MenuItem')
+          .values({
+            id: createId(),
             name: input.name,
             price: input.price,
             categoryId,
             description: input.description,
             instructions: input.instructions,
             available: true,
-            recipes: { create: recipeInputs },
-          },
-        });
+          })
+          .returningAll()
+          .executeTakeFirstOrThrow();
 
-        await recomputeAvailabilityForMenuItem(tx, created.id);
+        if (recipeInputs.length > 0) {
+          await trx.insertInto('Recipe')
+            .values(recipeInputs.map((r) => ({ id: createId(), menuItemId: created.id, ingredientId: r.ingredientId, qtyPerUnit: r.qtyPerUnit })))
+            .execute();
+        }
+
+        await recomputeAvailabilityForMenuItem(trx, created.id);
         return created.id;
       });
 
-      return ctx.db.menuItem.findUniqueOrThrow({ where: { id: menuItemId }, include: { category: true } });
+      const item = await kdb
+        .selectFrom('MenuItem')
+        .innerJoin('Category', 'Category.id', 'MenuItem.categoryId')
+        .selectAll('MenuItem')
+        .select(['Category.id as category_id', 'Category.name as category_name', 'Category.sortOrder as category_sortOrder'])
+        .where('MenuItem.id', '=', menuItemId)
+        .executeTakeFirstOrThrow();
+      return { ...item, category: { id: item.category_id, name: item.category_name, sortOrder: item.category_sortOrder } };
     }),
 });

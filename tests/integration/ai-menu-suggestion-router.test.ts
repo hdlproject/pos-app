@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { db } from '@/server/db';
+import { kdb } from '@/server/db.kysely';
+import { createId } from '@/server/id';
 import { resetDb } from '../helpers/db';
 
 vi.mock('@/server/ai/openaiClient', () => ({
@@ -18,21 +20,14 @@ describe('aiMenuSuggestion router', () => {
   });
 
   it('suggestNewItem returns candidates with existing ingredients tagged by real id', async () => {
-    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Food', sortOrder: 1 } });
-    const rice = await db.ingredient.create({ data: { name: 'Rice', unit: 'g', stockQty: 50 } });
-    const item = await db.menuItem.create({ data: { name: 'Nasi Goreng', price: 30000, categoryId: category.id } });
-    const cashier = await db.user.create({ data: { name: 'Cashier', role: 'STAFF', pinHash: 'x' } });
-    const order = await db.order.create({
-      data: {
-        type: 'TAKEAWAY',
-        source: 'STAFF',
-        status: 'PAID',
-        total: 30000,
-        items: { create: [{ menuItemId: item.id, qty: 5, unitPrice: 30000 }] },
-      },
-    });
-    await db.payment.create({ data: { orderId: order.id, amount: 30000, method: 'CASH', receivedById: cashier.id } });
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Food', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const rice = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Rice', unit: 'g', stockQty: 50 }).returningAll().executeTakeFirstOrThrow();
+    const item = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Nasi Goreng', price: 30000, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    const cashier = await kdb.insertInto('User').values({ id: createId(), name: 'Cashier', role: 'STAFF', pinHash: 'x' }).returningAll().executeTakeFirstOrThrow();
+    const order = await kdb.insertInto('Order').values({ id: createId(), type: 'TAKEAWAY', source: 'STAFF', status: 'PAID', total: 30000 }).returningAll().executeTakeFirstOrThrow();
+    await kdb.insertInto('OrderItem').values({ id: createId(), orderId: order.id, menuItemId: item.id, qty: 5, unitPrice: 30000 }).execute();
+    await kdb.insertInto('Payment').values({ id: createId(), orderId: order.id, amount: 30000, method: 'CASH', receivedById: cashier.id }).execute();
 
     mockedFetch.mockResolvedValue(
       JSON.stringify({
@@ -65,27 +60,27 @@ describe('aiMenuSuggestion router', () => {
   });
 
   it('rejects a non-admin caller', async () => {
-    const staff = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'S' } });
+    const staff = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'STAFF', name: 'S' } });
     await expect(staff.aiMenuSuggestion.suggestNewItem({ cuisine: [] })).rejects.toThrow();
   });
 
   it('surfaces a clear error when the AI call fails', async () => {
-    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
     mockedFetch.mockRejectedValue(new Error('network down'));
     await expect(admin.aiMenuSuggestion.suggestNewItem({ cuisine: [] })).rejects.toThrow(/couldn.t get a suggestion/i);
   });
 
   it('returns ok:false when the AI reports no sensible suggestion, without throwing', async () => {
-    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
     mockedFetch.mockResolvedValue(JSON.stringify({ error: 'No usable data yet.' }));
     const result = await admin.aiMenuSuggestion.suggestNewItem({ cuisine: [] });
     expect(result).toEqual({ ok: false, reason: 'No usable data yet.' });
   });
 
   it('createFromSuggestion creates the item using only existing ingredients', async () => {
-    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Food', sortOrder: 1 } });
-    const rice = await db.ingredient.create({ data: { name: 'Rice', unit: 'g', stockQty: 500 } });
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Food', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const rice = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Rice', unit: 'g', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
 
     const created = await admin.aiMenuSuggestion.createFromSuggestion({
       name: 'Rice Bowl',
@@ -101,17 +96,17 @@ describe('aiMenuSuggestion router', () => {
     expect(created.instructions).toBe('Cook rice, serve.');
     expect(created.outOfStockReason).toBeNull();
 
-    const recipes = await db.recipe.findMany({ where: { menuItemId: created.id } });
+    const recipes = await kdb.selectFrom('Recipe').selectAll().where('menuItemId', '=', created.id).execute();
     expect(recipes).toHaveLength(1);
     expect(recipes[0].ingredientId).toBe(rice.id);
 
-    const ingredientCountAfter = await db.ingredient.count();
-    expect(ingredientCountAfter).toBe(1);
+    const ingredientCountAfter = await kdb.selectFrom('Ingredient').select(({ fn }) => fn.countAll().as('count')).executeTakeFirstOrThrow();
+    expect(Number(ingredientCountAfter.count)).toBe(1);
   });
 
   it('createFromSuggestion creates a new ingredient at 0 stock and marks the item out of stock', async () => {
-    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Snacks', sortOrder: 1 } });
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Snacks', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
 
     const created = await admin.aiMenuSuggestion.createFromSuggestion({
       name: 'Truffle Fries',
@@ -124,14 +119,14 @@ describe('aiMenuSuggestion router', () => {
 
     expect(created.outOfStockReason).toContain('Truffle Oil');
 
-    const newIngredient = await db.ingredient.findFirst({ where: { name: 'Truffle Oil' } });
-    expect(newIngredient).not.toBeNull();
+    const newIngredient = await kdb.selectFrom('Ingredient').selectAll().where('name', '=', 'Truffle Oil').executeTakeFirst();
+    expect(newIngredient).not.toBeUndefined();
     expect(Number(newIngredient!.stockQty)).toBe(0);
   });
 
   it('createFromSuggestion creates a new category when newCategoryName is given', async () => {
-    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
-    const rice = await db.ingredient.create({ data: { name: 'Rice', unit: 'g', stockQty: 500 } });
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const rice = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Rice', unit: 'g', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
 
     const created = await admin.aiMenuSuggestion.createFromSuggestion({
       name: 'Rice Bowl',
@@ -142,13 +137,13 @@ describe('aiMenuSuggestion router', () => {
       ingredients: [{ existingIngredientId: rice.id, name: 'Rice', unit: 'g', qtyPerUnit: 150 }],
     });
 
-    const category = await db.category.findUniqueOrThrow({ where: { id: created.categoryId } });
+    const category = await kdb.selectFrom('Category').selectAll().where('id', '=', created.categoryId).executeTakeFirstOrThrow();
     expect(category.name).toBe('Bowls');
   });
 
   it('createFromSuggestion rejects when neither categoryId nor newCategoryName is given', async () => {
-    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
-    const rice = await db.ingredient.create({ data: { name: 'Rice', unit: 'g', stockQty: 500 } });
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const rice = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Rice', unit: 'g', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
     await expect(
       admin.aiMenuSuggestion.createFromSuggestion({
         name: 'Rice Bowl',
