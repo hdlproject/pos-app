@@ -75,18 +75,18 @@ async function listMenuItems(kdb: Kysely<DB>, onlyAvailable: boolean): Promise<M
 }
 
 export const menuRouter = router({
-  listAvailable: publicProcedure.query(({ ctx }) => listMenuItems(ctx.kdb!, true)),
+  listAvailable: publicProcedure.query(({ ctx }) => listMenuItems(ctx.db, true)),
 
-  listAll: roleProcedure('ADMIN', 'STAFF').query(({ ctx }) => listMenuItems(ctx.kdb!, false)),
+  listAll: roleProcedure('ADMIN', 'STAFF').query(({ ctx }) => listMenuItems(ctx.db, false)),
 
   listCategories: roleProcedure('ADMIN').query(({ ctx }) =>
-    ctx.kdb!.selectFrom('Category').selectAll().orderBy('sortOrder', 'asc').execute()
+    ctx.db.selectFrom('Category').selectAll().orderBy('sortOrder', 'asc').execute()
   ),
 
   createCategory: roleProcedure('ADMIN')
     .input(z.object({ name: z.string().min(1), sortOrder: z.number().default(0) }))
     .mutation(({ ctx, input }) =>
-      ctx.kdb!.insertInto('Category')
+      ctx.db.insertInto('Category')
         .values({ id: createId(), name: input.name, sortOrder: input.sortOrder })
         .returningAll()
         .executeTakeFirstOrThrow()
@@ -95,13 +95,13 @@ export const menuRouter = router({
   deleteCategory: roleProcedure('ADMIN')
     .input(z.object({ id: z.string() }))
     .mutation(({ ctx, input }) =>
-      ctx.kdb!.deleteFrom('Category').where('id', '=', input.id).returningAll().executeTakeFirstOrThrow()
+      ctx.db.deleteFrom('Category').where('id', '=', input.id).returningAll().executeTakeFirstOrThrow()
     ),
 
   createItem: roleProcedure('ADMIN')
     .input(menuItemInput)
     .mutation(({ ctx, input }) =>
-      ctx.kdb!.insertInto('MenuItem')
+      ctx.db.insertInto('MenuItem')
         .values({
           id: createId(),
           name: input.name,
@@ -122,6 +122,6 @@ export const menuRouter = router({
       // Kysely's .set() automatically drops keys whose value is `undefined`
       // (verified this session), matching Prisma's update() semantics — a
       // field the caller omitted is left untouched, not set to NULL.
-      return ctx.kdb!.updateTable('MenuItem').set(rest).where('id', '=', id).returningAll().executeTakeFirstOrThrow();
+      return ctx.db.updateTable('MenuItem').set(rest).where('id', '=', id).returningAll().executeTakeFirstOrThrow();
     }),
 });

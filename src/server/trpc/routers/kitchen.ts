@@ -8,7 +8,7 @@ export const kitchenRouter = router({
   updateItemStatus: roleProcedure('ADMIN', 'KITCHEN', 'STAFF')
     .input(z.object({ orderItemId: z.string(), status: z.enum(ITEM_STATUSES) }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const item = await kdb
         .updateTable('OrderItem')
         .set({ kitchenStatus: input.status })
@@ -33,7 +33,7 @@ export const kitchenRouter = router({
   markServed: roleProcedure('ADMIN', 'STAFF', 'KITCHEN')
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const order = await ctx.kdb!
+      const order = await ctx.db
         .updateTable('Order')
         .set({ status: 'SERVED' })
         .where('id', '=', input.orderId)

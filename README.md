@@ -22,7 +22,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Testing
 
-Unit tests run against whatever `DATABASE_URL` currently resolves to (Vitest does not auto-load `.env`, so `DATABASE_URL` is otherwise undefined). Integration tests under `tests/integration/` hit a real Postgres database via Prisma, so they must be run against the **test** database (`pos_test`), not the dev database, to avoid clobbering dev data.
+Unit tests run against whatever `DATABASE_URL` currently resolves to (Vitest does not auto-load `.env`, so `DATABASE_URL` is otherwise undefined). Integration tests under `tests/integration/` hit a real Postgres database via `postgres` + Kysely, so they must be run against the **test** database (`pos_test`), not the dev database, to avoid clobbering dev data.
 
 Point `DATABASE_URL` at the test database when running the test suite:
 
@@ -33,7 +33,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_test npm test
 The test database's schema must be migrated first (once, or after adding new migrations):
 
 ```bash
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_test npx prisma migrate deploy
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pos_test ./database/migrate.sh
 ```
 
 The upload route and menu-image tests also need `JWT_SECRET` plus the four S3 env vars (matching `.env`) and a running MinIO, since they exercise the real S3 client wrapper. Start MinIO with `docker compose up -d minio` (or the full stack via `docker compose up -d`), then set the vars explicitly on the same command line as the test run:

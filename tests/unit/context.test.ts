@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 vi.mock('@opennextjs/cloudflare', () => ({ getCloudflareContext: vi.fn() }));
 
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { getContextDb, getContextCooldownStore, getContextCache } from '@/server/trpc/context';
+import { getContextCooldownStore, getContextCache } from '@/server/trpc/context';
 import { KvCooldownStore } from '@/server/cooldownStore';
 import { KvCache, noopCache } from '@/server/cache';
 import type { KvNamespaceLike } from '@/server/cooldownStore';
@@ -30,13 +30,6 @@ afterEach(() => {
 });
 
 describe('RUNTIME_TARGET=cloudflare', () => {
-  it('getContextDb() throws naming HYPERDRIVE when the binding is missing', async () => {
-    vi.stubEnv('RUNTIME_TARGET', 'cloudflare');
-    mockedGetCloudflareContext.mockResolvedValue({ env: {} } as never);
-
-    await expect(getContextDb()).rejects.toThrow(/HYPERDRIVE/);
-  });
-
   it('getContextCooldownStore() throws naming KV when the binding is missing', async () => {
     vi.stubEnv('RUNTIME_TARGET', 'cloudflare');
     mockedGetCloudflareContext.mockResolvedValue({ env: {} } as never);
@@ -70,18 +63,16 @@ describe('RUNTIME_TARGET=cloudflare', () => {
 });
 
 describe('RUNTIME_TARGET unset or node', () => {
-  it('getContextDb()/getContextCooldownStore()/getContextCache() use the node-path implementations without ever consulting the Cloudflare mock', async () => {
+  it('getContextCooldownStore()/getContextCache() use the node-path implementations without ever consulting the Cloudflare mock', async () => {
     // Deliberately never configure mockedGetCloudflareContext's resolved
-    // value here -- if any of these accidentally took the cloudflare
+    // value here -- if either of these accidentally took the cloudflare
     // branch, awaiting the un-mocked resolved value (undefined) would
     // throw a destructuring error, not silently pass.
     vi.stubEnv('RUNTIME_TARGET', 'node');
 
-    const db = await getContextDb();
     const cooldownStore = await getContextCooldownStore();
     const cache = await getContextCache();
 
-    expect(db).toBeDefined();
     expect(cooldownStore).not.toBeInstanceOf(KvCooldownStore);
     expect(cache).not.toBeInstanceOf(KvCache);
     expect(cache).not.toBe(noopCache);
@@ -91,7 +82,6 @@ describe('RUNTIME_TARGET unset or node', () => {
   it('also takes the node path when RUNTIME_TARGET is unset entirely', async () => {
     vi.stubEnv('RUNTIME_TARGET', undefined);
 
-    await getContextDb();
     await getContextCooldownStore();
     await getContextCache();
 

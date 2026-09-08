@@ -1,7 +1,7 @@
-import { kdb } from '@/server/db.kysely';
+import { db } from '@/server/db';
 
 export async function resetDb() {
-  await kdb.transaction().execute(async (trx) => {
+  await db.transaction().execute(async (trx) => {
     await trx.deleteFrom('StockMovement').execute();
     await trx.deleteFrom('StockAdjustmentLine').execute();
     await trx.deleteFrom('StockAdjustmentBatch').execute();

@@ -46,7 +46,7 @@ export const aiMenuSuggestionRouter = router({
   suggestNewItem: roleProcedure('ADMIN')
     .input(suggestInput)
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
       const bestSellerRows = await kdb
@@ -123,7 +123,7 @@ export const aiMenuSuggestionRouter = router({
       if (!input.categoryId && !input.newCategoryName) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'category is required' });
       }
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
 
       const menuItemId = await kdb.transaction().execute(async (trx) => {
         let categoryId = input.categoryId;

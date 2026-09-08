@@ -44,7 +44,7 @@ export const aiSuggestionRouter = router({
     if (!cooldownStore) {
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'cooldown store not configured' });
     }
-    const kdb = ctx.kdb!;
+    const kdb = ctx.db;
 
     const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
     if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });

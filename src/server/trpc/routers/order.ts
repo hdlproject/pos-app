@@ -85,7 +85,7 @@ export const orderRouter = router({
   createStaff: roleProcedure('ADMIN', 'STAFF')
     .input(createOrderInput)
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const builtItems = await buildOrderItems(kdb, input.items);
       const order = await kdb.transaction().execute(async (trx) => {
         const created = await trx.insertInto('Order')
@@ -120,7 +120,7 @@ export const orderRouter = router({
   createAndCharge: roleProcedure('ADMIN', 'STAFF')
     .input(createOrderInput)
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const builtItems = await buildOrderItems(kdb, input.items);
       const total = calcTotal(builtItems);
       const order = await kdb.transaction().execute(async (trx) => {
@@ -157,7 +157,7 @@ export const orderRouter = router({
   sendToKitchen: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const order = await kdb.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
       if (order.status !== 'OPEN') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is not pending dispatch' });
@@ -228,7 +228,7 @@ export const orderRouter = router({
   // only once finished -- so the client can group an in-progress table's
   // rounds under it too, not just a closed-out bill awaiting payment.
   listPendingDispatch: roleProcedure('ADMIN', 'STAFF').query(async ({ ctx }) => {
-    const kdb = ctx.kdb!;
+    const kdb = ctx.db;
     const orders = await kdb
       .selectFrom('Order')
       .leftJoin('Table', 'Table.id', 'Order.tableId')
@@ -283,7 +283,7 @@ export const orderRouter = router({
   startTableSession: publicProcedure
     .input(z.object({ tableToken: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
@@ -309,7 +309,7 @@ export const orderRouter = router({
   finishTableSession: publicProcedure
     .input(z.object({ tableToken: z.string(), orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const order = await kdb
         .selectFrom('Order')
         .leftJoin('Table', 'Table.id', 'Order.tableId')
@@ -347,7 +347,7 @@ export const orderRouter = router({
   createByTable: publicProcedure
     .input(z.object({ tableToken: z.string(), items: z.array(orderItemInput).min(1), parentOrderId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
@@ -383,7 +383,7 @@ export const orderRouter = router({
   appendItems: publicProcedure
     .input(z.object({ orderId: z.string(), items: z.array(orderItemInput).min(1), tableToken: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const order = await kdb
         .selectFrom('Order')
         .leftJoin('Table', 'Table.id', 'Order.tableId')
@@ -420,7 +420,7 @@ export const orderRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const order = await kdb
         .selectFrom('Order')
         .leftJoin('Table', 'Table.id', 'Order.tableId')
@@ -449,7 +449,7 @@ export const orderRouter = router({
   getOpenOrderByTableToken: publicProcedure
     .input(z.object({ tableToken: z.string() }))
     .query(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
       if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
@@ -475,7 +475,7 @@ export const orderRouter = router({
   // few hours -- the KDS's Delivered/All filters need some recent history,
   // but a full unbounded log would grow forever over a day's service.
   listOpen: roleProcedure('ADMIN', 'STAFF', 'KITCHEN').query(async ({ ctx }) => {
-    const kdb = ctx.kdb!;
+    const kdb = ctx.db;
     const orders = await kdb
       .selectFrom('Order')
       .leftJoin('Table', 'Table.id', 'Order.tableId')
@@ -503,7 +503,7 @@ export const orderRouter = router({
   cancel: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string(), reason: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const order = await kdb.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
       if (order.status === 'CANCELLED') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'order already cancelled' });

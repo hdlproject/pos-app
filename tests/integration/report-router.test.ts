@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '@/server/db';
-import { kdb } from '@/server/db.kysely';
 import { createId } from '@/server/id';
 import { redis } from '@/server/redis';
 import { resetDb } from '../helpers/db';
@@ -13,16 +12,16 @@ describe('report router', () => {
   });
 
   it('computes daily sales, best sellers, inventory usage, and shift summary', async () => {
-    const cashier = await kdb.insertInto('User').values({ id: createId(), name: 'Cashier', role: 'STAFF', pinHash: 'x' }).returningAll().executeTakeFirstOrThrow();
-    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
-    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
-    const item = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
-    const order = await kdb.insertInto('Order').values({ id: createId(), type: 'TAKEAWAY', status: 'PAID', source: 'STAFF', total: 9 }).returningAll().executeTakeFirstOrThrow();
-    await kdb.insertInto('OrderItem').values({ id: createId(), orderId: order.id, menuItemId: item.id, qty: 2, unitPrice: 4.5 }).execute();
-    await kdb.insertInto('Payment').values({ id: createId(), orderId: order.id, amount: 9, method: 'CASH', receivedById: cashier.id }).execute();
-    await kdb.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -400, reason: 'SALE', refOrderId: order.id, createdById: cashier.id }).execute();
+    const cashier = await db.insertInto('User').values({ id: createId(), name: 'Cashier', role: 'STAFF', pinHash: 'x' }).returningAll().executeTakeFirstOrThrow();
+    const category = await db.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const milk = await db.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
+    const item = await db.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    const order = await db.insertInto('Order').values({ id: createId(), type: 'TAKEAWAY', status: 'PAID', source: 'STAFF', total: 9 }).returningAll().executeTakeFirstOrThrow();
+    await db.insertInto('OrderItem').values({ id: createId(), orderId: order.id, menuItemId: item.id, qty: 2, unitPrice: 4.5 }).execute();
+    await db.insertInto('Payment').values({ id: createId(), orderId: order.id, amount: 9, method: 'CASH', receivedById: cashier.id }).execute();
+    await db.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -400, reason: 'SALE', refOrderId: order.id, createdById: cashier.id }).execute();
 
-    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
     const range = { from: new Date(Date.now() - 86400000).toISOString(), to: new Date(Date.now() + 86400000).toISOString() };
 
     const sales = await admin.report.dailySales(range);
@@ -48,13 +47,13 @@ describe('report router', () => {
   });
 
   it('inventoryUsage excludes restocks and manual adjustments, keeping only sales', async () => {
-    const admin2 = await kdb.insertInto('User').values({ id: createId(), name: 'Admin2', role: 'ADMIN', pinHash: 'x' }).returningAll().executeTakeFirstOrThrow();
-    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
-    await kdb.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -100, reason: 'SALE', createdById: admin2.id }).execute();
-    await kdb.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: 200, reason: 'RESTOCK', createdById: admin2.id }).execute();
-    await kdb.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -50, reason: 'MANUAL_ADJUST', createdById: admin2.id }).execute();
+    const admin2 = await db.insertInto('User').values({ id: createId(), name: 'Admin2', role: 'ADMIN', pinHash: 'x' }).returningAll().executeTakeFirstOrThrow();
+    const milk = await db.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
+    await db.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -100, reason: 'SALE', createdById: admin2.id }).execute();
+    await db.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: 200, reason: 'RESTOCK', createdById: admin2.id }).execute();
+    await db.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -50, reason: 'MANUAL_ADJUST', createdById: admin2.id }).execute();
 
-    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
     const range = { from: new Date(Date.now() - 86400000).toISOString(), to: new Date(Date.now() + 86400000).toISOString() };
 
     const usage = await admin.report.inventoryUsage(range);
@@ -63,14 +62,14 @@ describe('report router', () => {
   });
 
   it('inventoryUsage summarizes multiple sales of the same ingredient into one row', async () => {
-    const admin2 = await kdb.insertInto('User').values({ id: createId(), name: 'Admin2', role: 'ADMIN', pinHash: 'x' }).returningAll().executeTakeFirstOrThrow();
-    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
-    const beans = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Coffee Beans', unit: 'g', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
-    await kdb.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -100, reason: 'SALE', createdById: admin2.id }).execute();
-    await kdb.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -50, reason: 'SALE', createdById: admin2.id }).execute();
-    await kdb.insertInto('StockMovement').values({ id: createId(), ingredientId: beans.id, delta: -18, reason: 'SALE', createdById: admin2.id }).execute();
+    const admin2 = await db.insertInto('User').values({ id: createId(), name: 'Admin2', role: 'ADMIN', pinHash: 'x' }).returningAll().executeTakeFirstOrThrow();
+    const milk = await db.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
+    const beans = await db.insertInto('Ingredient').values({ id: createId(), name: 'Coffee Beans', unit: 'g', stockQty: 500 }).returningAll().executeTakeFirstOrThrow();
+    await db.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -100, reason: 'SALE', createdById: admin2.id }).execute();
+    await db.insertInto('StockMovement').values({ id: createId(), ingredientId: milk.id, delta: -50, reason: 'SALE', createdById: admin2.id }).execute();
+    await db.insertInto('StockMovement').values({ id: createId(), ingredientId: beans.id, delta: -18, reason: 'SALE', createdById: admin2.id }).execute();
 
-    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
     const range = { from: new Date(Date.now() - 86400000).toISOString(), to: new Date(Date.now() + 86400000).toISOString() };
 
     const usage = await admin.report.inventoryUsage(range);
@@ -80,12 +79,12 @@ describe('report router', () => {
   });
 
   it('salesDetail excludes unpaid orders', async () => {
-    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
-    const item = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
-    const order = await kdb.insertInto('Order').values({ id: createId(), type: 'TAKEAWAY', status: 'OPEN', source: 'STAFF', total: 9 }).returningAll().executeTakeFirstOrThrow();
-    await kdb.insertInto('OrderItem').values({ id: createId(), orderId: order.id, menuItemId: item.id, qty: 2, unitPrice: 4.5 }).execute();
+    const category = await db.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const item = await db.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    const order = await db.insertInto('Order').values({ id: createId(), type: 'TAKEAWAY', status: 'OPEN', source: 'STAFF', total: 9 }).returningAll().executeTakeFirstOrThrow();
+    await db.insertInto('OrderItem').values({ id: createId(), orderId: order.id, menuItemId: item.id, qty: 2, unitPrice: 4.5 }).execute();
 
-    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
+    const admin = appRouter.createCaller({ db, user: { userId: 'a1', role: 'ADMIN', name: 'A' } });
     const range = { from: new Date(Date.now() - 86400000).toISOString(), to: new Date(Date.now() + 86400000).toISOString() };
 
     const detail = await admin.report.salesDetail(range);

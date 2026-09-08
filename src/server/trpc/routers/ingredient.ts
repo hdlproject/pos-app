@@ -5,7 +5,7 @@ import { createId } from '../../id';
 import { recomputeAvailabilityForIngredient, recomputeAvailabilityForMenuItem } from '../../stock/availability';
 
 export const ingredientRouter = router({
-  list: roleProcedure('ADMIN').query(({ ctx }) => ctx.kdb!.selectFrom('Ingredient').selectAll().execute()),
+  list: roleProcedure('ADMIN').query(({ ctx }) => ctx.db.selectFrom('Ingredient').selectAll().execute()),
 
   create: roleProcedure('ADMIN')
     .input(z.object({
@@ -14,7 +14,7 @@ export const ingredientRouter = router({
       stockQty: z.number().default(0),
     }))
     .mutation(({ ctx, input }) =>
-      ctx.kdb!.insertInto('Ingredient')
+      ctx.db.insertInto('Ingredient')
         .values({ id: createId(), name: input.name, unit: input.unit, stockQty: input.stockQty })
         .returningAll()
         .executeTakeFirstOrThrow()
@@ -27,7 +27,7 @@ export const ingredientRouter = router({
       reason: z.enum(['MANUAL_ADJUST', 'RESTOCK']),
     }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.kdb!.transaction().execute(async (trx) => {
+      await ctx.db.transaction().execute(async (trx) => {
         await trx.updateTable('Ingredient')
           .set({ stockQty: sql`"stockQty" + ${input.delta}` })
           .where('id', '=', input.ingredientId)
@@ -53,7 +53,7 @@ export const ingredientRouter = router({
       qtyPerUnit: z.number().positive(),
     }))
     .mutation(({ ctx, input }) =>
-      ctx.kdb!.transaction().execute(async (trx) => {
+      ctx.db.transaction().execute(async (trx) => {
         const recipe = await trx.insertInto('Recipe')
           .values({ id: createId(), menuItemId: input.menuItemId, ingredientId: input.ingredientId, qtyPerUnit: input.qtyPerUnit })
           .onConflict((oc) =>
@@ -69,7 +69,7 @@ export const ingredientRouter = router({
   listRecipes: roleProcedure('ADMIN')
     .input(z.object({ menuItemId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const rows = await ctx.kdb!
+      const rows = await ctx.db
         .selectFrom('Recipe')
         .innerJoin('Ingredient', 'Ingredient.id', 'Recipe.ingredientId')
         .select([
@@ -97,7 +97,7 @@ export const ingredientRouter = router({
   removeRecipe: roleProcedure('ADMIN')
     .input(z.object({ recipeId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.kdb!.transaction().execute(async (trx) => {
+      await ctx.db.transaction().execute(async (trx) => {
         const recipe = await trx.deleteFrom('Recipe').where('id', '=', input.recipeId).returningAll().executeTakeFirstOrThrow();
         await recomputeAvailabilityForMenuItem(trx, recipe.menuItemId);
       });

@@ -1,18 +1,18 @@
 // database/seed.ts
 import { sql } from 'kysely';
-import { kdb } from '../src/server/db.kysely';
+import { db } from '../src/server/db';
 import { createId } from '../src/server/id';
 import { hashPin } from '../src/server/auth/pin';
 
 async function main() {
-  await kdb.insertInto('Store').values({ id: createId(), name: 'Main Store' }).execute();
+  await db.insertInto('Store').values({ id: createId(), name: 'Main Store' }).execute();
 
   const userSpecs = [
     { name: 'Admin', role: 'ADMIN' as const, pin: '1234' },
     { name: 'Staff', role: 'STAFF' as const, pin: '2345' },
     { name: 'Kitchen', role: 'KITCHEN' as const, pin: '4567' },
   ];
-  const users = await kdb.insertInto('User')
+  const users = await db.insertInto('User')
     .values(await Promise.all(userSpecs.map(async (u) => ({ id: createId(), name: u.name, role: u.role, pinHash: await hashPin(u.pin) }))))
     .returningAll()
     .execute();
@@ -28,7 +28,7 @@ async function main() {
     { name: 'Italian', sortOrder: 7 },
     { name: 'Korean', sortOrder: 8 },
   ];
-  const categories = await kdb.insertInto('Category')
+  const categories = await db.insertInto('Category')
     .values(categorySpecs.map((c) => ({ id: createId(), ...c })))
     .returningAll()
     .execute();
@@ -84,7 +84,7 @@ async function main() {
     { name: 'Glass Noodles (Dangmyeon)', unit: 'g', stockQty: 1500 },
     { name: 'Sesame Oil', unit: 'ml', stockQty: 1000 },
   ];
-  const ingredients = await kdb.insertInto('Ingredient')
+  const ingredients = await db.insertInto('Ingredient')
     .values(ingredientSpecs.map((i) => ({ id: createId(), ...i })))
     .returningAll()
     .execute();
@@ -132,7 +132,7 @@ async function main() {
     { name: 'Tteokbokki', price: 32000, categoryName: 'Korean' },
     { name: 'Japchae', price: 36000, categoryName: 'Korean' },
   ];
-  const items = await kdb.insertInto('MenuItem')
+  const items = await db.insertInto('MenuItem')
     .values(itemSpecs.map((i) => ({ id: createId(), name: i.name, price: i.price, categoryId: categoryId(i.categoryName), available: true })))
     .returningAll()
     .execute();
@@ -235,7 +235,7 @@ async function main() {
     { menuItemName: 'Japchae', ingredientName: 'Sesame Oil', qtyPerUnit: 10 },
     { menuItemName: 'Japchae', ingredientName: 'Egg', qtyPerUnit: 1 },
   ];
-  await kdb.insertInto('Recipe')
+  await db.insertInto('Recipe')
     .values(recipeSpecs.map((r) => ({ id: createId(), menuItemId: itemId(r.menuItemName), ingredientId: ingredientId(r.ingredientName), qtyPerUnit: r.qtyPerUnit })))
     .execute();
 
@@ -251,7 +251,7 @@ async function main() {
     { label: 'Patio 1', qrToken: 'seed-table-patio1-token' },
     { label: 'Patio 2', qrToken: 'seed-table-patio2-token' },
   ];
-  const tables = await kdb.insertInto('Table')
+  const tables = await db.insertInto('Table')
     .values(tableSpecs.map((t) => ({ id: createId(), ...t })))
     .returningAll()
     .execute();
@@ -293,7 +293,7 @@ async function main() {
 
   const itemPrice = new Map(items.map((i) => [i.name, Number(i.price)]));
 
-  const allRecipes = await kdb.selectFrom('Recipe').selectAll().execute();
+  const allRecipes = await db.selectFrom('Recipe').selectAll().execute();
   const recipesByItem = new Map<string, { ingredientId: string; qtyPerUnit: number }[]>();
   for (const r of allRecipes) {
     const list = recipesByItem.get(r.menuItemId) ?? [];
@@ -306,7 +306,7 @@ async function main() {
     const total = spec.lines.reduce((sum, l) => sum + itemPrice.get(l.item)! * l.qty, 0);
     const cashierId = userId(spec.cashier);
 
-    const order = await kdb.transaction().execute(async (trx) => {
+    const order = await db.transaction().execute(async (trx) => {
       const created = await trx.insertInto('Order')
         .values({
           id: createId(), type: spec.type, source: spec.source, status: 'PAID',
@@ -339,8 +339,8 @@ async function main() {
       }
     }
     for (const [ingId, qty] of deductions.entries()) {
-      await kdb.updateTable('Ingredient').set({ stockQty: sql`"stockQty" - ${qty}` }).where('id', '=', ingId).execute();
-      await kdb.insertInto('StockMovement')
+      await db.updateTable('Ingredient').set({ stockQty: sql`"stockQty" - ${qty}` }).where('id', '=', ingId).execute();
+      await db.insertInto('StockMovement')
         .values({ id: createId(), ingredientId: ingId, delta: -qty, reason: 'SALE', refOrderId: order.id, createdById: cashierId, createdAt })
         .execute();
     }

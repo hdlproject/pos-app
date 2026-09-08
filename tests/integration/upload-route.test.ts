@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { db } from '@/server/db';
+import { createId } from '@/server/id';
 import { resetDb } from '../helpers/db';
 import { hashPin } from '@/server/auth/pin';
 import { signSession } from '@/server/auth/session';
@@ -32,9 +33,10 @@ function pngFile(sizeBytes: number, name = 'photo.png'): File {
 }
 
 async function loginAs(role: 'ADMIN' | 'STAFF' | 'KITCHEN') {
-  const user = await db.user.create({
-    data: { name: role, role, pinHash: await hashPin('1234') },
-  });
+  const user = await db.insertInto('User')
+    .values({ id: createId(), name: role, role, pinHash: await hashPin('1234') })
+    .returningAll()
+    .executeTakeFirstOrThrow();
   const token = signSession({ userId: user.id, role: user.role, name: user.name });
   (await cookies()).set('session', token);
 }

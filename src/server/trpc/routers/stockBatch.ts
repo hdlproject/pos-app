@@ -7,7 +7,7 @@ import { recomputeAvailabilityForIngredient } from '../../stock/availability';
 
 export const stockBatchRouter = router({
   getPending: roleProcedure('ADMIN').query(async ({ ctx }) => {
-    const kdb = ctx.kdb!;
+    const kdb = ctx.db;
     const batch = await kdb.selectFrom('StockAdjustmentBatch').selectAll().where('status', '=', 'PENDING').executeTakeFirst();
     if (!batch) return null;
     const lines = await kdb
@@ -42,7 +42,7 @@ export const stockBatchRouter = router({
       reason: z.enum(['MANUAL_ADJUST', 'RESTOCK']),
     }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.kdb!.transaction().execute(async (trx) => {
+      await ctx.db.transaction().execute(async (trx) => {
         let batch = await trx.selectFrom('StockAdjustmentBatch').selectAll().where('status', '=', 'PENDING').executeTakeFirst();
         if (!batch) {
           batch = await trx.insertInto('StockAdjustmentBatch')
@@ -63,7 +63,7 @@ export const stockBatchRouter = router({
   removeLine: roleProcedure('ADMIN')
     .input(z.object({ lineId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.kdb!.transaction().execute(async (trx) => {
+      await ctx.db.transaction().execute(async (trx) => {
         const line = await trx
           .selectFrom('StockAdjustmentLine')
           .innerJoin('StockAdjustmentBatch', 'StockAdjustmentBatch.id', 'StockAdjustmentLine.batchId')
@@ -89,13 +89,13 @@ export const stockBatchRouter = router({
   setNote: roleProcedure('ADMIN')
     .input(z.object({ batchId: z.string(), note: z.string() }))
     .mutation(({ ctx, input }) =>
-      ctx.kdb!.updateTable('StockAdjustmentBatch').set({ note: input.note }).where('id', '=', input.batchId).returningAll().executeTakeFirstOrThrow()
+      ctx.db.updateTable('StockAdjustmentBatch').set({ note: input.note }).where('id', '=', input.batchId).returningAll().executeTakeFirstOrThrow()
     ),
 
   confirm: roleProcedure('ADMIN')
     .input(z.object({ batchId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.kdb!.transaction().execute(async (trx) => {
+      await ctx.db.transaction().execute(async (trx) => {
         const result = await trx.updateTable('StockAdjustmentBatch')
           .set({ status: 'CONFIRMED', confirmedAt: new Date(), confirmedById: ctx.user.userId })
           .where('id', '=', input.batchId)
@@ -124,7 +124,7 @@ export const stockBatchRouter = router({
   cancel: roleProcedure('ADMIN')
     .input(z.object({ batchId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.kdb!.transaction().execute(async (trx) => {
+      await ctx.db.transaction().execute(async (trx) => {
         const result = await trx.updateTable('StockAdjustmentBatch')
           .set({ status: 'PENDING' })
           .where('id', '=', input.batchId)
@@ -140,7 +140,7 @@ export const stockBatchRouter = router({
     }),
 
   listHistory: roleProcedure('ADMIN').query(async ({ ctx }) => {
-    const kdb = ctx.kdb!;
+    const kdb = ctx.db;
     const batches = await kdb
       .selectFrom('StockAdjustmentBatch')
       .innerJoin('User as CreatedBy', 'CreatedBy.id', 'StockAdjustmentBatch.createdById')

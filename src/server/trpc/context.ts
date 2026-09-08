@@ -1,17 +1,13 @@
 import { cookies } from 'next/headers';
-import type { PrismaClient, Role } from '@prisma/client';
 import type { Kysely } from 'kysely';
-import { db as nodeDb } from '../db';
+import { db } from '../db';
+import type { DB, Role } from '../db.types';
 import { verifySession } from '../auth/session';
-import { getCloudflareDb } from '../db.cloudflare';
-import { kdb } from '../db.kysely';
-import type { DB } from '../db.types';
 import { RedisCooldownStore, KvCooldownStore, type CooldownStore, type KvNamespaceLike } from '../cooldownStore';
 import { RedisCache, KvCache, noopCache, type Cache } from '../cache';
 
 export type Context = {
-  db: PrismaClient;
-  kdb?: Kysely<DB>;
+  db: Kysely<DB>;
   user: { userId: string; role: Role; name: string } | null;
   // Optional on the type (even though createContext() always sets it) so
   // the ~50 existing test call sites that do
@@ -20,13 +16,6 @@ export type Context = {
   cooldownStore?: CooldownStore;
   cache?: Cache;
 };
-
-export async function getContextDb(): Promise<PrismaClient> {
-  if (process.env.RUNTIME_TARGET === 'cloudflare') {
-    return getCloudflareDb();
-  }
-  return nodeDb;
-}
 
 export async function getContextCooldownStore(): Promise<CooldownStore> {
   if (process.env.RUNTIME_TARGET === 'cloudflare') {
@@ -54,7 +43,6 @@ export async function getContextCache(): Promise<Cache> {
 }
 
 export async function createContext(): Promise<Context> {
-  const db = await getContextDb();
   const cooldownStore = await getContextCooldownStore();
   const cache = await getContextCache();
 
@@ -63,11 +51,11 @@ export async function createContext(): Promise<Context> {
 
   let user: Context['user'] = null;
   if (payload) {
-    const dbUser = await db.user.findUnique({ where: { id: payload.userId } });
+    const dbUser = await db.selectFrom('User').selectAll().where('id', '=', payload.userId).executeTakeFirst();
     if (dbUser && dbUser.active) {
       user = { userId: dbUser.id, role: dbUser.role, name: dbUser.name };
     }
   }
 
-  return { db, kdb, user, cooldownStore, cache };
+  return { db, user, cooldownStore, cache };
 }

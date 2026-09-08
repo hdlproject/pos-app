@@ -10,7 +10,7 @@ export const paymentRouter = router({
   payCash: roleProcedure('ADMIN', 'STAFF')
     .input(z.object({ orderId: z.string(), tendered: z.number().positive() }))
     .mutation(async ({ ctx, input }) => {
-      const kdb = ctx.kdb!;
+      const kdb = ctx.db;
       const order = await kdb.selectFrom('Order').selectAll().where('id', '=', input.orderId).executeTakeFirstOrThrow();
       if (order.status === 'CANCELLED') throw new TRPCError({ code: 'BAD_REQUEST', message: 'order is cancelled' });
       const existingPayment = await kdb.selectFrom('Payment').selectAll().where('orderId', '=', order.id).executeTakeFirst();

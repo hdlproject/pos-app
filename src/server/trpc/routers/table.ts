@@ -14,14 +14,14 @@ function isUniqueViolation(err: unknown): boolean {
 
 export const tableRouter = router({
   list: roleProcedure('ADMIN', 'STAFF').query(({ ctx }) =>
-    ctx.kdb!.selectFrom('Table').selectAll().orderBy('label', 'asc').execute()
+    ctx.db.selectFrom('Table').selectAll().orderBy('label', 'asc').execute()
   ),
 
   create: roleProcedure('ADMIN')
     .input(z.object({ label: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.kdb!
+        return await ctx.db
           .insertInto('Table')
           .values({ id: createId(), label: input.label, qrToken: genToken() })
           .returningAll()
@@ -38,7 +38,7 @@ export const tableRouter = router({
     .input(z.object({ id: z.string(), label: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.kdb!
+        return await ctx.db
           .updateTable('Table')
           .set({ label: input.label })
           .where('id', '=', input.id)

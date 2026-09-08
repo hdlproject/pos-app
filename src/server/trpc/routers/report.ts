@@ -11,7 +11,7 @@ export const reportRouter = router({
     const cached = await cache.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    const payments = await ctx.kdb!
+    const payments = await ctx.db
       .selectFrom('Payment')
       .selectAll()
       .where('createdAt', '>=', new Date(input.from))
@@ -28,7 +28,7 @@ export const reportRouter = router({
   }),
 
   bestSellers: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const kdb = ctx.kdb!;
+    const kdb = ctx.db;
     // A paid charge-first order can still be status OPEN (awaiting kitchen
     // dispatch) rather than PAID -- payment existence is the real "counts
     // as a sale" signal, not the status literal.
@@ -53,7 +53,7 @@ export const reportRouter = router({
   }),
 
   salesDetail: roleProcedure('ADMIN', 'STAFF').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const kdb = ctx.kdb!;
+    const kdb = ctx.db;
     const orders = await kdb
       .selectFrom('Order')
       .leftJoin('Table', 'Table.id', 'Order.tableId')
@@ -97,7 +97,7 @@ export const reportRouter = router({
   // per ingredient (one row per unique ingredient), not one row per
   // movement -- this is a summary, not a raw ledger.
   inventoryUsage: roleProcedure('ADMIN').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const kdb = ctx.kdb!;
+    const kdb = ctx.db;
     const rows = await kdb
       .selectFrom('StockMovement')
       .where('reason', '=', 'SALE')
@@ -116,7 +116,7 @@ export const reportRouter = router({
   }),
 
   shiftSummary: roleProcedure('ADMIN').input(dateRangeInput).query(async ({ ctx, input }) => {
-    const rows = await ctx.kdb!
+    const rows = await ctx.db
       .selectFrom('Payment')
       .innerJoin('User', 'User.id', 'Payment.receivedById')
       .where('Payment.createdAt', '>=', new Date(input.from))
