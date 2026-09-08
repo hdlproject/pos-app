@@ -41,12 +41,12 @@ File storage, by contrast, is reached over a plain S3-compatible HTTPS API with 
 
 ### 1. `src/server/db.ts` — per-request-aware Postgres client
 
-Today this is a module-level singleton `PrismaClient` built from `process.env.DATABASE_URL` at import time. That pattern stays for `RUNTIME_TARGET=node`. For `RUNTIME_TARGET=cloudflare`, Prisma's own guidance for Workers is to construct a fresh `PrismaClient` per request (bindings aren't available at module-load time, and a stale binding-derived client shouldn't survive across isolate reuse boundaries). Concretely:
+**Updated (Prisma dropped, raw SQL + Kysely adopted; see final review of the drop-Prisma migration):** the ORM is gone. `src/server/db.ts` exports a shared `buildDbWithClient()` helper (a thin wrapper `buildDb()` also exists for callers that only need the Kysely instance) that constructs a `postgres.js` `sql` client plus a `Kysely<DB>` instance over it. Both runtimes go through this one helper — no duplicated client-construction logic:
 
-- `node`: unchanged — cache on `globalThis`, build once from `process.env.DATABASE_URL`.
-- `cloudflare`: build a new `PrismaPg` adapter + `PrismaClient` inside the request's context construction, reading the connection string from `getCloudflareContext().env.HYPERDRIVE.connectionString`.
+- `node`: `db.ts` caches a module-level singleton on `globalThis`, built once from `process.env.DATABASE_URL` at import time (long-lived process, no per-request isolation concerns).
+- `cloudflare`: `src/server/trpc/context.ts`'s `getContextDb()` calls `buildDbWithClient()` fresh on every request, reading the connection string from `getCloudflareContext({ async: true }).env.HYPERDRIVE.connectionString` — a Kysely client built over a postgres.js socket is tied to the I/O context of whichever request constructed it, so it cannot be cached across requests on Workers. `getContextDb()` also registers `ctx.waitUntil(sql.end({ timeout: 5 }))` so the per-request connection is actually closed instead of leaking one TCP connection per request.
 
-Both paths use the same `@prisma/adapter-pg` driver-adapter setup already in place — no ORM/schema change, no Prisma preview-feature flags to add.
+`buildDbWithClient()` also installs a custom postgres.js type parser for `timestamp`/`timestamptz` columns so naive `timestamp(3) without time zone` values round-trip as UTC on both runtimes (see the timestamp-round-trip fix in the final review of the drop-Prisma migration for why this was needed).
 
 ### 2. Cooldown store abstraction
 
@@ -70,7 +70,7 @@ Selected once at tRPC context construction (`src/server/trpc/context.ts`) based 
 
 Format: `pbkdf2$<iterations>$<base64 salt>$<base64 hash>`, salt generated via `crypto.getRandomValues`.
 
-Since there is no real user data to preserve (dev/demo PINs only), this is a straight swap: reseed `prisma/seed.ts` to hash the same demo PINs with the new function. No dual-verify/migration path.
+Since there is no real user data to preserve (dev/demo PINs only), this is a straight swap: reseed `database/seed.ts` (relocated from `prisma/seed.ts` when Prisma was dropped — see the drop-Prisma migration) to hash the same demo PINs with the new function. No dual-verify/migration path.
 
 ### 4. Build & deploy tooling
 
@@ -103,7 +103,12 @@ If `RUNTIME_TARGET=cloudflare` and a required binding (`HYPERDRIVE`, `KV`) is mi
 
 **Smoke-test ordering note (flagged explicitly by the final review):** whatever order the steps below happen in, test PIN login *first* in the manual `wrangler dev`/preview smoke test, before anything else. There's an open question about whether Cloudflare Workers' `crypto.subtle.deriveBits` enforces a maximum PBKDF2 iteration count that `ITERATIONS = 100_000` in `src/server/auth/pin.ts` might sit at or near; if login fails with an opaque crypto error on Workers, that's the likely cause. `verifyPin` already parses the iteration count from the stored hash (not hardcoded), so lowering `ITERATIONS` in `hashPin` and reseeding is a safe, contained fix if needed.
 
-1. Create the Neon Postgres project, run `prisma migrate deploy` against it.
+1. Create the Neon Postgres project, then apply the schema and seed data against it (Prisma is gone — see the drop-Prisma migration; migrations are now plain SQL files applied by `database/migrate.sh`, and seeding is a `tsx` script, not `prisma/seed.ts`):
+   ```bash
+   DATABASE_URL="<neon-connection-string>" ./database/migrate.sh
+   DATABASE_URL="<neon-connection-string>" npm run seed
+   ```
+   `migrate.sh` only shells out to `psql` (no Docker dependency), so it works identically against local Postgres or a remote connection string like Neon's — see the "Database migrations" section of `README.md` for the `psql` client prerequisite.
 2. Create the Cloudflare KV namespace and Hyperdrive config, wire both into `wrangler.jsonc`.
 3. Create the Backblaze B2 bucket (private is fine — the app never relies on public bucket URLs) and an application key; set `S3_*` secrets.
 4. `wrangler secret put` for `JWT_SECRET`, `ABLY_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`.

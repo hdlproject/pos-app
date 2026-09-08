@@ -96,13 +96,13 @@ function RecipeModal({ menuItemId, menuItemName, onClose }: { menuItemId: string
             <div key={r.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
               <span className="text-sm text-text">
                 <span className="font-bold">{r.ingredient.name}</span>
-                <span className="text-text-muted ml-2">{String(r.qtyPerUnit)} {r.ingredient.unit} / unit</span>
+                <span className="text-text-muted ml-2">{String(Number(r.qtyPerUnit))} {r.ingredient.unit} / unit</span>
               </span>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { setIngredientId(r.ingredientId); setQty(String(r.qtyPerUnit)); }}
+                  onClick={() => { setIngredientId(r.ingredientId); setQty(String(Number(r.qtyPerUnit))); }}
                 >
                   Edit
                 </Button>

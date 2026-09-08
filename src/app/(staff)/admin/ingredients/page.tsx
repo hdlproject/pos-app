@@ -515,7 +515,7 @@ export default function AdminIngredientsPage() {
                 const out = Number(ing.stockQty) <= 0;
                 return (
                   <span className={`text-sm ${out ? 'text-warning' : 'text-text'}`}>
-                    {String(ing.stockQty)} {ing.unit}
+                    {String(Number(ing.stockQty))} {ing.unit}
                   </span>
                 );
               },

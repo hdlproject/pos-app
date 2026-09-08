@@ -26,7 +26,7 @@ export default function IngredientHistoryPage() {
                 <div key={line.id} className="flex justify-between text-sm">
                   <span className="text-text">{line.ingredient.name}</span>
                   <span className={Number(line.delta) >= 0 ? 'text-success' : 'text-warning'}>
-                    {Number(line.delta) >= 0 ? '+' : ''}{String(line.delta)} {line.ingredient.unit} ({line.reason === 'RESTOCK' ? 'Restock' : 'Manual Adjust'})
+                    {Number(line.delta) >= 0 ? '+' : ''}{String(Number(line.delta))} {line.ingredient.unit} ({line.reason === 'RESTOCK' ? 'Restock' : 'Manual Adjust'})
                   </span>
                 </div>
               ))}

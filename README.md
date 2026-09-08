@@ -55,6 +55,30 @@ npm run build:cf
 CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgresql://postgres:postgres@localhost:5433/pos_dev npx wrangler dev
 ```
 
+## Database migrations
+
+Schema migrations are plain SQL files under `database/` (e.g. `database/001_initial.sql`), applied by `database/migrate.sh`. The script only shells out to `psql` — it has no Docker dependency — so it works identically against a local Postgres instance or a remote connection string (e.g. Neon):
+
+```bash
+DATABASE_URL="postgresql://..." ./database/migrate.sh
+```
+
+It tracks applied versions in a `schema_migrations` table and skips migrations already recorded there, so it's safe to re-run.
+
+**Prerequisite:** `migrate.sh` requires a local `psql` client on `PATH`. It is *not* installed by this repo's Node dependencies, so a machine that has never needed a Postgres CLI before will hit `psql: command not found`.
+
+- **macOS:**
+  ```bash
+  brew install libpq
+  export PATH="$(brew --prefix libpq)/bin:$PATH"
+  ```
+  Add the `export` line to your shell profile (`~/.zshrc`, `~/.bash_profile`, etc.) so it persists across shells — `libpq` is keg-only and not linked onto `PATH` by default.
+- **Linux CI:**
+  ```bash
+  apt-get install -y postgresql-client
+  ```
+  (or the equivalent package for the distro's package manager).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
