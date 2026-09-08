@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '@/server/db';
+import { kdb } from '@/server/db.kysely';
+import { createId } from '@/server/id';
 import { resetDb } from '../helpers/db';
 import { appRouter } from '@/server/trpc/routers/_app';
 import { hashPin } from '@/server/auth/pin';
@@ -8,57 +10,55 @@ describe('ingredient router', () => {
   beforeEach(resetDb);
 
   it('creates an ingredient, adjusts stock, and attaches a recipe', async () => {
-    await db.user.create({ data: { id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
-    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const menuItem = await db.menuItem.create({
-      data: { name: 'Latte', price: 4.5, categoryId: category.id },
-    });
+    await kdb.insertInto('User').values({ id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') }).execute();
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const menuItem = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
 
     const milk = await admin.ingredient.create({ name: 'Milk', unit: 'ml', stockQty: 5000 });
     await admin.ingredient.adjustStock({ ingredientId: milk.id, delta: -200, reason: 'MANUAL_ADJUST' });
 
-    const afterAdjust = await db.ingredient.findUniqueOrThrow({ where: { id: milk.id } });
+    const afterAdjust = await kdb.selectFrom('Ingredient').selectAll().where('id', '=', milk.id).executeTakeFirstOrThrow();
     expect(Number(afterAdjust.stockQty)).toBe(4800);
 
     await admin.ingredient.setRecipe({ menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 200 });
-    const recipes = await db.recipe.findMany({ where: { menuItemId: menuItem.id } });
+    const recipes = await kdb.selectFrom('Recipe').selectAll().where('menuItemId', '=', menuItem.id).execute();
     expect(recipes).toHaveLength(1);
   });
 
   it('auto-marks an item out of stock when adjustStock depletes its ingredient', async () => {
-    await db.user.create({ data: { id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
-    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const menuItem = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 100 } });
-    await db.recipe.create({ data: { menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 100 } });
+    await kdb.insertInto('User').values({ id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') }).execute();
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const menuItem = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 100 }).returningAll().executeTakeFirstOrThrow();
+    await kdb.insertInto('Recipe').values({ id: createId(), menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 100 }).execute();
 
     await admin.ingredient.adjustStock({ ingredientId: milk.id, delta: -100, reason: 'MANUAL_ADJUST' });
 
-    const updated = await db.menuItem.findUniqueOrThrow({ where: { id: menuItem.id } });
+    const updated = await kdb.selectFrom('MenuItem').selectAll().where('id', '=', menuItem.id).executeTakeFirstOrThrow();
     expect(updated.outOfStockReason).toBe('Out of stock: Milk');
   });
 
   it('auto-recomputes availability when setRecipe links an already-depleted ingredient', async () => {
-    await db.user.create({ data: { id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
-    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const menuItem = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0 } });
+    await kdb.insertInto('User').values({ id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') }).execute();
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const menuItem = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 0 }).returningAll().executeTakeFirstOrThrow();
 
     await admin.ingredient.setRecipe({ menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 200 });
 
-    const updated = await db.menuItem.findUniqueOrThrow({ where: { id: menuItem.id } });
+    const updated = await kdb.selectFrom('MenuItem').selectAll().where('id', '=', menuItem.id).executeTakeFirstOrThrow();
     expect(updated.outOfStockReason).toBe('Out of stock: Milk');
   });
 
   it('lists recipes for a menu item', async () => {
-    await db.user.create({ data: { id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
-    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const menuItem = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 5000 } });
+    await kdb.insertInto('User').values({ id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') }).execute();
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const menuItem = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 5000 }).returningAll().executeTakeFirstOrThrow();
     await admin.ingredient.setRecipe({ menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 200 });
 
     const recipes = await admin.ingredient.listRecipes({ menuItemId: menuItem.id });
@@ -68,37 +68,37 @@ describe('ingredient router', () => {
   });
 
   it('removing the only recipe for a depleted ingredient clears the item\'s out-of-stock reason', async () => {
-    await db.user.create({ data: { id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
-    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const menuItem = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 0 } });
-    const recipe = await db.recipe.create({ data: { menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 200 } });
+    await kdb.insertInto('User').values({ id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') }).execute();
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const menuItem = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 0 }).returningAll().executeTakeFirstOrThrow();
+    const recipe = await kdb.insertInto('Recipe').values({ id: createId(), menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 200 }).returningAll().executeTakeFirstOrThrow();
 
-    await db.menuItem.update({ where: { id: menuItem.id }, data: { outOfStockReason: 'Out of stock: Milk' } });
+    await kdb.updateTable('MenuItem').set({ outOfStockReason: 'Out of stock: Milk' }).where('id', '=', menuItem.id).execute();
 
     await admin.ingredient.removeRecipe({ recipeId: recipe.id });
 
-    const updated = await db.menuItem.findUniqueOrThrow({ where: { id: menuItem.id } });
+    const updated = await kdb.selectFrom('MenuItem').selectAll().where('id', '=', menuItem.id).executeTakeFirstOrThrow();
     expect(updated.outOfStockReason).toBeNull();
-    const remaining = await db.recipe.findMany({ where: { menuItemId: menuItem.id } });
+    const remaining = await kdb.selectFrom('Recipe').selectAll().where('menuItemId', '=', menuItem.id).execute();
     expect(remaining).toHaveLength(0);
   });
 
   it('removing one of several recipes keeps the item out of stock if another linked ingredient is still depleted', async () => {
-    await db.user.create({ data: { id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') } });
-    const admin = appRouter.createCaller({ db, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
-    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const menuItem = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 5000 } });
-    const beans = await db.ingredient.create({ data: { name: 'Coffee Beans', unit: 'g', stockQty: 0 } });
-    const milkRecipe = await db.recipe.create({ data: { menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 200 } });
-    await db.recipe.create({ data: { menuItemId: menuItem.id, ingredientId: beans.id, qtyPerUnit: 20 } });
-    await db.menuItem.update({ where: { id: menuItem.id }, data: { outOfStockReason: 'Out of stock: Coffee Beans' } });
+    await kdb.insertInto('User').values({ id: 'u1', name: 'Admin', role: 'ADMIN', pinHash: await hashPin('1234') }).execute();
+    const admin = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'ADMIN', name: 'A' } });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const menuItem = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 5000 }).returningAll().executeTakeFirstOrThrow();
+    const beans = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Coffee Beans', unit: 'g', stockQty: 0 }).returningAll().executeTakeFirstOrThrow();
+    const milkRecipe = await kdb.insertInto('Recipe').values({ id: createId(), menuItemId: menuItem.id, ingredientId: milk.id, qtyPerUnit: 200 }).returningAll().executeTakeFirstOrThrow();
+    await kdb.insertInto('Recipe').values({ id: createId(), menuItemId: menuItem.id, ingredientId: beans.id, qtyPerUnit: 20 }).execute();
+    await kdb.updateTable('MenuItem').set({ outOfStockReason: 'Out of stock: Coffee Beans' }).where('id', '=', menuItem.id).execute();
 
     await admin.ingredient.removeRecipe({ recipeId: milkRecipe.id });
 
-    const updated = await db.menuItem.findUniqueOrThrow({ where: { id: menuItem.id } });
+    const updated = await kdb.selectFrom('MenuItem').selectAll().where('id', '=', menuItem.id).executeTakeFirstOrThrow();
     expect(updated.outOfStockReason).toBe('Out of stock: Coffee Beans');
   });
 });
