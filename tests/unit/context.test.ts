@@ -39,27 +39,29 @@ describe('RUNTIME_TARGET=cloudflare', () => {
 
   it('getContextDb() builds a fresh Kysely client from the Hyperdrive connection string when the binding is present', async () => {
     vi.stubEnv('RUNTIME_TARGET', 'cloudflare');
-    const waitUntil = vi.fn();
+    // NOTE: deliberately no `ctx` on the mocked resolved value. An earlier
+    // version of getContextDb() called `ctx.waitUntil(sql.end(...))` here,
+    // which turned out to break every real query on this path (`.end()`
+    // starts rejecting new queries almost immediately, well before the
+    // request that just built the client gets to use it -- see the
+    // final-review notes on this function). If that pattern is
+    // reintroduced, this mock has no `ctx` and the resulting
+    // "Cannot read properties of undefined (reading 'waitUntil')" failure
+    // here is the tripwire.
     mockedGetCloudflareContext.mockResolvedValue({
       env: { HYPERDRIVE: { connectionString: 'postgresql://fake-host/fake-db' } },
-      ctx: { waitUntil },
     } as never);
 
     const db = await getContextDb();
     // postgres.js connects lazily -- this resolves without ever touching a
     // real socket, so it's safe to assert shape here rather than behavior.
     expect(db).toHaveProperty('selectFrom');
-    // Connection cleanup must be registered via ctx.waitUntil rather than
-    // leaking the per-request postgres.js connection (see final review of
-    // the drop-Prisma migration).
-    expect(waitUntil).toHaveBeenCalledTimes(1);
   });
 
   it('getContextDb() builds a DIFFERENT client instance on each call (no globalThis caching on the Cloudflare path)', async () => {
     vi.stubEnv('RUNTIME_TARGET', 'cloudflare');
     mockedGetCloudflareContext.mockResolvedValue({
       env: { HYPERDRIVE: { connectionString: 'postgresql://fake-host/fake-db' } },
-      ctx: { waitUntil: vi.fn() },
     } as never);
 
     const first = await getContextDb();

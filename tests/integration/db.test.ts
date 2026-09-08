@@ -14,7 +14,7 @@ describe('db client', () => {
 
   // Regression test for the timestamp round-trip bug: all 7 timestamp
   // columns in the schema are `timestamp(3) without time zone`. Without the
-  // custom type parser in buildDb()/buildDbWithClient() (see src/server/db.ts),
+  // custom type parser in buildDb() (see src/server/db.ts),
   // postgres.js's default OID-1114 parser reads the naive datetime string
   // back as LOCAL time even though it was written as a UTC instant via
   // `toISOString()` -- so on any non-UTC host the read-back value is off by

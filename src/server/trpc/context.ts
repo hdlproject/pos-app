@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import type { Kysely } from 'kysely';
-import { db as nodeDb, buildDbWithClient } from '../db';
+import { db as nodeDb, buildDb } from '../db';
 import type { DB, Role } from '../db.types';
 import { verifySession } from '../auth/session';
 import { RedisCooldownStore, KvCooldownStore, type CooldownStore, type KvNamespaceLike } from '../cooldownStore';
@@ -37,20 +37,32 @@ export async function getContextDb(): Promise<Kysely<DB>> {
     // cannot guarantee. The async form properly awaits the request-scoped
     // context instead of racing it.
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
-    const { env, ctx } = await getCloudflareContext({ async: true });
+    const { env } = await getCloudflareContext({ async: true });
     const hyperdrive = (env as Record<string, unknown>).HYPERDRIVE as { connectionString: string } | undefined;
     if (!hyperdrive) {
       throw new Error('RUNTIME_TARGET=cloudflare but the HYPERDRIVE binding is missing');
     }
-    const { db, sql } = buildDbWithClient(hyperdrive.connectionString);
-    // Per-request client (see buildDb's module-scope comment in ../db for
-    // why Cloudflare can't share a singleton) -- without this, the
-    // underlying postgres.js TCP connection is never closed once the
-    // request finishes, leaking one connection per request. ctx.waitUntil
-    // lets the close happen after the response is returned instead of
-    // blocking on it.
-    ctx.waitUntil(sql.end({ timeout: 5 }));
-    return db;
+    // NOTE (connection cleanup): an earlier version of this code called
+    // `ctx.waitUntil(sql.end({ timeout: 5 }))` here to close the
+    // per-request postgres.js connection instead of leaking it. That was
+    // ITSELF a bug, caught by a scoped re-review: `sql.end()` flips
+    // postgres.js's internal `ending` flag within about one microtask of
+    // being called, and every query issued after that -- including the
+    // queries THIS SAME request is about to run via the returned `db` --
+    // gets rejected with CONNECTION_ENDED. `ctx.waitUntil` only keeps the
+    // isolate alive until the promise settles; it does NOT delay when
+    // `.end()` starts executing, so calling it eagerly here breaks every
+    // real query on the Cloudflare path. Verified against real Postgres
+    // with multiple gap timings (immediate / microtask / macrotask / 5ms) --
+    // all failed identically.
+    //
+    // Instead, rely on `idle_timeout: 20` (set in buildDb() in ../db) --
+    // postgres.js's own idle-connection reaper closes a connection once
+    // it's been genuinely idle for 20s, which only starts counting after
+    // this request's queries actually finish, not synchronously at
+    // construction time. This bounds connection accumulation without
+    // racing in-flight queries.
+    return buildDb(hyperdrive.connectionString);
   }
   return nodeDb;
 }
