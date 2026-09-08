@@ -29,17 +29,6 @@ function cooldownKey(tableToken: string): string {
   return `ai-suggest-cooldown:${tableToken}`;
 }
 
-// Explicit flat row shape -- same TS2589 workaround as every other router
-// here (see menu.ts's MenuItemWithCategory) for a Prisma query with a
-// nested include.
-type SuggestionMenuRow = {
-  id: string;
-  name: string;
-  price: unknown;
-  image: string | null;
-  category: { name: string };
-};
-
 type SuggestionCard = {
   menuItemId: string;
   name: string;
@@ -55,8 +44,9 @@ export const aiSuggestionRouter = router({
     if (!cooldownStore) {
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'cooldown store not configured' });
     }
+    const kdb = ctx.kdb!;
 
-    const table = await ctx.db.table.findUnique({ where: { qrToken: input.tableToken } });
+    const table = await kdb.selectFrom('Table').selectAll().where('qrToken', '=', input.tableToken).executeTakeFirst();
     if (!table) throw new TRPCError({ code: 'NOT_FOUND', message: 'invalid table token' });
 
     const allowed = await cooldownStore.checkAndSet(cooldownKey(input.tableToken), COOLDOWN_SECONDS);
@@ -67,18 +57,21 @@ export const aiSuggestionRouter = router({
       });
     }
 
-    const items = (await ctx.db.menuItem.findMany({
-      where: { available: true, outOfStockReason: null },
-      include: { category: true },
-    })) as unknown as SuggestionMenuRow[];
+    const rows = await kdb
+      .selectFrom('MenuItem')
+      .innerJoin('Category', 'Category.id', 'MenuItem.categoryId')
+      .select(['MenuItem.id as id', 'MenuItem.name as name', 'MenuItem.price as price', 'MenuItem.image as image', 'Category.name as categoryName'])
+      .where('MenuItem.available', '=', true)
+      .where('MenuItem.outOfStockReason', 'is', null)
+      .execute();
 
-    if (items.length === 0) {
+    if (rows.length === 0) {
       await cooldownStore.clear(cooldownKey(input.tableToken));
       return { results: input.requests.map((r) => ({ type: r.type, suggestions: [] as SuggestionCard[] })) };
     }
 
-    const menuForAi = items.map((i) => ({ id: i.id, name: i.name, category: i.category.name, price: Number(i.price) }));
-    const byId = new Map(items.map((i) => [i.id, i]));
+    const menuForAi = rows.map((i) => ({ id: i.id, name: i.name, category: i.categoryName, price: Number(i.price) }));
+    const byId = new Map(rows.map((i) => [i.id, i]));
 
     try {
       // Every sub-request goes out at once (Promise.all), not one after
@@ -101,9 +94,9 @@ export const aiSuggestionRouter = router({
               return {
                 menuItemId: item.id,
                 name: item.name,
-                price: String(item.price),
+                price: String(Number(item.price)),
                 image: item.image,
-                categoryName: item.category.name,
+                categoryName: item.categoryName,
                 reason: p.reason,
               };
             })
