@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('@/server/ably', () => ({ publishOrderEvent: vi.fn() }));
 
 import { db } from '@/server/db';
+import { kdb } from '@/server/db.kysely';
+import { createId } from '@/server/id';
 import { resetDb } from '../helpers/db';
 import { appRouter } from '@/server/trpc/routers/_app';
 import { hashPin } from '@/server/auth/pin';
@@ -11,45 +13,43 @@ describe('payment router', () => {
   beforeEach(resetDb);
 
   async function seedOrder() {
-    const category = await db.category.create({ data: { name: 'Coffee', sortOrder: 1 } });
-    const milk = await db.ingredient.create({ data: { name: 'Milk', unit: 'ml', stockQty: 1000 } });
-    const item = await db.menuItem.create({ data: { name: 'Latte', price: 4.5, categoryId: category.id } });
-    await db.recipe.create({ data: { menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 } });
-    // Payment.receivedById and StockMovement.createdById are real FKs to User
-    // (same reasoning as order-router.test.ts and ingredient-router.test.ts), so the
-    // ctx.user id used by these tests must correspond to an actual row.
-    await db.user.create({ data: { id: 'u1', name: 'C', role: 'STAFF', pinHash: await hashPin('1234') } });
-    return db.order.create({
-      data: {
-        type: 'TAKEAWAY', status: 'READY', source: 'STAFF', total: 9,
-        items: { create: [{ menuItemId: item.id, qty: 2, unitPrice: 4.5 }] },
-      },
-    });
+    const category = await kdb.insertInto('Category').values({ id: createId(), name: 'Coffee', sortOrder: 1 }).returningAll().executeTakeFirstOrThrow();
+    const milk = await kdb.insertInto('Ingredient').values({ id: createId(), name: 'Milk', unit: 'ml', stockQty: 1000 }).returningAll().executeTakeFirstOrThrow();
+    const item = await kdb.insertInto('MenuItem').values({ id: createId(), name: 'Latte', price: 4.5, categoryId: category.id }).returningAll().executeTakeFirstOrThrow();
+    await kdb.insertInto('Recipe').values({ id: createId(), menuItemId: item.id, ingredientId: milk.id, qtyPerUnit: 200 }).execute();
+    // Payment.receivedById and StockMovement.createdById are real FKs to User,
+    // so the ctx.user id used by these tests must correspond to an actual row.
+    await kdb.insertInto('User').values({ id: 'u1', name: 'C', role: 'STAFF', pinHash: await hashPin('1234') }).execute();
+    const order = await kdb.insertInto('Order')
+      .values({ id: createId(), type: 'TAKEAWAY', status: 'READY', source: 'STAFF', total: 9 })
+      .returningAll().executeTakeFirstOrThrow();
+    await kdb.insertInto('OrderItem').values({ id: createId(), orderId: order.id, menuItemId: item.id, qty: 2, unitPrice: 4.5 }).execute();
+    return order;
   }
 
   it('pays cash, records change, marks order paid, and deducts stock', async () => {
     const order = await seedOrder();
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
+    const cashier = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
 
     const result = await cashier.payment.payCash({ orderId: order.id, tendered: 10 });
     expect(result.change).toBeCloseTo(1);
 
-    const paid = await db.order.findUniqueOrThrow({ where: { id: order.id } });
+    const paid = await kdb.selectFrom('Order').selectAll().where('id', '=', order.id).executeTakeFirstOrThrow();
     expect(paid.status).toBe('PAID');
 
-    const movements = await db.stockMovement.findMany({ where: { refOrderId: order.id } });
+    const movements = await kdb.selectFrom('StockMovement').selectAll().where('refOrderId', '=', order.id).execute();
     expect(movements).toHaveLength(1);
   });
 
   it('rejects insufficient tendered amount', async () => {
     const order = await seedOrder();
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
+    const cashier = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
     await expect(cashier.payment.payCash({ orderId: order.id, tendered: 5 })).rejects.toThrow();
   });
 
   it('rejects paying an already-paid order', async () => {
     const order = await seedOrder();
-    const cashier = appRouter.createCaller({ db, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
+    const cashier = appRouter.createCaller({ db, kdb, user: { userId: 'u1', role: 'STAFF', name: 'C' } });
     await cashier.payment.payCash({ orderId: order.id, tendered: 10 });
     await expect(cashier.payment.payCash({ orderId: order.id, tendered: 10 })).rejects.toThrow();
   });
